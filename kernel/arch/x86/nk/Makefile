@@ -1,0 +1,1 @@
+obj-y += nk_mmu.o nk_pks.o
