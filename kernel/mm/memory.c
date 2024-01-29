@@ -429,6 +429,7 @@ void pmd_install(struct mm_struct *mm, pmd_t *pmd, pgtable_t *pte)
 		 * smp_rmb() barriers in page table walking code.
 		 */
 		smp_wmb(); /* Could be smp_wmb__xxx(before|after)_spin_lock */
+		sva_declare_l1_page(__pa(page_address(*pte)));
 		pmd_populate(mm, pmd, *pte);
 		*pte = NULL;
 	}
@@ -456,6 +457,7 @@ int __pte_alloc_kernel(pmd_t *pmd)
 	spin_lock(&init_mm.page_table_lock);
 	if (likely(pmd_none(*pmd))) {	/* Has another populated it ? */
 		smp_wmb(); /* See comment in pmd_install() */
+		sva_declare_l1_page(__pa(new));
 		pmd_populate_kernel(&init_mm, pmd, new);
 		new = NULL;
 	}
@@ -5495,10 +5497,7 @@ int __p4d_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
 		p4d_free(mm, new);
 	} else {
 		smp_wmb(); /* See comment in pmd_install() */
-		if(mmu_bool ==true) {
-			printk("[DEBUG] %lx", __pa(new));
-			sva_declare_l4_page(__pa(new));
-		}
+		sva_declare_l4_page(__pa(new));
 		pgd_populate(mm, pgd, new);
 	}
 	spin_unlock(&mm->page_table_lock);
@@ -5521,10 +5520,7 @@ int __pud_alloc(struct mm_struct *mm, p4d_t *p4d, unsigned long address)
 	if (!p4d_present(*p4d)) {
 		mm_inc_nr_puds(mm);
 		smp_wmb(); /* See comment in pmd_install() */
-		if(mmu_bool == true) {
-			printk("[DEBUG] %lx", __pa(new));
-			sva_declare_l3_page(__pa(new));
-		}
+		sva_declare_l3_page(__pa(new));
 		p4d_populate(mm, p4d, new);
 	} else	/* Another has populated it */
 		pud_free(mm, new);
@@ -5549,10 +5545,7 @@ int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
 	if (!pud_present(*pud)) {
 		mm_inc_nr_pmds(mm);
 		smp_wmb(); /* See comment in pmd_install() */
-		if(mmu_bool == true) {
-			printk("[DEBUG] %lx", __pa(new));
-			sva_declare_l2_page(__pa(new));
-		}
+		sva_declare_l2_page(__pa(new));
 		pud_populate(mm, pud, new);
 	} else {	/* Another has populated it */
 		pmd_free(mm, new);

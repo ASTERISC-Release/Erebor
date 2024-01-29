@@ -722,8 +722,7 @@ initDeclaredPage (unsigned long frameAddr) {
    * existing page translations which have not been vetted exist within the
    * page.
    */
-  // return;
-  // memset (vaddr, 0, X86_PAGE_SIZE); // Rahul: Why is this causing a problem ? Is the frame not mapped in ?
+  memset (vaddr, 0, X86_PAGE_SIZE);
 
   /*
    * Get a pointer to the page table entry that maps the physical page into the
@@ -2280,7 +2279,7 @@ sva_mmu_init, pgd_t * kpgdMapping,
 #endif
 
   /* Walk the kernel page tables and initialize the sva page_desc */
-  declare_ptp_and_walk_pt_entries(kpgdeVA, nkpgde, PG_L5);
+  // declare_ptp_and_walk_pt_entries(kpgdeVA, nkpgde, PG_L5);
 
   /* Identify kernel code pages and intialize the descriptors */
   printk("[SVA_MMU_INIT]: Declaring Kernel code pages - [%lx, %lx]", btext, etext);
@@ -2407,9 +2406,8 @@ sva_declare_l2_page, uintptr_t frameAddr) {
       break;
 
     default:
-      printk("[sva_l2_declare_page: %lx [2]]", frameAddr);
-      // printk ("SVA: %lx %lx, type: %d\n", page_desc, page_desc + numPageDescEntries, pgDesc->type);
-      // panic ("SVA: Declaring L2 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x count=%x\n", frameAddr, pgDesc, pgDesc->type, pgDesc->count);
+      printk ("SVA: %lx %lx, type: %d\n", page_desc, page_desc + numPageDescEntries, pgDesc->type);
+      panic ("SVA: Declaring L2 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x count=%x\n", frameAddr, pgDesc, pgDesc->type, pgDesc->count);
       break;
   }
 
@@ -2468,9 +2466,8 @@ sva_declare_l3_page, uintptr_t frameAddr) {
       break;
 
     default:
-      printk("[sva_l3_declare_page: %lx [3]]", frameAddr);
-      // printk ("SVA: %lx %lx, type: %d\n", page_desc, page_desc + numPageDescEntries, pgDesc->type);
-      // panic ("SVA: Declaring L3 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x count=%x\n", frameAddr, pgDesc, pgDesc->type, pgDesc->count);
+      printk ("SVA: %lx %lx, type: %d\n", page_desc, page_desc + numPageDescEntries, pgDesc->type);
+      panic ("SVA: Declaring L3 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x count=%x\n", frameAddr, pgDesc, pgDesc->type, pgDesc->count);
       break;
   }
 
@@ -2536,9 +2533,8 @@ sva_declare_l4_page, uintptr_t frameAddr) {
       break;
 
     default:
-      printk("[sva_l4_declare_page: %lx [4]]", frameAddr);
-      // printk ("SVA: %lx %lx\n", page_desc, page_desc + numPageDescEntries);
-      // panic ("SVA: Declaring L4 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x\n", frameAddr, pgDesc, pgDesc->type);
+      printk ("SVA: %lx %lx\n", page_desc, page_desc + numPageDescEntries);
+      panic ("SVA: Declaring L4 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x\n", frameAddr, pgDesc, pgDesc->type);
       break;
   }
 
@@ -2677,73 +2673,75 @@ sva_declare_l5_page, uintptr_t frameAddr) {
 //   return pge;
 // }
 
-// /*
-//  * Function: sva_remove_page()
-//  *
-//  * Description:
-//  *  This function informs the SVA VM that the system software no longer wants
-//  *  to use the specified page as a page table page.
-//  *
-//  * Inputs:
-//  *  paddr - The physical address of the page table page.
-//  */
-// SECURE_WRAPPER(void,
-// sva_remove_page, uintptr_t paddr) {
-//   MMULock_Acquire();
+/*
+ * Function: sva_remove_page()
+ *
+ * Description:
+ *  This function informs the SVA VM that the system software no longer wants
+ *  to use the specified page as a page table page.
+ *
+ * Inputs:
+ *  paddr - The physical address of the page table page.
+ */
+SECURE_WRAPPER(void,
+sva_remove_page, uintptr_t paddr) {
+// void sva_remove_page(uintptr_t paddr) {
+  MMULock_Acquire();
 
-//   /* Get the entry controlling the permissions for this pte PTP */
-//   page_entry_t *pte = get_pgeVaddr(getVirtual (paddr));
+  /* Get the entry controlling the permissions for this pte PTP */
+  page_entry_t *pte = get_pgeVaddr(getVirtual (paddr));
 
-//   /* Get the page_desc for the l1 page frame */
-//   page_desc_t *pgDesc = getPageDescPtr(paddr);
+  /* Get the page_desc for the l1 page frame */
+  page_desc_t *pgDesc = getPageDescPtr(paddr);
 
-//   /*
-//    * Make sure that this is a page table page.  We don't want the system
-//    * software to trick us.
-//    */
-//   switch (pgDesc->type)  {
-//     case PG_L1:
-//     case PG_L2:
-//     case PG_L3:
-//     case PG_L4:
-//       break;
+  /*
+   * Make sure that this is a page table page.  We don't want the system
+   * software to trick us.
+   */
+  switch (pgDesc->type)  {
+    case PG_L1:
+    case PG_L2:
+    case PG_L3:
+    case PG_L4:
+    case PG_L5:
+      break;
 
-//     default:
-//       /* Restore interrupts */
-//       panic ("SVA: undeclare bad page type: %lx %lx\n", paddr, pgDesc->type);
-//       MMULock_Release();
-//       return;
-//       break;
-//   }
+    default:
+      /* Restore interrupts */
+      // panic ("SVA: undeclare bad page type: %lx %lx\n", paddr, pgDesc->type);
+      MMULock_Release();
+      return;
+      break;
+  }
 
-//   /*
-//    * Check that there are no references to this page (i.e., there is no page
-//    * table entry that refers to this physical page frame).  If there is a
-//    * mapping, then someone is still using it as a page table page.  In that
-//    * case, ignore the request.
-//    *
-//    * Note that we check for a reference count of 1 because the page is always
-//    * mapped into the direct map.
-//    */
-//   if ((pgDesc->count == 1) || (pgDesc->count == 0)) {
-//     /*
-//      * Mark the page frame as an unused page.
-//      */
-//     pgDesc->type = PG_UNUSED;
+  /*
+   * Check that there are no references to this page (i.e., there is no page
+   * table entry that refers to this physical page frame).  If there is a
+   * mapping, then someone is still using it as a page table page.  In that
+   * case, ignore the request.
+   *
+   * Note that we check for a reference count of 1 because the page is always
+   * mapped into the direct map.
+   */
+  if ((pgDesc->count == 1) || (pgDesc->count == 0)) {
+    /*
+     * Mark the page frame as an unused page.
+     */
+    pgDesc->type = PG_UNUSED;
 
-//     /*
-//      * Make the page writeable again.  Be sure to flush the TLBs to make the
-//      * change take effect right away.
-//      */
-//     page_entry_store ((page_entry_t *) pte, setMappingReadWrite (*pte));
-//     sva_mm_flush_tlb (getVirtual (paddr));
-//   } else {
-//     printf ("SVA: remove_page: type=%x count %x\n", pgDesc->type, pgDesc->count);
-//   }
+    /*
+     * Make the page writeable again.  Be sure to flush the TLBs to make the
+     * change take effect right away.
+     */
+    page_entry_store ((page_entry_t *) pte, setMappingReadWrite (*pte));
+    sva_mm_flush_tlb (getVirtual (paddr));
+  } else {
+    printk ("SVA: remove_page: type=%x count %x\n", pgDesc->type, pgDesc->count);
+  }
  
-//   MMULock_Release();
-//   return;
-// }
+  MMULock_Release();
+  return;
+}
 
 /* 
  * Function: sva_remove_mapping()

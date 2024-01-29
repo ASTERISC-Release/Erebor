@@ -18,7 +18,7 @@ stty intr ^]
 # launch the QEMU VM
 # the 'max' version of the emulation provides all 
 # CPU features (including our needed PKS)
-qemu-system-x86_64 -cpu max -smp 2,maxcpus=64\
+qemu-system-x86_64 -cpu max -smp 1,maxcpus=1\
      -m 4096M -no-reboot -netdev user,id=vmnic,hostfwd=tcp::8000-:22\
     -device e1000,netdev=vmnic,romfile= -drive file=$VMDISK,if=none,id=disk0,format=qcow2\
     -device virtio-scsi-pci,id=scsi0,disable-legacy=on,iommu_platform=true \

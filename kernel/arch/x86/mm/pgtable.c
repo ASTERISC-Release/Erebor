@@ -7,6 +7,9 @@
 #include <asm/fixmap.h>
 #include <asm/mtrr.h>
 
+#include <sva/mmu_intrinsics.h>
+#include <sva/mmu.h>
+
 #ifdef CONFIG_DYNAMIC_PHYSICAL_MASK
 phys_addr_t physical_mask __ro_after_init = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
 EXPORT_SYMBOL(physical_mask);
@@ -417,8 +420,10 @@ static inline void _pgd_free(pgd_t *pgd)
 
 static inline pgd_t *_pgd_alloc(void)
 {
-	return (pgd_t *)__get_free_pages(GFP_PGTABLE_USER,
+	pgd_t *new = (pgd_t *)__get_free_pages(GFP_PGTABLE_USER,
 					 PGD_ALLOCATION_ORDER);
+	sva_declare_l5_page(__pa(new));
+	return new;	
 }
 
 static inline void _pgd_free(pgd_t *pgd)

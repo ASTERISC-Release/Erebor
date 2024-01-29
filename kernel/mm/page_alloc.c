@@ -57,6 +57,7 @@
 #include "shuffle.h"
 #include "page_reporting.h"
 
+#include <sva/mmu_intrinsics.h>
 #include <sva/mmu.h>
 
 /* Free Page Internal flags: for internal, non-pcp variants of free_pages(). */
@@ -772,6 +773,8 @@ static inline void __free_one_page(struct page *page,
 	unsigned long combined_pfn;
 	struct page *buddy;
 	bool to_tail;
+
+	sva_remove_page(__pa(page_address(page)));
 
 	VM_BUG_ON(!zone_is_initialized(zone));
 	VM_BUG_ON_PAGE(page->flags & PAGE_FLAGS_CHECK_AT_PREP, page);
@@ -2373,6 +2376,8 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
 	int high;
 	int pindex;
 	bool free_high;
+
+	sva_remove_page(__pa(page_address(page)));		
 
 	__count_vm_events(PGFREE, 1 << order);
 	pindex = order_to_pindex(migratetype, order);
@@ -4513,11 +4518,6 @@ void __free_pages(struct page *page, unsigned int order)
 {
 	/* get PageHead before we drop reference */
 	int head = PageHead(page);
-
-	if(mmu_bool == true) {
-		pmd_t* pmdp = ptdesc_address(page_ptdesc(page));
-		printk("[Free] %lx, %d", __pa(pmdp), order);
-	}
 
 	if (put_page_testzero(page))
 		free_the_page(page, order);
