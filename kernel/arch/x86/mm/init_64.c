@@ -786,10 +786,6 @@ kernel_physical_mapping_init(unsigned long paddr_start,
 			     unsigned long paddr_end,
 			     unsigned long page_size_mask, pgprot_t prot)
 {
-	extern char _stext[]; 
-	extern char _etext[]; 
-	sva_mmu_init(0, 0, 0, (uintptr_t)_stext, (uintptr_t)_etext);
-	printk("Sva mmu init");
 	return __kernel_physical_mapping_init(paddr_start, paddr_end,
 					      page_size_mask, prot, true);
 }

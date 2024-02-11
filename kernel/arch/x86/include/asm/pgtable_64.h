@@ -16,6 +16,11 @@
 #include <linux/threads.h>
 #include <asm/fixmap.h>
 
+#ifndef __EARLY_BOOT
+	#include <sva/mmu_intrinsics.h>
+	#include <sva/mmu.h>
+#endif
+
 extern p4d_t level4_kernel_pgt[512];
 extern p4d_t level4_ident_pgt[512];
 extern pud_t level3_kernel_pgt[512];
@@ -64,13 +69,22 @@ void set_pte_vaddr_pud(pud_t *pud_page, unsigned long vaddr, pte_t new_pte);
 
 static inline void native_set_pte(pte_t *ptep, pte_t pte)
 {
-	WRITE_ONCE(*ptep, pte);
+	#ifndef __EARLY_BOOT
+		sva_update_l1_mapping(ptep, (page_entry_t)pte.pte);
+	#else
+		WRITE_ONCE(*ptep, pte);
+	#endif
 }
 
 static inline void native_pte_clear(struct mm_struct *mm, unsigned long addr,
 				    pte_t *ptep)
 {
-	native_set_pte(ptep, native_make_pte(0));
+	#ifndef __EARLY_BOOT
+		sva_remove_mapping((page_entry_t*)&ptep->pte);
+	#else
+		WRITE_ONCE(*ptep, native_make_pte(0));
+	#endif
+	// native_set_pte(ptep, native_make_pte(0));
 }
 
 static inline void native_set_pte_atomic(pte_t *ptep, pte_t pte)
@@ -80,12 +94,21 @@ static inline void native_set_pte_atomic(pte_t *ptep, pte_t pte)
 
 static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
 {
-	WRITE_ONCE(*pmdp, pmd);
+	#ifndef __EARLY_BOOT
+		sva_update_l2_mapping(pmdp, (page_entry_t)pmd.pmd);
+	#else
+		WRITE_ONCE(*pmdp, pmd);
+	#endif
 }
 
 static inline void native_pmd_clear(pmd_t *pmd)
 {
-	native_set_pmd(pmd, native_make_pmd(0));
+	#ifndef __EARLY_BOOT
+		sva_remove_mapping((page_entry_t*)&pmd->pmd);
+	#else
+		WRITE_ONCE(*pmd, native_make_pmd(0));
+	#endif
+	// native_set_pmd(pmd, native_make_pmd(0));
 }
 
 static inline pte_t native_ptep_get_and_clear(pte_t *xp)
@@ -116,12 +139,21 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
 
 static inline void native_set_pud(pud_t *pudp, pud_t pud)
 {
-	WRITE_ONCE(*pudp, pud);
+	#ifndef __EARLY_BOOT
+		sva_update_l3_mapping(pudp, (page_entry_t)pud.pud);
+	#else
+		WRITE_ONCE(*pudp, pud);
+	#endif
 }
 
 static inline void native_pud_clear(pud_t *pud)
 {
-	native_set_pud(pud, native_make_pud(0));
+	#ifndef __EARLY_BOOT
+		sva_remove_mapping((page_entry_t*)&pud->pud);
+	#else
+		WRITE_ONCE(*pud, native_make_pud(0));
+	#endif
+	// native_set_pud(pud, native_make_pud(0));
 }
 
 static inline pud_t native_pudp_get_and_clear(pud_t *xp)
@@ -144,10 +176,18 @@ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
 	pgd_t pgd;
 
 	if (pgtable_l5_enabled() || !IS_ENABLED(CONFIG_PAGE_TABLE_ISOLATION)) {
-		WRITE_ONCE(*p4dp, p4d);
+		#ifndef __EARLY_BOOT
+			sva_update_l4_mapping(p4dp, (page_entry_t)p4d.p4d);
+		#else
+			WRITE_ONCE(*p4dp, p4d);
+		#endif
 		return;
 	}
 
+	#ifndef __EARLY_BOOT
+		printk("[P4D DEBUG]");
+	#endif
+	// Rahul: Skipping for now, since 5-level pagin is enabled
 	pgd = native_make_pgd(native_p4d_val(p4d));
 	pgd = pti_set_user_pgtbl((pgd_t *)p4dp, pgd);
 	WRITE_ONCE(*p4dp, native_make_p4d(native_pgd_val(pgd)));
@@ -155,17 +195,31 @@ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
 
 static inline void native_p4d_clear(p4d_t *p4d)
 {
-	native_set_p4d(p4d, native_make_p4d(0));
+	#ifndef __EARLY_BOOT
+		sva_remove_mapping((page_entry_t*)&p4d->p4d);
+	#else
+		WRITE_ONCE(*p4d, native_make_p4d(0));
+	#endif
+	// native_set_p4d(p4d, native_make_p4d(0));
 }
 
 static inline void native_set_pgd(pgd_t *pgdp, pgd_t pgd)
 {
-	WRITE_ONCE(*pgdp, pti_set_user_pgtbl(pgdp, pgd));
+	#ifndef __EARLY_BOOT
+		sva_update_l5_mapping(pgdp, (page_entry_t)pgd.pgd);
+	#else
+		WRITE_ONCE(*pgdp, pti_set_user_pgtbl(pgdp, pgd));
+	#endif
 }
 
 static inline void native_pgd_clear(pgd_t *pgd)
 {
-	native_set_pgd(pgd, native_make_pgd(0));
+	#ifndef __EARLY_BOOT
+		sva_remove_mapping((page_entry_t*)&pgd->pgd);
+	#else
+		WRITE_ONCE(*pgd, native_make_pgd(0));
+	#endif
+	// native_set_pgd(pgd, native_make_pgd(0));
 }
 
 /*

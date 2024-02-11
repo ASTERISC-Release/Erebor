@@ -866,11 +866,27 @@ static void __init print_unknown_bootoptions(void)
 	memblock_free(unknown_options, len);
 }
 
+unsigned long read_cr3(void) {
+    unsigned long cr3;
+    asm volatile ("mov %%cr3, %0" : "=r" (cr3));
+    return cr3;
+}
+
 asmlinkage __visible __init __no_sanitize_address __noreturn __no_stack_protector
 void start_kernel(void)
 {
 	char *command_line;
 	char *after_dashes;
+
+	printk("Start Kernel");
+	printk("CR3 = %lx\n", read_cr3());
+
+	extern char _stext[]; 	
+	extern char _etext[]; 
+	printk("init_top_pgt = %lx", (uintptr_t)init_top_pgt);
+	sva_mmu_init((uintptr_t)init_top_pgt, 512, (uintptr_t)read_cr3(), (uintptr_t)_stext, (uintptr_t)_etext);
+
+	printk("CR3 = %lx\n", read_cr3());
 
 	set_task_stack_end_magic(&init_task);
 	smp_setup_processor_id();
@@ -890,7 +906,10 @@ void start_kernel(void)
 	page_address_init();
 	pr_notice("%s", linux_banner);
 	early_security_init();
+	printk("Before Setup Arch");
 	setup_arch(&command_line);
+	printk("After Setup Arch");
+	// printk("[CR3] %lx", read_cr3());
 	setup_boot_config();
 	setup_command_line(command_line);
 	setup_nr_cpu_ids();

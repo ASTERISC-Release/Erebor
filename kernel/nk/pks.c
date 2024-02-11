@@ -24,6 +24,4 @@ void pks_set_key(int key, bool restrictAccess, bool restrictWrite) {
         pkrs &= ~write;
 
     wrmsrl(0x6e1, pkrs);
-    uint64_t pkrs_updated;
-    rdmsrl(0x6e1, pkrs_updated);
 }

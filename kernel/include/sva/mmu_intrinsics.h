@@ -65,6 +65,7 @@
  * SVA intrinsics implemented in the library
  *****************************************************************************
  */
+extern void sva_mmu_test (uintptr_t vaddr);
 extern void sva_mm_load_pgtable (void * pg);
 extern void sva_load_cr0 (unsigned long val);
 extern void sva_load_cr4 (unsigned long val);
@@ -82,9 +83,9 @@ extern void sva_update_l3_mapping (pud_t * pudPtr, page_entry_t val);
 extern void sva_update_l4_mapping (p4d_t * p4dPtr, page_entry_t val);
 extern void sva_update_l5_mapping (pgd_t * pgdPtr, page_entry_t val);
 extern void sva_remove_mapping (page_entry_t * ptePtr);
-extern void sva_mmu_init(pgd_t * kpgdMapping,
+extern void sva_mmu_init(unsigned long kpgdMapping,
                          unsigned long nkpgd,
-                         uintptr_t *,
+                         uintptr_t,
                          uintptr_t btext,
                          uintptr_t etext);
 
