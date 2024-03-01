@@ -13,6 +13,8 @@
 
 #include <asm/irq_stack.h>
 
+#include <sva/stack.h>
+
 /**
  * DECLARE_IDTENTRY - Declare functions for simple IDT entry points
  *		      No error code pushed by hardware
@@ -49,7 +51,7 @@
 #define DEFINE_IDTENTRY(func)						\
 static __always_inline void __##func(struct pt_regs *regs);		\
 									\
-__visible noinstr void func(struct pt_regs *regs)			\
+SECURE_WRAPPER_INTERRUPT(__visible noinstr void, func, struct pt_regs *regs)			\
 {									\
 	irqentry_state_t state = irqentry_enter(regs);			\
 									\
@@ -95,7 +97,7 @@ static __always_inline void __##func(struct pt_regs *regs)
 static __always_inline void __##func(struct pt_regs *regs,		\
 				     unsigned long error_code);		\
 									\
-__visible noinstr void func(struct pt_regs *regs,			\
+SECURE_WRAPPER_INTERRUPT(__visible noinstr void, func, struct pt_regs *regs,			\
 			    unsigned long error_code)			\
 {									\
 	irqentry_state_t state = irqentry_enter(regs);			\
@@ -135,7 +137,7 @@ static __always_inline void __##func(struct pt_regs *regs,		\
  * is required before the enter/exit() helpers are invoked.
  */
 #define DEFINE_IDTENTRY_RAW(func)					\
-__visible noinstr void func(struct pt_regs *regs)
+SECURE_WRAPPER_INTERRUPT(__visible noinstr void, func, struct pt_regs *regs)
 
 /**
  * DECLARE_IDTENTRY_RAW_ERRORCODE - Declare functions for raw IDT entry points
@@ -163,7 +165,7 @@ __visible noinstr void func(struct pt_regs *regs)
  * is required before the enter/exit() helpers are invoked.
  */
 #define DEFINE_IDTENTRY_RAW_ERRORCODE(func)				\
-__visible noinstr void func(struct pt_regs *regs, unsigned long error_code)
+SECURE_WRAPPER_INTERRUPT(__visible noinstr void, func, struct pt_regs *regs, unsigned long error_code)
 
 /**
  * DECLARE_IDTENTRY_IRQ - Declare functions for device interrupt IDT entry
@@ -191,7 +193,7 @@ __visible noinstr void func(struct pt_regs *regs, unsigned long error_code)
 #define DEFINE_IDTENTRY_IRQ(func)					\
 static void __##func(struct pt_regs *regs, u32 vector);			\
 									\
-__visible noinstr void func(struct pt_regs *regs,			\
+SECURE_WRAPPER_INTERRUPT(__visible noinstr void, func, struct pt_regs *regs,			\
 			    unsigned long error_code)			\
 {									\
 	irqentry_state_t state = irqentry_enter(regs);			\
@@ -233,7 +235,7 @@ static noinline void __##func(struct pt_regs *regs, u32 vector)
 #define DEFINE_IDTENTRY_SYSVEC(func)					\
 static void __##func(struct pt_regs *regs);				\
 									\
-__visible noinstr void func(struct pt_regs *regs)			\
+SECURE_WRAPPER_INTERRUPT(__visible noinstr void, func, struct pt_regs *regs)			\
 {									\
 	irqentry_state_t state = irqentry_enter(regs);			\
 									\
@@ -260,7 +262,7 @@ static noinline void __##func(struct pt_regs *regs)
 #define DEFINE_IDTENTRY_SYSVEC_SIMPLE(func)				\
 static __always_inline void __##func(struct pt_regs *regs);		\
 									\
-__visible noinstr void func(struct pt_regs *regs)			\
+SECURE_WRAPPER_INTERRUPT(__visible noinstr void, func, struct pt_regs *regs)			\
 {									\
 	irqentry_state_t state = irqentry_enter(regs);			\
 									\

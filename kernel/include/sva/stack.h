@@ -122,6 +122,24 @@ extern const uintptr_t SecureStackBase;
 
 //===-- PKS-Protect Control ---------------------------------------------===//
 
+#define SWITCH_TO_SECURE_STACK_NK                                              \
+  /* Spill registers for temporary use */                                      \
+  "movq %rax, -8(%rsp)\n"                                                      \
+  "movq %rcx, -16(%rsp)\n"                                                     \
+  /* Save normal stack pointer in rcx */                                       \
+  "movq %rsp, %rcx\n"                                                          \
+  /* Switch to secure stack! */                                                \
+  "movq SecureStackBase, %rsp\n"                                               \
+  /* Save original stack pointer on Secure Stack for later restoration */      \
+  "pushq %rcx\n"                                                               \
+  /* Restore spilled registers from original stack (rcx) */                    \
+  "movq -8(%rcx), %rax\n"                                                      \
+  "movq -16(%rcx), %rcx\n"                                                     \
+
+#define SWITCH_TO_NORMAL_STACK_NK                                              \
+/* Switch back to original stack */                                            \
+  "movq 0(%rsp), %rsp\n"                                                       \
+
 #define ENABLE_PKS_PROTECTION                                                  \
   /* Save scratch register to stack */                                         \
   "pushq %rax\n"                                                               \
@@ -215,7 +233,7 @@ extern const uintptr_t SecureStackBase;
   /* Get current PKRS value */                                                 \
   "rdmsr\n"                                                                    \
   /* Restrict all access for key 1 */                                          \
-  "orq $0x000000000000000c, %rax\n"                                                    \
+  "orq $0x000000000000000c, %rax\n"                                            \
   /* Update the PKRS value */                                                  \
   "wrmsr\n"                                                                    \
   /* Restore clobbered register */                                             \
@@ -224,6 +242,13 @@ extern const uintptr_t SecureStackBase;
   "popq %rax\n"                                                                \
   /* Restore flags, enabling interrupts if they were before */                 \
   "popf\n"
+
+#define SECURE_INTERRUPT_REDIRECT                                              \
+  DISABLE_INTERRUPTS                                                           \
+  SWITCH_TO_SECURE_STACK_NK                                                    \
+  ENABLE_PKS_PROTECTION                                                        \
+  SWITCH_TO_NORMAL_STACK_NK                                                    \
+  ENABLE_INTERRUPTS                                                            \
 
 #endif
 
@@ -248,6 +273,24 @@ asm( \
 ); \
 RET FUNC ##_secure(__VA_ARGS__); \
 RET FUNC ##_secure(__VA_ARGS__)
+
+#define SECURE_WRAPPER_INTERRUPT(RET, FUNC, ...) \
+asm( \
+  ".text\n" \
+  ".globl " #FUNC "\n" \
+  ".align 16,0x90\n" \
+  ".type " #FUNC ",@function\n" \
+  #FUNC ":\n" \
+  SECURE_INTERRUPT_REDIRECT \
+  /* Call real version of function */ \
+  "call " #FUNC "_intr\n" \
+  "ret\n" \
+  /* Operation complete, go back to unsecure mode */ \
+  #FUNC "_end:\n" \
+  ".size " #FUNC ", " #FUNC "_end - " #FUNC "\n" \
+); \
+RET FUNC ##_intr(__VA_ARGS__); \
+RET FUNC ##_intr(__VA_ARGS__)
 
 //===-- Wrapper macro for calling secure functions from secure context ---===//
 

@@ -800,6 +800,11 @@ EXPORT_SYMBOL_GPL(slow_virt_to_phys);
 static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 {
 	/* change init_mm */
+	// printk("Yup, reached here");
+	// set_pte_atomic(kpte, pte);
+	// pmd_t pmd;
+	// pmd.pmd = pte.pte;
+	// set_pmd((pmd_t*)kpte, pmd);
 	set_pte_atomic(kpte, pte);
 #ifdef CONFIG_X86_32
 	if (!SHARED_KERNEL_PMD) {
@@ -816,6 +821,7 @@ static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 			pud = pud_offset(p4d, address);
 			pmd = pmd_offset(pud, address);
 			set_pte_atomic((pte_t *)pmd, pte);
+			// set_pmd(pmdp, pmd);
 		}
 	}
 #endif
@@ -977,7 +983,13 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
 
 	/* All checks passed. Update the large page mapping. */
 	new_pte = pfn_pte(old_pfn, new_prot);
-	__set_pmd_pte(kpte, address, new_pte);
+	if(level == PG_LEVEL_2M) {
+		__set_pmd_pte(kpte, address, new_pte);
+	} else if(level == PG_LEVEL_1G) {
+		pud_t pud;
+		pud.pud = new_pte.pte;
+		set_pud((pud_t*)kpte, pud);
+	}
 	cpa->flags |= CPA_FLUSHTLB;
 	cpa_inc_lp_preserved(level);
 	return 0;
@@ -1031,6 +1043,7 @@ static void split_set_pte(struct cpa_data *cpa, pte_t *pte, unsigned long pfn,
 	else
 		pr_warn_once("CPA: Cannot fixup static protections for PUD split\n");
 set:
+	// printk("pfn = %lx, pfn_pte_prot = %lx", pfn, (uintptr_t)pfn_pte(pfn, ref_prot).pte);
 	set_pte(pte, pfn_pte(pfn, ref_prot));
 }
 
@@ -1096,8 +1109,12 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
 	 * Get the target pfn from the original entry:
 	 */
 	pfn = ref_pfn;
+	// printk("Hello");
+	// pte_t pte = pfn_pte(pfn, ref_prot);
+	// printk("pfn = %lx, pfn_pte_prot = %lx", pfn, (uintptr_t)&pte.pte);
 	for (i = 0; i < PTRS_PER_PTE; i++, pfn += pfninc, lpaddr += lpinc)
 		split_set_pte(cpa, pbase + i, pfn, ref_prot, lpaddr, lpinc);
+	// printk("Bye");
 
 	if (virt_addr_valid(address)) {
 		unsigned long pfn = PFN_DOWN(__pa(address));
@@ -1113,8 +1130,13 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
 	 * pagetable protections, the actual ptes set above control the
 	 * primary protection behavior:
 	 */
-	__set_pmd_pte(kpte, address, mk_pte(base, __pgprot(_KERNPG_TABLE)));
-
+	if(level == PG_LEVEL_2M) {
+		__set_pmd_pte(kpte, address, mk_pte(base, __pgprot(_KERNPG_TABLE)));
+	} else if(level == PG_LEVEL_1G) {
+		pud_t pud;
+		pud.pud = mk_pte(base, __pgprot(_KERNPG_TABLE)).pte;
+		set_pud((pud_t*)kpte, pud);
+	}
 	/*
 	 * Do a global flush tlb after splitting the large page
 	 * and before we do the actual change page attribute in the PTE.
@@ -1653,7 +1675,9 @@ repeat:
 	/*
 	 * We have to split the large page:
 	 */
+	printk("Split Large Page");
 	err = split_large_page(cpa, kpte, address);
+	printk("Split Large Page - Done");
 	if (!err)
 		goto repeat;
 
@@ -2330,6 +2354,7 @@ static int __set_pages_p(struct page *page, int numpages)
 static int __set_pages_np(struct page *page, int numpages)
 {
 	unsigned long tempaddr = (unsigned long) page_address(page);
+	// printk("tempaddr = %lx", tempaddr);
 	struct cpa_data cpa = { .vaddr = &tempaddr,
 				.pgd = NULL,
 				.numpages = numpages,
