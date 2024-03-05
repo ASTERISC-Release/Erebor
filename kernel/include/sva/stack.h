@@ -55,31 +55,19 @@ extern const uintptr_t SecureStackBase;
   /* Spill registers for temporary use */                                      \
   "movq %rax, -8(%rsp)\n"                                                      \
   "movq %rcx, -16(%rsp)\n"                                                     \
-  "movq SecureStackBase, %rax\n"                                               \
-  /* Save normal stack pointer in rcx and on secure stack */                   \
-  "mov %rsp, %rcx\n"                                                           \
-  "mov %rsp, -8(%rax)\n"                                                       \
-  "subq $8, %rax\n"                                                            \
+  /* Save normal stack pointer in rcx */                                       \
+  "movq %rsp, %rcx\n"                                                          \
   /* Switch to secure stack! */                                                \
-  "movq %rax, %rsp\n"                                                          \
+  "movq SecureStackBase, %rsp\n"                                               \
+  /* Save original stack pointer on Secure Stack for later restoration */      \
+  "pushq %rcx\n"                                                               \
   /* Restore spilled registers from original stack (rcx) */                    \
   "movq -8(%rcx), %rax\n"                                                      \
   "movq -16(%rcx), %rcx\n"                                                     \
-      /* Carry on, my wayward kernel. */                                       \
-      /* There'll be peace when you are done... */
 
 #define SWITCH_BACK_TO_NORMAL_STACK                                            \
-  /* Top of secure stack contains original stack pointer, restore it! */       \
-  /* First, save rax/rcx for temporary use */                                  \
-  "movq %rax, -8(%rsp)\n"                                                      \
-  "movq %rcx, -16(%rsp)\n"                                                     \
-  /* Save secure stack pointer for restoring these spilled registers */        \
-  "movq %rsp, %rcx\n"                                                          \
-  /* Grab original stack pointer and switch to it */                           \
+/* Switch back to original stack */                                            \
   "movq 0(%rsp), %rsp\n"                                                       \
-  /* Restore spilled registers */                                              \
-  "movq -8(%rcx), %rax\n"                                                      \
-  "movq -16(%rcx), %rcx\n"
 
 //===-- Interrupt Flag Control --------------------------------------------===//
 
@@ -122,23 +110,6 @@ extern const uintptr_t SecureStackBase;
 
 //===-- PKS-Protect Control ---------------------------------------------===//
 
-#define SWITCH_TO_SECURE_STACK_NK                                              \
-  /* Spill registers for temporary use */                                      \
-  "movq %rax, -8(%rsp)\n"                                                      \
-  "movq %rcx, -16(%rsp)\n"                                                     \
-  /* Save normal stack pointer in rcx */                                       \
-  "movq %rsp, %rcx\n"                                                          \
-  /* Switch to secure stack! */                                                \
-  "movq SecureStackBase, %rsp\n"                                               \
-  /* Save original stack pointer on Secure Stack for later restoration */      \
-  "pushq %rcx\n"                                                               \
-  /* Restore spilled registers from original stack (rcx) */                    \
-  "movq -8(%rcx), %rax\n"                                                      \
-  "movq -16(%rcx), %rcx\n"                                                     \
-
-#define SWITCH_TO_NORMAL_STACK_NK                                              \
-/* Switch back to original stack */                                            \
-  "movq 0(%rsp), %rsp\n"                                                       \
 
 #define ENABLE_PKS_PROTECTION                                                  \
   /* Save scratch register to stack */                                         \
@@ -245,9 +216,9 @@ extern const uintptr_t SecureStackBase;
 
 #define SECURE_INTERRUPT_REDIRECT                                              \
   DISABLE_INTERRUPTS                                                           \
-  SWITCH_TO_SECURE_STACK_NK                                                    \
+  SWITCH_TO_SECURE_STACK                                                       \
   ENABLE_PKS_PROTECTION                                                        \
-  SWITCH_TO_NORMAL_STACK_NK                                                    \
+  SWITCH_BACK_TO_NORMAL_STACK                                                  \
   ENABLE_INTERRUPTS                                                            \
 
 #endif

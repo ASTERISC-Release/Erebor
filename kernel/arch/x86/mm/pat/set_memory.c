@@ -984,7 +984,9 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
 	/* All checks passed. Update the large page mapping. */
 	new_pte = pfn_pte(old_pfn, new_prot);
 	if(level == PG_LEVEL_2M) {
-		__set_pmd_pte(kpte, address, new_pte);
+		pmd_t pmd;
+		pmd.pmd = new_pte.pte;
+		set_pmd((pmd_t*)kpte, pmd);
 	} else if(level == PG_LEVEL_1G) {
 		pud_t pud;
 		pud.pud = new_pte.pte;
