@@ -879,14 +879,10 @@ void start_kernel(void)
 	char *after_dashes;
 
 	printk("Start Kernel");
-	printk("CR3 = %lx\n", read_cr3());
 
-	extern char _stext[]; 	
-	extern char _etext[]; 
-	printk("init_top_pgt = %lx", (uintptr_t)init_top_pgt);
-	sva_mmu_init((uintptr_t)init_top_pgt, 512, (uintptr_t)read_cr3(), (uintptr_t)_stext, (uintptr_t)_etext);
-
-	printk("CR3 = %lx\n", read_cr3());
+	// extern char _stext[]; 	
+	// extern char _etext[]; 
+	// sva_mmu_init((uintptr_t)init_top_pgt, 512, (uintptr_t)read_cr3(), (uintptr_t)_stext, (uintptr_t)_etext);
 
 	set_task_stack_end_magic(&init_task);
 	smp_setup_processor_id();
@@ -906,9 +902,7 @@ void start_kernel(void)
 	page_address_init();
 	pr_notice("%s", linux_banner);
 	early_security_init();
-	printk("Before Setup Arch");
 	setup_arch(&command_line);
-	printk("After Setup Arch");
 	// printk("[CR3] %lx", read_cr3());
 	setup_boot_config();
 	setup_command_line(command_line);

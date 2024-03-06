@@ -219,11 +219,8 @@ static  void MMULock_Release(void) {
 page_desc_t * getPageDescPtr(unsigned long mapping) {
   unsigned long frameIndex = (mapping & PG_FRAME) / pageSize;
 
-  if(frameIndex  >= numPageDescEntries) {
-    // panic ("[PANIC]: SVA: getPageDescPtr: %lx %lx %lx\n", mapping, frameIndex, numPageDescEntries);
-    printk ("[PANIC]: SVA: getPageDescPtr: %lx %lx %lx\n", mapping, frameIndex, numPageDescEntries);
-    return -1;
-  }
+  if(frameIndex  >= numPageDescEntries)
+    panic ("[PANIC]: SVA: getPageDescPtr: %lx %lx %lx\n", mapping, frameIndex, numPageDescEntries);
   return page_desc + frameIndex;
 }
 
@@ -2392,8 +2389,7 @@ sva_declare_l1_page, uintptr_t frameAddr) {
       break;
 
     default:
-      printk ("[PANIC]: SVA: Declaring L1 for wrong page %lx %lx\n", page_desc, page_desc + numPageDescEntries);
-      // panic ("SVA: Declaring L1 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x\n", frameAddr, pgDesc, pgDesc->type);
+      panic ("SVA: Declaring L1 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x\n", frameAddr, pgDesc, pgDesc->type);
       break;
   }
 
@@ -2418,8 +2414,7 @@ sva_declare_l1_page, uintptr_t frameAddr) {
      */
     initDeclaredPage(frameAddr);
   } else {
-    printk ("[PANIC] SVA: declare L1: type = %x, %lx\n", pgDesc->type, frameAddr);
-    // panic ("SVA: declare L1: type = %x\n", pgDesc->type);
+    panic ("SVA: declare L1: type = %x\n", pgDesc->type);
   }
 
   MMULock_Release();
@@ -2456,8 +2451,7 @@ sva_declare_l2_page, uintptr_t frameAddr) {
       break;
 
     default:
-      printk ("[PANIC]: SVA Declaring L2 for wrong page: %lx %lx, type: %d\n", page_desc, page_desc + numPageDescEntries, pgDesc->type);
-      // panic ("SVA: Declaring L2 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x count=%x\n", frameAddr, pgDesc, pgDesc->type, pgDesc->count);
+      panic ("SVA: Declaring L2 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x count=%x\n", frameAddr, pgDesc, pgDesc->type, pgDesc->count);
       break;
   }
 
@@ -2481,8 +2475,7 @@ sva_declare_l2_page, uintptr_t frameAddr) {
      */
     initDeclaredPage(frameAddr);
   } else {
-    printk ("[PANIC]: SVA: declare L2: type = %x, %lx\n", pgDesc->type, frameAddr);
-    // panic ("SVA: declare L2: type = %x\n", pgDesc->type);
+    panic ("SVA: declare L2: type = %x\n", pgDesc->type);
   }
 
   MMULock_Release();
@@ -2534,8 +2527,7 @@ sva_declare_l3_page, uintptr_t frameAddr) {
       break;
 
     default:
-      printk ("[PANIC]: SVA: Declaring L3 for wrong page %lx %lx, type: %d\n", page_desc, page_desc + numPageDescEntries, pgDesc->type);
-      // panic ("SVA: Declaring L3 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x count=%x\n", frameAddr, pgDesc, pgDesc->type, pgDesc->count);
+      panic ("SVA: Declaring L3 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x count=%x\n", frameAddr, pgDesc, pgDesc->type, pgDesc->count);
       break;
   }
 
@@ -2558,8 +2550,7 @@ sva_declare_l3_page, uintptr_t frameAddr) {
      */
     initDeclaredPage(frameAddr);
   } else {
-    printk ("[PANIC] SVA: declare L3: type = %x, %lx\n", pgDesc->type, frameAddr);
-    // panic ("SVA: declare L3: type = %x\n", pgDesc->type);
+    panic ("SVA: declare L3: type = %x\n", pgDesc->type);
   }
 
   MMULock_Release();
@@ -2603,8 +2594,7 @@ sva_declare_l4_page, uintptr_t frameAddr) {
       break;
 
     default:
-      printk ("[PANIC] SVA: Declaring L4 for wrong page %lx %lx\n", page_desc, page_desc + numPageDescEntries);
-      // panic ("SVA: Declaring L4 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x\n", frameAddr, pgDesc, pgDesc->type);
+      panic ("SVA: Declaring L4 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x\n", frameAddr, pgDesc, pgDesc->type);
       break;
   }
 
@@ -2627,8 +2617,7 @@ sva_declare_l4_page, uintptr_t frameAddr) {
      */
     initDeclaredPage(frameAddr);
   } else {
-    printk ("[PANIC] SVA: declare L4: type = %x, %lx\n", pgDesc->type, frameAddr);
-    // panic ("SVA: declare L4: type = %x\n", pgDesc->type);
+    panic ("SVA: declare L4: type = %x\n", pgDesc->type);
   }
   MMULock_Release();
 }
@@ -2670,8 +2659,7 @@ sva_declare_l5_page, uintptr_t frameAddr) {
       break;
 
     default:
-      printk ("[PANIC] SVA: Declaring wrong page for L5 %lx %lx\n", page_desc, page_desc + numPageDescEntries);
-      // panic ("SVA: Declaring L5 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x\n", frameAddr, pgDesc, pgDesc->type);
+      panic ("SVA: Declaring L5 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x\n", frameAddr, pgDesc, pgDesc->type);
       break;
   }
 
@@ -2694,8 +2682,7 @@ sva_declare_l5_page, uintptr_t frameAddr) {
      */
     initDeclaredPage(frameAddr);
   } else {
-    printk ("[PANIC] SVA: declare L5: type = %x\n", pgDesc->type);
-    // panic ("SVA: declare L5: type = %x\n", pgDesc->type);
+    panic ("SVA: declare L5: type = %x\n", pgDesc->type);
   }
   MMULock_Release();
 }
@@ -2760,13 +2747,12 @@ sva_declare_l5_page, uintptr_t frameAddr) {
  */
 SECURE_WRAPPER(void,
 sva_remove_page, uintptr_t paddr) {
-// void sva_remove_page(uintptr_t paddr) {
   MMULock_Acquire();
 
   /* Get the entry controlling the permissions for this pte PTP */
   page_entry_t *pte = get_pgeVaddr(getVirtual (paddr));
 
-  /* Get the page_desc for the l1 page frame */
+  /* Get the page_desc for the page frame */
   page_desc_t *pgDesc = getPageDescPtr(paddr);
 
   /*
@@ -2788,7 +2774,6 @@ sva_remove_page, uintptr_t paddr) {
       // Hence we call an sva_remove page on all memory frees. For now, just ignoring this panic.
       // TODO: Check if this leads to a significant performance overhead.
       // panic ("SVA: undeclare bad page type: %lx %lx\n", paddr, pgDesc->type);
-      // printk ("[PANIC]: SVA: undeclare bad page type: %lx %lx\n", paddr, pgDesc->type);
       MMULock_Release();
       return;
       break;
@@ -2813,10 +2798,10 @@ sva_remove_page, uintptr_t paddr) {
      * Make the page writeable again.  Be sure to flush the TLBs to make the
      * change take effect right away.
      */
-    page_entry_store ((page_entry_t *) pte, setMappingReadWrite (*pte));
-    sva_mm_flush_tlb (getVirtual (paddr));
+    // page_entry_store ((page_entry_t *) pte, setMappingReadWrite (*pte));
+    // sva_mm_flush_tlb (getVirtual (paddr));
   } else {
-    printk ("[PANIC] SVA: remove_page: type=%x count %x\n", pgDesc->type, pgDesc->count);
+    panic ("SVA: remove_page: type=%x count %x\n", pgDesc->type, pgDesc->count);
   }
  
   MMULock_Release();
@@ -2888,14 +2873,13 @@ sva_update_l1_mapping, pte_t *pte, page_entry_t val) {
   #endif
 
   if (ptDesc->type != PG_L1) {
-    printk("[PANIC]: update L1 - %d, CR3 = %lx, page = %lx, val = %lx\n", ptDesc->type, read_cr3(), __pa(&pte->pte), val);
-    // panic ("SVA: MMU: update_l1 not an L1: %lx %lx: %lx\n", &pte->pte, val, ptDesc->type);
+    panic ("SVA: MMU: update_l1 not an L1: %lx %lx: %lx\n", &pte->pte, val, ptDesc->type);
   }
 
   /*
    * Update the page table with the new mapping.
    */
-  if(getPageDescPtr((val >> 12) << 12) != -1)
+  if(getPageDescPtr((val & PTE_PFN_MASK) != -1))
     __update_mapping(&pte->pte, val);
 
   MMULock_Release();
@@ -2934,8 +2918,7 @@ sva_update_l2_mapping, pmd_t *pmd, page_entry_t val) {
   #endif
 
   if (ptDesc->type != PG_L2) {
-    printk("[PANIC]: update L2 - %d, CR3 = %lx, page = %lx, val = %lx\n", ptDesc->type, read_cr3(), __pa(&pmd->pmd), val);
-    // printk ("SVA: MMU: update_l2 not an L2: %lx %lx: type=%lx count=%lx\n", &pmd->pmd, val, ptDesc->type, ptDesc->count);
+    panic ("SVA: MMU: update_l2 not an L2: %lx %lx: type=%lx count=%lx\n", &pmd->pmd, val, ptDesc->type, ptDesc->count);
   }
 
   /*
@@ -2973,8 +2956,7 @@ SECURE_WRAPPER(void, sva_update_l3_mapping, pud_t * pud, page_entry_t val) {
   #endif
 
   if (ptDesc->type != PG_L3) {
-    printk("[PANIC]: update L3 - %d, CR3 = %lx, page = %lx, val = %lx\n", ptDesc->type, read_cr3(), __pa(&pud->pud), val);
-    // panic ("SVA: MMU: update_l3 not an L3: %lx %lx: %lx\n", &pud->pud, val, ptDesc->type);
+    panic ("SVA: MMU: update_l3 not an L3: %lx %lx: %lx\n", &pud->pud, val, ptDesc->type);
   }
 
   __update_mapping(&pud->pud, val);
@@ -3009,8 +2991,7 @@ SECURE_WRAPPER( void, sva_update_l4_mapping ,p4d_t * p4d, page_entry_t val) {
   #endif
   
   if (ptDesc->type != PG_L4) {
-    printk("[UPDATE]: update L4 - %d, CR3 = %lx, page = %lx, val = %lx\n", ptDesc->type, read_cr3(), __pa(&p4d->p4d), val);
-    // panic ("SVA: MMU: update_l4 not an L4: %lx %lx: %lx\n", &p4d->p4d, val, ptDesc->type);
+    panic ("SVA: MMU: update_l4 not an L4: %lx %lx: %lx\n", &p4d->p4d, val, ptDesc->type);
   }
 
   __update_mapping(&p4d->p4d, val);
@@ -3045,8 +3026,7 @@ SECURE_WRAPPER( void, sva_update_l5_mapping, pgd_t * pgd, page_entry_t val) {
   #endif
 
   if (ptDesc->type != PG_L5) {
-    printk("[PANIC]: Update L5 - %d, CR3 = %lx\n", ptDesc->type, read_cr3());
-    // panic ("SVA: MMU: update_l5 not an L5: %lx %lx: %lx\n", &pgd->pgd, val, ptDesc->type);
+    panic ("SVA: MMU: update_l5 not an L5: %lx %lx: %lx\n", &pgd->pgd, val, ptDesc->type);
   }
 
   __update_mapping(&pgd->pgd, val);

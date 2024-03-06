@@ -794,17 +794,13 @@ phys_addr_t slow_virt_to_phys(void *__virt_addr)
 }
 EXPORT_SYMBOL_GPL(slow_virt_to_phys);
 
+#if 0
 /*
  * Set the new pmd in all the pgds we know about:
  */
 static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 {
 	/* change init_mm */
-	// printk("Yup, reached here");
-	// set_pte_atomic(kpte, pte);
-	// pmd_t pmd;
-	// pmd.pmd = pte.pte;
-	// set_pmd((pmd_t*)kpte, pmd);
 	set_pte_atomic(kpte, pte);
 #ifdef CONFIG_X86_32
 	if (!SHARED_KERNEL_PMD) {
@@ -821,11 +817,11 @@ static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 			pud = pud_offset(p4d, address);
 			pmd = pmd_offset(pud, address);
 			set_pte_atomic((pte_t *)pmd, pte);
-			// set_pmd(pmdp, pmd);
 		}
 	}
 #endif
 }
+#endif
 
 static pgprot_t pgprot_clear_protnone_bits(pgprot_t prot)
 {
@@ -1045,7 +1041,6 @@ static void split_set_pte(struct cpa_data *cpa, pte_t *pte, unsigned long pfn,
 	else
 		pr_warn_once("CPA: Cannot fixup static protections for PUD split\n");
 set:
-	// printk("pfn = %lx, pfn_pte_prot = %lx", pfn, (uintptr_t)pfn_pte(pfn, ref_prot).pte);
 	set_pte(pte, pfn_pte(pfn, ref_prot));
 }
 
@@ -1111,12 +1106,8 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
 	 * Get the target pfn from the original entry:
 	 */
 	pfn = ref_pfn;
-	// printk("Hello");
-	// pte_t pte = pfn_pte(pfn, ref_prot);
-	// printk("pfn = %lx, pfn_pte_prot = %lx", pfn, (uintptr_t)&pte.pte);
 	for (i = 0; i < PTRS_PER_PTE; i++, pfn += pfninc, lpaddr += lpinc)
 		split_set_pte(cpa, pbase + i, pfn, ref_prot, lpaddr, lpinc);
-	// printk("Bye");
 
 	if (virt_addr_valid(address)) {
 		unsigned long pfn = PFN_DOWN(__pa(address));
@@ -1133,8 +1124,22 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
 	 * primary protection behavior:
 	 */
 	if(level == PG_LEVEL_2M) {
-		__set_pmd_pte(kpte, address, mk_pte(base, __pgprot(_KERNPG_TABLE)));
+		pmd_t pmd;
+		pmd.pmd = mk_pte(base, __pgprot(_KERNPG_TABLE)).pte;
+
+		// Rahul: Turns out the (PMD) hugepage is either explicitly declared as an L1 page
+		// or gets internally declared as an L1 by the nested kernel due to its mappings being set
+		// using a set_pte instead of a set_pmd
+
+		// Hence, while splitting the large page, we have to remove it from the nested kernel metadata
+		// and redeclare it as an L2
+		sva_remove_page(__pa((uintptr_t)kpte & PTE_PFN_MASK));
+		sva_declare_l2_page(__pa((uintptr_t)kpte & PTE_PFN_MASK));
+		
+		set_pmd((pmd_t*)kpte, pmd);
 	} else if(level == PG_LEVEL_1G) {
+		// Rahul: Probably have to remove the L2 + declare the page as an L3 here too
+		// Skipping for now, since I haven't encountered any 1GB page being split during boot
 		pud_t pud;
 		pud.pud = mk_pte(base, __pgprot(_KERNPG_TABLE)).pte;
 		set_pud((pud_t*)kpte, pud);
@@ -1171,6 +1176,14 @@ static int split_large_page(struct cpa_data *cpa, pte_t *kpte,
 	if (!debug_pagealloc_enabled())
 		spin_unlock(&cpa_lock);
 	base = alloc_pages(GFP_KERNEL, 0);
+
+	// Rahul: This newly allocated page, which will be used as the L1(and/or L2 for a 1GB page split?) page after the hugepage split,
+	// The stale values in this page, cause a problem when the nested kernel tries to update a mapping
+	// in this page and updates the "previously mapped page" by indexing into an invalid pfn in the page descriptor
+	// Fix: Set the page's contents to 0's
+	uintptr_t base_address = (uintptr_t)page_address(base);
+	memset((void*)base_address, 0, 4096);
+	
 	if (!debug_pagealloc_enabled())
 		spin_lock(&cpa_lock);
 	if (!base)
@@ -1653,7 +1666,8 @@ repeat:
 		/*
 		 * Do we really change anything ?
 		 */
-		if (pte_val(old_pte) != pte_val(new_pte)) {
+		// Rahul: Check what's happening here, and find a better way to handle this
+		if (pte_val(old_pte) != pte_val(new_pte) && (new_prot.pgprot & _PAGE_PRESENT) == 1) {
 			set_pte_atomic(kpte, new_pte);
 			cpa->flags |= CPA_FLUSHTLB;
 		}
@@ -1677,9 +1691,7 @@ repeat:
 	/*
 	 * We have to split the large page:
 	 */
-	printk("Split Large Page");
 	err = split_large_page(cpa, kpte, address);
-	printk("Split Large Page - Done");
 	if (!err)
 		goto repeat;
 
