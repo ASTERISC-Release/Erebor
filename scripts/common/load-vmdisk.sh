@@ -1,7 +1,10 @@
 #!/bin/bash -e
 
+# source environment variables
+pushd ../ && source .env && popd
+
 # unload first, if disk was loaded
-./unload-vmdisk.sh 
+./unload-vmdisk.sh || true
 
 # install the nbd module
 sudo modprobe nbd max_part=8

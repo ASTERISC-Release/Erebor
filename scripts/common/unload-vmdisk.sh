@@ -1,5 +1,8 @@
 #!/bin/bash -e
 
+# source environment variables
+pushd ../ && source .env && popd
+
 # check if folder is empty
 if [ -z "$(ls -A $VMDISKMOUNT)" ]; 
 then

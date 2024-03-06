@@ -9,19 +9,21 @@ echo "--------------------------------------------------------------------------
 # Get environment variables
 source .env
 
-# Get a cloud image (ubuntu 22.04 LTS) from Ubuntu servers
-wget https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
+if [ ! -f $VMDISK ]; then
+  # Get a cloud image (ubuntu 22.04 LTS) from Ubuntu servers
+  wget https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
 
-# Move the cloud image into a new folder (for clean setup)
-mkdir -p $VMDISKFOLDER
-mv jammy-server-cloudimg-amd64.img $VMDISK
+  # Move the cloud image into a new folder (for clean setup)
+  mkdir -p $VMDISKFOLDER
+  mv jammy-server-cloudimg-amd64.img $VMDISK
 
-# Resize the qcow2 disk to 50G (just to have enough space)
-sudo qemu-img resize $VMDISK 50G
+  # Resize the qcow2 disk to 50G (just to have enough space)
+  sudo qemu-img resize $VMDISK 50G
+fi
 
 # Generate a custom configuration file
-USERNAME="pks"
-PASSWORD="pks"
+# USERNAME="pks"
+# PASSWORD="pks"
 sudo echo "#cloud-config
 system_info:
   default_user:
@@ -41,10 +43,11 @@ ssh_pwauth: True
 sudo cloud-localds ubuntu-vm-init.iso ubuntu-vm-init.cfg
 
 # Destroy domain and name if exists (for later reinstalls)
-sudo virsh destroy $VMNAME || true
-sudo virsh undefine $VMNAME || true
+sudo virsh destroy $VMNAME || true >> /dev/null 2>&1 
+sudo virsh undefine $VMNAME || true >> /dev/null 2>&1
 
 # Install the image file
+echo "Starting to install the image file by virt-install."
 sudo virt-install \
   --name $VMNAME \
   --memory 1024 \
