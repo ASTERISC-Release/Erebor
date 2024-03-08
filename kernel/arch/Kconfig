@@ -11,6 +11,11 @@ source "arch/$(SRCARCH)/Kconfig"
 
 menu "General architecture-dependent options"
 
+config ENC_OS
+	def_bool y
+	help
+	  Enclave nested-OS monitor enabled.
+
 config ARCH_HAS_SUBPAGE_FAULTS
 	bool
 	help
