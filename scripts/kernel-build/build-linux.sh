@@ -12,6 +12,7 @@ if [ ! -f "../.env" ] || [ ! -d $LINUXFOLDER ]; then
     exit 0
 fi
 
+CURDIR=$(pwd)
 # Build the kernel executable
 pushd $LINUXFOLDER
     # Make the default configuration
@@ -21,6 +22,22 @@ pushd $LINUXFOLDER
     # NOTE: In some older kernels, it was called "make kvmconfig"
     make kvm_guest.config
 
+    # Huge page
+    # sed -i "s/CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD=y/CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD=n/g" .config
+    # sed -i "s/CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE=y/CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE=n/g" .config
+    # sed -i "s/CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION=y/CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION=n/g" .config
+    
+    # sed -i "s/CONFIG_HAVE_ARCH_HUGE_VMAP=y/CONFIG_HAVE_ARCH_HUGE_VMAP=n/g" .config
+    # sed -i "s/CONFIG_HAVE_ARCH_HUGE_VMALLOC=y/CONFIG_HAVE_ARCH_HUGE_VMALLOC=n/g" .config
+    # sed -i "s/CONFIG_ARCH_WANT_HUGE_PMD_SHARE=y/CONFIG_ARCH_WANT_HUGE_PMD_SHARE=n/g" .config
+    # sed -i "s/CONFIG_ARCH_WANT_OPTIMIZE_HUGETLB_VMEMMAP=y/CONFIG_ARCH_WANT_OPTIMIZE_HUGETLB_VMEMMAP=n/g" .config
+    # sed -i "s/CONFIG_ARCH_WANT_GENERAL_HUGETLB=y/CONFIG_ARCH_WANT_GENERAL_HUGETLB=n/g" .config
+
+    # sed -i "s/CONFIG_HUGETLBFS=y/CONFIG_HUGETLBFS=n/g" .config
+    # sed -i "s/CONFIG_HUGETLB_PAGE=y/CONFIG_HUGETLB_PAGE=n/g" .config
+    # sed -i "s/CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP=y/CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP=n/g" .config
+    # sed -i "s/CONFIG_CGROUP_HUGETLB=y/CONFIG_CGROUP_HUGETLB=n/g" .config
+    
     # Enable full tickless kernel
     sed -i "s/# CONFIG_NO_HZ_FULL is not set/CONFIG_NO_HZ_IDLE=y/g" .config
     
@@ -44,12 +61,14 @@ pushd $LINUXFOLDER
     # CONFIG_PREEMPTION=y\n
     # CONFIG_PREEMPT_DYNAMIC=y\n
     # CONFIG_SCHED_CORE=y\n/g" .config
+    {
+        cat .config | grep HUGE
+        cat .config | grep CONFIG_PREEMPT
+        cat .config | grep CONFIG_PREEMPT_RCU || true
 
-    cat .config | grep CONFIG_PREEMPT
-    cat .config | grep CONFIG_PREEMPT_RCU || true
-
-    # Start the build process
-    make -j`nproc`
+        # Start the build process
+        make -j`nproc` 
+    } |& tee $CURDIR/build.kern.log
 popd
 
 # Export required environment variables
@@ -61,8 +80,10 @@ export LINUXVERSION
 
 # Install the kernel modules and image
 pushd ../common
-    ./install-modules.sh
-    ./install-image.sh
+    {
+        ./install-modules.sh
+        ./install-image.sh
+    } |& tee -a $CURDIR/build.kern.log
 popd
 
-./copy-source.sh
+./copy-source.sh |& tee -a $CURDIR/build.kern.log
