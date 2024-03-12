@@ -186,18 +186,20 @@ bool idt_is_f00f_address(unsigned long address)
 }
 #endif
 
-// static __init void
-// idt_setup_from_table(gate_desc *idt, const struct idt_data *t, int size, bool sys)
-// {
-// 	gate_desc desc;
+#ifndef CONFIG_ENC_OS
+static __init void
+idt_setup_from_table(gate_desc *idt, const struct idt_data *t, int size, bool sys)
+{
+	gate_desc desc;
 
-// 	for (; size > 0; t++, size--) {
-// 		idt_init_desc(&desc, t);
-// 		write_idt_entry(idt, t->vector, &desc);
-// 		if (sys)
-// 			set_bit(t->vector, system_vectors);
-// 	}
-// }
+	for (; size > 0; t++, size--) {
+		idt_init_desc(&desc, t);
+		write_idt_entry(idt, t->vector, &desc);
+		if (sys)
+			set_bit(t->vector, system_vectors);
+	}
+}
+#endif
 
 static __init void set_intr_gate(unsigned int n, const void *addr)
 {

@@ -399,6 +399,7 @@ SECTIONS
 	}
 #endif
 
+#ifdef CONFIG_ENC_OS
 	/* Create the SVA data section */
 	_svastart = ALIGN(0x1000);
 	.svamem ALIGN(0x1000) : {
@@ -407,6 +408,7 @@ SECTIONS
 		*(svamem)
 		_svaend = .;
 	}
+#endif
 
 	/* BSS */
 	. = ALIGN(PAGE_SIZE);

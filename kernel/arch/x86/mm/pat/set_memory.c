@@ -794,7 +794,7 @@ phys_addr_t slow_virt_to_phys(void *__virt_addr)
 }
 EXPORT_SYMBOL_GPL(slow_virt_to_phys);
 
-#if 0
+#ifndef CONFIG_ENC_OS
 /*
  * Set the new pmd in all the pgds we know about:
  */
@@ -979,6 +979,9 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
 
 	/* All checks passed. Update the large page mapping. */
 	new_pte = pfn_pte(old_pfn, new_prot);
+#ifndef CONFIG_ENC_OS
+	__set_pmd_pte(kpte, address, new_pte);
+#else
 	if(level == PG_LEVEL_2M) {
 		pmd_t pmd;
 		pmd.pmd = new_pte.pte;
@@ -988,6 +991,7 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
 		pud.pud = new_pte.pte;
 		set_pud((pud_t*)kpte, pud);
 	}
+#endif
 	cpa->flags |= CPA_FLUSHTLB;
 	cpa_inc_lp_preserved(level);
 	return 0;
@@ -1123,6 +1127,9 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
 	 * pagetable protections, the actual ptes set above control the
 	 * primary protection behavior:
 	 */
+#ifndef CONFIG_ENC_OS
+	__set_pmd_pte(kpte, address, mk_pte(base, __pgprot(_KERNPG_TABLE)));
+#else
 	if(level == PG_LEVEL_2M) {
 		pmd_t pmd;
 		pmd.pmd = mk_pte(base, __pgprot(_KERNPG_TABLE)).pte;
@@ -1144,6 +1151,7 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
 		pud.pud = mk_pte(base, __pgprot(_KERNPG_TABLE)).pte;
 		set_pud((pud_t*)kpte, pud);
 	}
+#endif
 	/*
 	 * Do a global flush tlb after splitting the large page
 	 * and before we do the actual change page attribute in the PTE.
@@ -1176,14 +1184,14 @@ static int split_large_page(struct cpa_data *cpa, pte_t *kpte,
 	if (!debug_pagealloc_enabled())
 		spin_unlock(&cpa_lock);
 	base = alloc_pages(GFP_KERNEL, 0);
-
+#ifdef CONFIG_ENC_OS
 	// Rahul: This newly allocated page, which will be used as the L1(and/or L2 for a 1GB page split?) page after the hugepage split,
 	// The stale values in this page, cause a problem when the nested kernel tries to update a mapping
 	// in this page and updates the "previously mapped page" by indexing into an invalid pfn in the page descriptor
 	// Fix: Set the page's contents to 0's
 	uintptr_t base_address = (uintptr_t)page_address(base);
 	memset((void*)base_address, 0, 4096);
-	
+#endif
 	if (!debug_pagealloc_enabled())
 		spin_lock(&cpa_lock);
 	if (!base)
@@ -1666,8 +1674,12 @@ repeat:
 		/*
 		 * Do we really change anything ?
 		 */
+#ifndef CONFIG_ENC_OS
+		if (pte_val(old_pte) != pte_val(new_pte)) {
+#else
 		// Rahul: Check what's happening here, and find a better way to handle this
 		if (pte_val(old_pte) != pte_val(new_pte) && (new_prot.pgprot & _PAGE_PRESENT) == 1) {
+#endif
 			set_pte_atomic(kpte, new_pte);
 			cpa->flags |= CPA_FLUSHTLB;
 		}

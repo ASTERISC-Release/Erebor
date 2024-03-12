@@ -743,7 +743,11 @@ endif
 
 ifeq ($(KBUILD_EXTMOD),)
 # Objects we will link into vmlinux / subdirs we need to visit
+ifdef CONFIG_ENC_OS
 core-y		:= nk/
+else
+core-y		:= 
+endif # ENC_OS
 drivers-y	:=
 libs-y		:= lib/
 endif # KBUILD_EXTMOD
