@@ -30,18 +30,16 @@
 #include "sva/pks.h"
 #include "sva/idt.h"
 
-// #include <asm/idtentry.h>
-
-bool mmu_bool = false;
+#define NCPU 8
 
 /* 
  * Description: 
  *   This is a pointer to the PerspicuOS SuperSpace stack, which is used on
  *   calls to SuperSpace or SuperSpace calls.
  */
-char SecureStack[1<<12] SVAMEM;
+char SecureStack[4096*NCPU] SVAMEM;
 // TODO: Important this value can't be changed from outside the nested kernel!
-const uintptr_t SecureStackBase = (uintptr_t) SecureStack + sizeof(SecureStack);
+const uintptr_t SecureStackBase = (uintptr_t) SecureStack + 4096;
 
 /* 
  * Defines for #if #endif blocks for commenting out lines of code
@@ -180,29 +178,18 @@ struct PTInfo PTPages[1024] SVAMEM;
 /* The index is the physical page number */
 static page_desc_t page_desc[numPageDescEntries] SVAMEM;
 
-typedef unsigned lock_t;
-static lock_t MMULock SVAMEM;
+spinlock_t MMULock;
 
 static  void init_MMULock(void) {
-    MMULock = 0;
-}
-
-static  char MMULock_Try(void) {
-    return __sync_lock_test_and_set(&MMULock, 1) == 0;
+    spin_lock_init(&MMULock);
 }
 
 static  void MMULock_Acquire(void) {
-    while (!MMULock_Try()) {
-        panic("MMULock contended!"); // Rahul: Why is a panic required here ? Can't this thread yield and wait until the lock can be acquired ?
-        while(MMULock) {
-            // yield
-        }
-    }
+    spin_lock(&MMULock);
 }
 
 static  void MMULock_Release(void) {
-    SVA_ASSERT(MMULock != 0, "Attempt to unlock unheld MMU lock!");
-    __sync_lock_release(&MMULock);
+    spin_unlock(&MMULock);
 }
 
 /*
@@ -2294,12 +2281,6 @@ sva_mmu_init, unsigned long kpgdVA,
               uintptr_t firstpaddr,
               uintptr_t btext,
               uintptr_t etext) {
-// void
-// sva_mmu_init(pgd_t * kpgdMapping,
-//               unsigned long nkpgde,
-//               uintptr_t * firstpaddr,
-//               uintptr_t btext,
-//               uintptr_t etext) {
   
   init_MMULock();
 
