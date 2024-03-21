@@ -47,6 +47,9 @@ pushd $LINUXFOLDER
     sed -i "s/CONFIG_PREEMPT_NONE=n/CONFIG_PREEMPT_NONE=y/g" .config
     sed -i "s/CONFIG_PREEMPT_DYNAMIC=y/# CONFIG_PREEMPT_DYNAMIC is not set/g" .config
     sed -i "s/CONFIG_PREEMPT_BUILD=y/CONFIG_PREEMPT_BUILD=n/g" .config
+    
+    # Disabling the Indirect Branch Tracking, as it is giving compile errors with the secure stack switch
+    sed -i "s/CONFIG_X86_KERNEL_IBT=y/CONFIG_X86_KERNEL_IBT=n/g" .config
 
     # Completely disable network card if needed (helps with bareflank)
     # sed -i "s/CONFIG_WATCHDOG=y/CONFIG_WATCHDOG=n/g" .config

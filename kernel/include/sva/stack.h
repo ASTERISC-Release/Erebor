@@ -55,16 +55,23 @@ extern const uintptr_t SecureStackBase;
   /* Spill registers for temporary use */                                      \
   "movq %rax, -8(%rsp)\n"                                                      \
   "movq %rcx, -16(%rsp)\n"                                                     \
+  /* Get the processor ID */                                                   \
+  "rdtscp\n"                                                                   \
+  /* Find the secure stack offset for the processor ID */                      \
+  "movq %rcx, %rax\n"                                                          \
+  "movq $4096, %rcx\n"                                                         \
+  "mulq %rcx\n"                                                                \
+  "addq SecureStackBase, %rax\n"                                               \
   /* Save normal stack pointer in rcx */                                       \
   "movq %rsp, %rcx\n"                                                          \
   /* Switch to secure stack! */                                                \
-  "movq SecureStackBase, %rsp\n"                                               \
+  "movq %rax, %rsp\n"                                                          \
   /* Save original stack pointer on Secure Stack for later restoration */      \
   "pushq %rcx\n"                                                               \
   /* Restore spilled registers from original stack (rcx) */                    \
   "movq -8(%rcx), %rax\n"                                                      \
   "movq -16(%rcx), %rcx\n"                                                     \
-
+  
 #define SWITCH_BACK_TO_NORMAL_STACK                                            \
 /* Switch back to original stack */                                            \
   "movq 0(%rsp), %rsp\n"                                                       \
@@ -81,32 +88,6 @@ extern const uintptr_t SecureStackBase;
   /* Restore flags, enabling interrupts if they were before */                 \
   "popf\n"
 
-//===-- Write-Protect Control ---------------------------------------------===//
-
-// TODO: Check calling convention for free register(s)
-#define DISABLE_WP_BIT                                                         \
-  /* Save scratch register to stack */                                         \
-  "pushq %rax\n"                                                               \
-  /* Get current cr0 value */                                                  \
-  "movq %cr0, %rax\n"                                                          \
-  /* Clear WP bit in copy */                                                   \
-  "andq $0xfffffffffffeffff, %rax\n"                                           \
-  /* Replace cr0 with updated value */                                         \
-  "movq %rax, %cr0\n"                                                          \
-  /* Restore clobbered register */                                             \
-  "popq %rax\n"
-
-#define ENABLE_WP_BIT                                                          \
-  /* Save scratch register to stack */                                         \
-  "pushq %rax\n"                                                               \
-  /* Get current cr0 value */                                                  \
-  "movq %cr0, %rax\n"                                                          \
-  /* Set WP bit in copy */                                                     \
-  "orq $0x10000, %rax\n"                                                       \
-  /* Replace cr0 with updated value */                                         \
-  "movq %rax, %cr0\n"                                                          \
-  /* Restore clobbered register */                                             \
-  "popq %rax\n"
 
 //===-- PKS-Protect Control ---------------------------------------------===//
 
@@ -152,12 +133,12 @@ extern const uintptr_t SecureStackBase;
 #ifdef __MODULAR_AND_READABLE
 #define SECURE_ENTRY                                                           \
   DISABLE_INTERRUPTS                                                           \
-  DISABLE_WP_BIT                                                               \
+  DISABLE_PKS_PROTECTION                                                       \
   SWITCH_TO_SECURE_STACK
 
 #define SECURE_EXIT                                                            \
   SWITCH_BACK_TO_NORMAL_STACK                                                  \
-  ENABLE_WP_BIT                                                                \
+  ENABLE_PKS_PROTECTION                                                        \
   ENABLE_INTERRUPTS
 #else
 // More optimized variants
@@ -181,10 +162,17 @@ extern const uintptr_t SecureStackBase;
   "wrmsr\n"                                                                    \
   /* Disable interrupts */                                                     \
   "cli\n"                                                                      \
+  /* Get the processor ID */                                                   \
+  "rdtscp\n"                                                                   \
+  /* Find the secure stack offset for the processor ID */                      \
+  "movq %rcx, %rax\n"                                                          \
+  "movq $4096, %rcx\n"                                                         \
+  "mulq %rcx\n"                                                                \
+  "addq SecureStackBase, %rax\n"                                               \
   /* Save initial stack pointer in rcx */                                      \
   "movq %rsp, %rcx\n"                                                          \
   /* Switch to secure stack! */                                                \
-  "movq SecureStackBase, %rsp\n"                                               \
+  "movq %rax, %rsp\n"                                                          \
   /* Save original stack pointer for later restoration */                      \
   "pushq %rcx\n"                                                               \
   /* Restore spilled registers from original stack (rcx) */                    \
@@ -252,7 +240,7 @@ asm( \
   ".align 16,0x90\n" \
   ".type " #FUNC ",@function\n" \
   #FUNC ":\n" \
-  SECURE_INTERRUPT_REDIRECT \
+SECURE_INTERRUPT_REDIRECT \
   /* Call real version of function */ \
   "call " #FUNC "_intr\n" \
   "ret\n" \
