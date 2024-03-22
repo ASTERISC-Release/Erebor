@@ -16,11 +16,14 @@ CURDIR=$(pwd)
 # Build the kernel executable
 pushd $LINUXFOLDER
     # Make the default configuration
-    make defconfig
+    # make defconfig
 
     # Update the configuration for KVM/QEMU guests
     # NOTE: In some older kernels, it was called "make kvmconfig"
-    make kvm_guest.config
+    # make kvm_guest.config
+   
+    # copy the config
+    cp $CURDIR/def_config .config
 
     # Huge page
     # sed -i "s/CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD=y/CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD=n/g" .config
