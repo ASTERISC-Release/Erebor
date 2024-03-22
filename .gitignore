@@ -4,3 +4,5 @@ build.kern.log
 
 # comment out first
 gramine
+
+.vscode
