@@ -38,6 +38,10 @@ pushd $LINUXFOLDER
     # sed -i "s/CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP=y/CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP=n/g" .config
     # sed -i "s/CONFIG_CGROUP_HUGETLB=y/CONFIG_CGROUP_HUGETLB=n/g" .config
     
+    # CMA allocator
+    sed -i "s/# CONFIG_CMA is not set/CONFIG_CMA=y/g" .config
+    sed -i "s/# CONFIG_DMA_CMA is not set/CONFIG_DMA_CMA=y/g" .config
+    
     # Enable full tickless kernel
     sed -i "s/# CONFIG_NO_HZ_FULL is not set/CONFIG_NO_HZ_IDLE=y/g" .config
     
