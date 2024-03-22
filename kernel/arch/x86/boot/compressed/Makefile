@@ -52,7 +52,7 @@ KBUILD_CFLAGS += -D__DISABLE_EXPORTS
 # Disable relocation relaxation in case the link is not PIE.
 KBUILD_CFLAGS += $(call cc-option,-Wa$(comma)-mrelax-relocations=no)
 KBUILD_CFLAGS += -include $(srctree)/include/linux/hidden.h
-ifdef CONFIG_ENC_OS
+ifdef CONFIG_ENCOS
 	KBUILD_CFLAGS += -D__EARLY_BOOT
 endif
 

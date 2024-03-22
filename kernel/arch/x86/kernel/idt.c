@@ -186,7 +186,7 @@ bool idt_is_f00f_address(unsigned long address)
 }
 #endif
 
-#ifndef CONFIG_ENC_OS
+#ifndef CONFIG_ENCOS
 static __init void
 idt_setup_from_table(gate_desc *idt, const struct idt_data *t, int size, bool sys)
 {

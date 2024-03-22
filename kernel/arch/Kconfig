@@ -11,7 +11,7 @@ source "arch/$(SRCARCH)/Kconfig"
 
 menu "General architecture-dependent options"
 
-config ENC_OS
+config ENCOS
 	def_bool y
 	help
 	  Enclave nested-OS monitor enabled.

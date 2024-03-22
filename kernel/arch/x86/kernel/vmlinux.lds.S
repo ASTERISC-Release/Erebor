@@ -399,7 +399,7 @@ SECTIONS
 	}
 #endif
 
-#ifdef CONFIG_ENC_OS
+#ifdef CONFIG_ENCOS
 	/* Create the SVA data section */
 	_svastart = ALIGN(0x1000);
 	.svamem ALIGN(0x1000) : {
