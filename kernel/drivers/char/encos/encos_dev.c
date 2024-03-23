@@ -79,7 +79,7 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
     } else {/* in case (2), do nothing but just map the called physical offset */}
     // vma->vm_flags |= (VM_DONTEXPAND | VM_DONTDUMP | VM_READ | VM_WRITE | VM_SHARED);
 
-#if ENCOS_DEBUG
+#ifdef ENCOS_DEBUG
     log_info("vma: {vm_start=0x%lx(size: 0x%lx) => vm_pgoff=0x%lx} vm_flags=0x%lx, vm_page_prot=0x%lx.\n", 
              vma->vm_start, size, vma->vm_pgoff, vma->vm_flags, vma->vm_page_prot.pgprot);
 #endif
@@ -108,6 +108,12 @@ static int __init encos_dev_init(void)
     misc = kzalloc(sizeof(struct miscdevice), GFP_KERNEL);
     misc->name = DEV_NAME;
     misc->minor = MISC_DYNAMIC_MINOR;
+    /* 
+     * Note: this mode (0666) is ONLY for development purpose.
+     * Granting all users to access the device will increase
+     * the risk of security.
+     */
+    misc->mode = 0666; // rw-rw-rw-
     misc->fops = &encos_dev_ops;
 
     rvl = misc_register(misc);
@@ -125,7 +131,8 @@ static int __init encos_dev_init(void)
     mem = encos_alloc(/*size=*/0x1000, /*enc_id=*/0);
     encos_mem_inspect(mem);
 
-    log_info("Initialized.\n");
+    log_info("Initialized dev: %s (mode=%x).\n",
+             DEV_NAME, misc->mode);
     return 0;
 }
 

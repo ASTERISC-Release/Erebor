@@ -18,7 +18,7 @@ encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id)
     encos_mem_t *encos_mem = (encos_mem_t *)
                                 kzalloc(sizeof(encos_mem_t), GFP_KERNEL);
     if (!encos_mem)
-        return NULL;
+        goto fail;
     
     encos_mem->enc_id = enc_id;
     /*
@@ -40,7 +40,7 @@ encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id)
                                 GFP_KERNEL | __GFP_RETRY_MAYFAIL, order);
     if (!encos_mem->virt_kern) {
         kfree(encos_mem);
-        return NULL;
+        goto fail;
     }
     encos_mem->phys = (unsigned long)virt_to_phys((void *)encos_mem->virt_kern);
     encos_mem->length = length;
@@ -49,5 +49,15 @@ succ:
     list_add_tail(&encos_mem->list, &encos_mem_chunks);
     /* clear content */
     memset((void *)encos_mem->virt_kern, 0, length);
+#ifdef ENCOS_DEBUG
+    /* inspect the allocated memory */
+    log_info("Allocated memory chunk: \n");
+    encos_mem_inspect(encos_mem);
+#endif 
     return encos_mem;
+
+fail:
+    log_err("Failed to allocate memory size=0x%lx, enc_id=%lu.\n",
+            length, enc_id);
+    return NULL;
 }
