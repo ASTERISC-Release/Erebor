@@ -10,4 +10,6 @@
 #define log_err(fmt, arg...) \
     printk(KERN_ERR "[%s][%d] "pr_fmt(fmt)"", __func__, __LINE__, ##arg)
 
+
+#define ENCOS_DEBUG   (1)
 #endif

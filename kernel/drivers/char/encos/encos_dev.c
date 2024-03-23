@@ -30,11 +30,73 @@
 struct miscdevice *misc;
 struct mutex encos_dev_mlock;
 
+/** ==================================================
+ * ENCOS memory mmap() interface
+ * =================================================== */
+/** Interface for ENCOS's mmap.
+ * 
+ * This mmap() is only used for memory map management for enclave's internal & shared memory.
+ * 
+ * userspace: mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
+ * or kern: ksys_mmap_pgoff(unsigned long addr, unsigned long len,
+ *                          unsigned long prot, unsigned long flags,
+ *                          unsigned long fd, unsigned long pgoff);
+ * 
+ * The @param offset / pgoff is used to control the behavior of this mmap.
+ * (1) When vma->vm_pgoff = 0: Allocate a physical memory chunk for the enclave (do allocation + mmap)
+ * (2) else vma->vm_pgoff > 0: Map a physical page starting from pg_off for the enclave (only do anonymous mapping)
+ * 
+ * Case (2) is unlikely happened.
+ */
+static int encos_mmap(struct file *file, struct vm_area_struct *vma)
+{
+    unsigned long start, size, pg_off;
+    
+    start = vma->vm_start;
+    size = vma->vm_end - vma->vm_start;
+    pg_off = vma->vm_pgoff;
+
+    bool do_allocate;
+    encos_mem_t *enc_mem;
+    unsigned long base_phys_offset, phys_page;
+    
+    do_allocate = (pg_off) ? false : true;
+    
+    /* allocate a physical memory chunk */
+    if (do_allocate) {  /* alloc + mmap */
+        if ((enc_mem = encos_alloc(size, /*enc_id=*/0)) == NULL) {
+            log_err("Failed to allocate memory chunk.\n");
+            return -ENOMEM;
+        }
+        base_phys_offset = enc_mem->phys;
+    }
+
+    /* do remap */
+    if (do_allocate) {
+        /* map the backend physical page */
+        phys_page = base_phys_offset >> PAGE_SHIFT;
+        vma->vm_pgoff = pg_off = phys_page;
+    } else {/* in case (2), do nothing but just map the called physical offset */}
+    // vma->vm_flags |= (VM_DONTEXPAND | VM_DONTDUMP | VM_READ | VM_WRITE | VM_SHARED);
+
+#if ENCOS_DEBUG
+    log_info("vma: {vm_start=0x%lx(size: 0x%lx) => vm_pgoff=0x%lx} vm_flags=0x%lx, vm_page_prot=0x%lx.\n", 
+             vma->vm_start, size, vma->vm_pgoff, vma->vm_flags, vma->vm_page_prot.pgprot);
+#endif
+
+    if (remap_pfn_range(vma, start, pg_off, size, vma->vm_page_prot)) {
+        log_err("Remap the physical memory failed.\n");
+        return -EAGAIN;
+    }
+
+    /* TODO: call the secure monitor to protect the assigned physical memories */
+    return 0;
+}
 
 static struct file_operations encos_dev_ops = {
     .owner = THIS_MODULE,
     .unlocked_ioctl = NULL,
-    .mmap = NULL,
+    .mmap = encos_mmap,
 };
 
 static int __init encos_dev_init(void)
