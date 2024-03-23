@@ -52,16 +52,19 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
 {
     unsigned long start, size, pg_off;
     
-    start = vma->vm_start;
-    size = vma->vm_end - vma->vm_start;
-    pg_off = vma->vm_pgoff;
-
     bool do_allocate;
     encos_mem_t *enc_mem;
     unsigned long base_phys_offset, phys_page;
-    
+
+    start = vma->vm_start;
+    size = vma->vm_end - vma->vm_start;
+    pg_off = vma->vm_pgoff;
     do_allocate = (pg_off) ? false : true;
-    
+
+#ifdef ENCOS_DEBUG
+    log_info("Start mmap {vm_start=0x%lx, size=0x%lx, pg_off=0x%lx}.\n",
+             start, size, pg_off);
+#endif  
     /* allocate a physical memory chunk */
     if (do_allocate) {  /* alloc + mmap */
         if ((enc_mem = encos_alloc(size, /*enc_id=*/0)) == NULL) {

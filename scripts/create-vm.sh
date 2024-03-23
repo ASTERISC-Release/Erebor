@@ -66,3 +66,6 @@ sudo virsh undefine $VMNAME || true
 
 # Cleanup and remove everything that is not needed
 rm -rf *.iso *.cfg *.img*
+
+# Run bootstrap commands
+./bootstrap.sh
