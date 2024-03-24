@@ -1,4 +1,5 @@
 #include "encos_alloc.h"
+#include <linux/dma-map-ops.h>
 
 struct cma *encos_cma = NULL;
 
@@ -26,15 +27,31 @@ encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id)
 	 * allocator. If such low-order allocations can't be handled
 	 * anymore the system won't work anyway.
 	 */
-	if (order > 2)
-		page = cma_alloc(encos_cma, nr_pages, 0, false);
-	if (page) {
-        encos_mem->virt_kern = (unsigned long)page_to_virt(page);
-        encos_mem->phys = (unsigned long)page_to_phys(page);
-        encos_mem->length = length;
-        encos_mem->cma_alloc = 1;
-        goto succ;
-	}
+    /* CMA allocator */
+    /* TODO: We only use buddy now due to NK problems */
+	if (/* order > 2 */0) {
+        // debug name
+        if (encos_cma == NULL) {
+            log_err("CMA allocator is not initialized.\n");
+        } else {
+            log_info("CMA allocator (0x%lx).\n",
+                (unsigned long)encos_cma);
+        }
+        // page = cma_alloc(NULL, nr_pages, 0, false);
+        page = dma_alloc_from_contiguous(
+                NULL, nr_pages, 1, false);
+        if (page) {
+            encos_mem->virt_kern = (unsigned long)page_to_virt(page);
+            encos_mem->phys = (unsigned long)page_to_phys(page);
+            encos_mem->length = length;
+            encos_mem->cma_alloc = 1;
+            goto succ;
+        } else {
+            log_err("Failed to allocate memory (length=0x%lx, nr_pages=%d, order=%d) from CMA.\n",
+                        length, nr_pages, order);
+            goto fail;
+        }
+    }
     /* buddy allocator */
     encos_mem->virt_kern = (unsigned long)__get_free_pages(
                                 GFP_KERNEL | __GFP_RETRY_MAYFAIL, order);
@@ -51,7 +68,7 @@ succ:
     memset((void *)encos_mem->virt_kern, 0, length);
 #ifdef ENCOS_DEBUG
     /* inspect the allocated memory */
-    log_info("Allocated memory chunk: \n");
+    log_info("Allocated memory chunk (order=%d): \n", order);
     encos_mem_inspect(encos_mem);
 #endif 
     return encos_mem;

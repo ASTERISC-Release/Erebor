@@ -35,13 +35,12 @@ extern struct list_head encos_mem_chunks;
 /**
  * Initialize the CMA allocator for the ENCOS driver.
  */
+/* allocator */
+    // if (!encos_cma) {
+    //    cma_declare_contiguous(0, ENCOS_CMA_SIZE, 0, 0, 0, false, "encos", &encos_cma);
+    // }
 static inline void init_encos_allocator(void)
 {
-    /* allocator */
-    if (!encos_cma) {
-        cma_declare_contiguous(0, ENCOS_CMA_SIZE, 0, 0, \
-                            0, false, "encos", &encos_cma);
-    }
     /* memory chunk list */
     INIT_LIST_HEAD(&encos_mem_chunks);
 }
@@ -60,7 +59,7 @@ static inline void destory_encos_allocator(void)
         if (pos->cma_alloc) {
             page = virt_to_page((void *)pos->virt_kern);
             nr_pages = ALIGN(pos->length, PAGE_SIZE) >> PAGE_SHIFT;
-            cma_release(encos_cma, page, nr_pages);
+            cma_release(NULL, page, nr_pages);
         } 
         else {
             order = get_order(pos->length);
@@ -76,6 +75,10 @@ static inline void destory_encos_allocator(void)
  */
 static inline void encos_mem_inspect(encos_mem_t *mem)
 {
+    if (!mem) {
+        log_err("NULL memory chunk.\n");
+        return;
+    }
     log_info("MEM[enc_id=%d; cma=%d] phys=0x%lx, virt_kern=0x%lx, virt_user=0x%lx, length=%ld.\n",
              mem->enc_id, mem->cma_alloc, 
              mem->phys, mem->virt_kern, mem->virt_user, mem->length);

@@ -131,10 +131,10 @@ static int __init encos_dev_init(void)
     init_encos_allocator();
     
     /* debug: allocate a chunk of memory */
-    mem = encos_alloc(/*size=*/0x1000, /*enc_id=*/0);
+    mem = encos_alloc(/*size=*/0x100000, /*enc_id=*/0);
     encos_mem_inspect(mem);
 
-    log_info("Initialized dev: %s (mode=%x).\n",
+    log_info("Initialized dev: %s (mode=%d).\n",
              DEV_NAME, misc->mode);
     return 0;
 }
