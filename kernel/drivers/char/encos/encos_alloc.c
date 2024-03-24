@@ -28,18 +28,9 @@ encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id)
 	 * anymore the system won't work anyway.
 	 */
     /* CMA allocator */
-    /* TODO: We only use buddy now due to NK problems */
-	if (/* order > 2 */0) {
-        // debug name
-        if (encos_cma == NULL) {
-            log_err("CMA allocator is not initialized.\n");
-        } else {
-            log_info("CMA allocator (0x%lx).\n",
-                (unsigned long)encos_cma);
-        }
+	if (order > 2) {
         // page = cma_alloc(NULL, nr_pages, 0, false);
-        page = dma_alloc_from_contiguous(
-                NULL, nr_pages, 1, false);
+        page = dma_alloc_from_contiguous(NULL, nr_pages, 1, false);
         if (page) {
             encos_mem->virt_kern = (unsigned long)page_to_virt(page);
             encos_mem->phys = (unsigned long)page_to_phys(page);
