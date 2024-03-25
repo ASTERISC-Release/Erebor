@@ -8,7 +8,6 @@
 char *buf;
 
 int main() {
-    char buffer[128];
     int fd = open(ENCOS_DEV, O_RDWR);
     if (fd < 0) {
         perror("Failed to open the device");
@@ -23,7 +22,12 @@ int main() {
 // #define MAP_FLAGS MAP_PRIVATE
 #define MAP_FLAGS MAP_SHARED
 
-    buf = mmap(NULL, SZ_1M, PROT_READ|PROT_WRITE, MAP_FLAGS, fd, 0);
+#define PROTS (PROT_READ | PROT_WRITE)
+
+    printf("mmaping prots: 0x%x, flags: 0x%x\n", 
+                PROTS, MAP_FLAGS);
+
+    buf = mmap(NULL, SZ_1M, PROTS, MAP_FLAGS, fd, 0);
     if (buf == MAP_FAILED) {
         perror("Failed to mmap the device");
         return -1;
@@ -31,7 +35,7 @@ int main() {
     printf("Mapped buffer: %p\n", buf);
     
     // unmap
-    munmap(buf, 0x1000);
+    munmap(buf, SZ_1M);
 
     close(fd);
     return 0;

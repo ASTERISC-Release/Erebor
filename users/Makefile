@@ -11,10 +11,14 @@ obj-m += kmod.o
 CFLAGS_kmod.o := -Wall -O0
 
 EXEC := encos_dev_user
+EXEC2 := mprotect_test
 
-all: $(EXEC)
+all: $(EXEC) $(EXEC2)
 
 $(EXEC): encos_dev_user.c
+	$(CC) $(CFLAGS) -o $@ $^
+
+$(EXEC2): mprotect_test.c
 	$(CC) $(CFLAGS) -o $@ $^
 
 module: 
@@ -29,5 +33,5 @@ remove:
 	sudo rmmod kmod.ko
 
 clean:
-	rm -rf *.o $(EXEC)
+	rm -rf *.o $(EXEC) $(EXEC2)
 	make -C /lib/modules/`uname -r`/build M=$(PWD) clean

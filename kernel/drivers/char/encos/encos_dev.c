@@ -54,7 +54,7 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
     
     bool do_allocate;
     encos_mem_t *enc_mem;
-    unsigned long base_phys_offset, phys_page;
+    unsigned long base_phys_addr, phys_pfn;
 
     start = vma->vm_start;
     size = vma->vm_end - vma->vm_start;
@@ -71,14 +71,14 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
             log_err("Failed to allocate memory chunk.\n");
             return -ENOMEM;
         }
-        base_phys_offset = enc_mem->phys;
+        base_phys_addr = enc_mem->phys;
     }
 
     /* do remap */
     if (do_allocate) {
         /* map the backend physical page */
-        phys_page = base_phys_offset >> PAGE_SHIFT;
-        vma->vm_pgoff = pg_off = phys_page;
+        phys_pfn = base_phys_addr >> PAGE_SHIFT;
+        vma->vm_pgoff = pg_off = phys_pfn;
     } else {/* in case (2), do nothing but just map the called physical offset */}
     
     // vma->vm_flags |= (VM_DONTEXPAND | VM_DONTDUMP | VM_READ | VM_WRITE | VM_SHARED);
