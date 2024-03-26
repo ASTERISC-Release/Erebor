@@ -36,47 +36,4 @@ static const unsigned MAX_THREADS = 1024;
   #define MAX_TRANSLATIONS 0
 #endif // VG
 
-#if 0
-/* Structure for describing processors */
-struct procMap {
-  unsigned char allocated;
-  unsigned int apicID;
-};
-
-/*
- * Function: getProcessorID()
- *
- * Description:
- *  Determine the processor ID of the current processor.
- *
- * Inputs:
- *  None.
- *
- * Return value:
- *  An index value less than numProcessors that can be used to index into
- *  per-CPU SVA data structures.
- */
-static inline unsigned int
-getProcessorID() {
-  /* Map logical processor ID to an array in the SVA data structures */
-  extern struct procMap svaProcMap[numProcessors];
-
-  /*
-   * Use the CPUID instruction to get a local APIC2 ID for the processor.
-   */
-  unsigned int apicID;
-  __asm__ __volatile__ ("movl $0xB, %%eax\ncpuid" : "=d" (apicID));
-
-  /*
-   * Convert the APIC2 ID into an SVA logical processor ID.
-   */
-  for (unsigned index = 0; index < numProcessors; ++index) {
-    if ((svaProcMap[index].apicID == apicID) && (svaProcMap[index].allocated))
-      return index;
-  }
-
-  return ~0U;
-}
-#endif
-
 #endif

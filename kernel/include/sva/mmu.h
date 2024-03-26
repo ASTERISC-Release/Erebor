@@ -278,8 +278,6 @@ typedef struct page_desc_t {
 
 
 extern uintptr_t getPhysicalAddr (void * v);
-extern uintptr_t mapSecurePage (uintptr_t v, uintptr_t paddr);
-extern void unmapSecurePage (unsigned char * cr3, unsigned char * v);
 
 /*
  *****************************************************************************
@@ -287,7 +285,6 @@ extern void unmapSecurePage (unsigned char * cr3, unsigned char * v);
  *****************************************************************************
  */
 void init_mmu(void);
-void init_leaf_page_from_mapping(page_entry_t mapping);
 
 /*
  *****************************************************************************
@@ -416,18 +413,6 @@ print_regs(void) {
  */
 page_desc_t * getPageDescPtr(unsigned long mapping);
 
-/* See implementation in c file for details */
-// Rahul: uncomment these
-// static inline page_entry_t * va_to_pte (uintptr_t va, enum page_type_t level);
-// static inline int isValidMappingOrder (page_desc_t *pgDesc, uintptr_t newVA);
-
-#if 0
-static inline uintptr_t
-pageVA(page_desc_t pg){
-    return getVirtual(pg.physAddress);    
-}
-#endif
-
 /*
  * Description:
  *  This function takes a page table mapping and set's the flag to read only. 
@@ -470,12 +455,6 @@ setMappingReadWrite (page_entry_t mapping) {
  *****************************************************************************
  */
 
-/* Page setter methods */
-
-/* State whether this kernel virtual address is in the secure memory range */
-static inline int isGhostVA(uintptr_t va)
-    { return (va >= SECMEMSTART) && (va < SECMEMEND); }
-
 /* 
  * The following functions query the given page descriptor for type attributes.
  */
@@ -506,11 +485,6 @@ static inline int isL4Pg (page_desc_t *page) { return page->type == PG_L4; }
 static inline int isL5Pg (page_desc_t *page) { return page->type == PG_L5; }
 static inline int isSVAPg (page_desc_t *page) { return page->type == PG_SVA; }
 static inline int isCodePg (page_desc_t *page) { return page->type == PG_CODE; }
-static inline int isGhostPTP (page_desc_t *page) { return page->ghostPTP; }
-
-static inline int isGhostPG (page_desc_t *page) { 
-    return page->type == PG_GHOST; 
-}
 
 static inline int isKernelStackPG(page_desc_t *page) { 
     return !page->user && page->stack; 
