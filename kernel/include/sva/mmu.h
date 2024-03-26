@@ -65,30 +65,89 @@
 #include <asm/pgtable_64_types.h>
 #include "mmu_types.h"
 
+
+/* MMU Flags ---- Intel Nomenclature ---- */
+#define PG_V          0x001     /* P    Valid                 */
+#define PG_RW         0x002     /* R/W  Read/Write            */
+#define PG_U          0x004     /* U/S  User/Supervisor       */
+#define PG_NC_PWT     0x008     /* PWT  Write through         */
+#define PG_NC_PCD     0x010     /* PCD  Cache disable         */
+#define PG_A          0x020     /* A    Accessed              */
+#define PG_M          0x040     /* D    Dirty                 */
+#define PG_PS         0x080     /* PS   Page size (0=4k,1=2M) */
+#define PG_PTE_PAT    0x080     /* PAT  PAT index             */
+#define PG_G          0x100     /* G    Global                */
+#define PG_AVAIL1     0x200     /* /    Available for system  */
+#define PG_AVAIL2     0x400     /* <    programmers use       */
+#define PG_AVAIL3     0x800     /* \                          */
+#define PG_PDE_PAT    0x1000    /* PAT  PAT index             */
+#define PG_NX         (1ul<<63) /* NX   No-execute            */
+
+/* Various interpretations of the above */
+#define PG_W          PG_AVAIL1               /* "Wired" pseudoflag */
+#define PG_MANAGED    PG_AVAIL2
+#define PG_FRAME      (0x000ffffffffff000ul)
+#define PG_PS_FRAME   (0x000fffffffe00000ul)
+#define PG_PROT       (PG_RW | PG_U)          /* all protection bits . */
+#define PG_N          (PG_NC_PWT | PG_NC_PCD) /* Non-cacheable */
+
+/* Size of the level 1 page table units */
+#define PAGE_SHIFT    12                            /* LOG2(PAGE_SIZE) */
+#define NPTEPG        (PAGE_SIZE/(sizeof(pte_t)))
+#define NPTEPGSHIFT   9                             /* LOG2(NPTEPG) */
+
+/* Size of the level 2 page directory units */
+#define NPMDPG        (PAGE_SIZE/(sizeof(pmd_t)))
+#define NPMDPGSHIFT   9                             /* LOG2(NPMDPG) */
+#define PMDSHIFT      21                            /* LOG2(NBPMD) */
+#define NBPMD         (1<<PMDSHIFT)                 /* bytes/page middle dir */
+#define PMDMASK       (NBPMD-1)
+
+/* Size of the level 3 page directory pointer table units */
+#define NPUDEPG       (PAGE_SIZE/(sizeof (pud_t)))
+#define NPUDEPGSHIFT  9                             /* LOG2(NPUDEPG) */
+#define PUDSHIFT      30                            /* LOG2(NBPUD) */
+#define NBPUD         (1<<PUDSHIFT)                 /* bytes/page upper dir table */
+#define PUDMASK       (NBPUD-1)
+
+/* Size of the level 4 page-map level-4 table units */
+#define NP4DEPG       (PAGE_SIZE/(sizeof (p4d_t)))
+#define NP4DEPGSHIFT  9                             /* LOG2(NP4D) */
+#define P4DSHIFT      39                            /* LOG2(NBP4D) */
+#define NBP4D         (1UL<<P4DSHIFT)               /* bytes/page map level 4 table */
+#define P4DMASK       (NBP4D-1)
+
+/* Size of the level 5 page-map level-5 table units */
+#define NPGDEPG       (PAGE_SIZE/(sizeof (pgd_t)))
+#define NPGDEPGSHIFT  9                             /* LOG2(NPGD) */
+#define PGDSHIFT      48                            /* LOG2(NBPGD) */
+#define NBPGD         (1UL<<PGDSHIFT)               /* bytes/page map level 5 table */
+#define PGDMASK       (NBPGD-1)
+
+/*
+ *****************************************************************************
+ * Memory layout-related definitions
+ *****************************************************************************
+ */
 extern bool mmu_bool;
 
 /* Size of the smallest page frame in bytes */
-// static const uintptr_t X86_PAGE_SIZE = 4096u;
 #define X86_PAGE_SIZE 4096
 
 /* Number of bits to shift to get the page number out of a PTE entry */
 static const unsigned PAGESHIFT = 12;
 
 /* Size of the physical memory and page size in bytes */
-// static const unsigned long memSize = 0x0000000800000000u;
-// static const unsigned long pageSize = 4096;
-// static const unsigned long numPageDescEntries = memSize / pageSize;
-
-// Rahul: Changing these to a #define to circumvent a "error: variably modified ‘page_desc’ at file scope"
-#define memSize 0x0000000800000000u
-#define pageSize 4096
+#define memSize 0x0000000800000000u     /* 32GB physical memory */
+#define pageSize 4096                   /* 4KB page size */
+/* For each physical page, we have a corresponding PageDesc */
 #define numPageDescEntries (memSize / pageSize)
 
-/* Start and end addresses of the secure memory */
+/* Start and end addresses of the ENCOS SM's virtual secure memory */
 #define SECMEMSTART 0xffffff0000000000u
 #define SECMEMEND   0xffffff8000000000u
 
-/* Start and end addresses of user memory */
+/* Start and end addresses of userspace virtual memory */
 static const uintptr_t USERSTART = 0x0000000000000000u;
 static const uintptr_t USEREND = 0x00007fffffffffffu;
 
@@ -217,75 +276,6 @@ typedef struct page_desc_t {
     unsigned user : 1;
 } page_desc_t;
 
-/*
- * ===========================================================================
- * BEGIN FreeBSD CODE BLOCK
- *
- * $FreeBSD: release/9.0.0/sys/amd64/include/pmap.h 222813 2011-06-07 08:46:13Z attilio $
- * ===========================================================================
- */
-
-/* MMU Flags ---- Intel Nomenclature ---- */
-#define PG_V        0x001   /* P    Valid               */
-#define PG_RW       0x002   /* R/W  Read/Write          */
-#define PG_U        0x004   /* U/S  User/Supervisor     */
-#define PG_NC_PWT   0x008   /* PWT  Write through       */
-#define PG_NC_PCD   0x010   /* PCD  Cache disable       */
-#define PG_A        0x020   /* A    Accessed            */
-#define PG_M        0x040   /* D    Dirty               */
-#define PG_PS       0x080   /* PS   Page size (0=4k,1=2M)   */
-#define PG_PTE_PAT  0x080   /* PAT  PAT index           */
-#define PG_G        0x100   /* G    Global              */
-#define PG_AVAIL1   0x200   /*    / Available for system    */
-#define PG_AVAIL2   0x400   /*   <  programmers use     */
-#define PG_AVAIL3   0x800   /*    \                     */
-#define PG_PDE_PAT  0x1000  /* PAT  PAT index           */
-#define PG_NX       (1ul<<63) /* No-execute             */
-
-/* Various interpretations of the above */
-#define PG_W        PG_AVAIL1   /* "Wired" pseudoflag */
-#define PG_MANAGED  PG_AVAIL2
-#define PG_FRAME    (0x000ffffffffff000ul)
-#define PG_PS_FRAME (0x000fffffffe00000ul)
-#define PG_PROT     (PG_RW|PG_U)    /* all protection bits . */
-#define PG_N        (PG_NC_PWT|PG_NC_PCD)   /* Non-cacheable */
-
-/* Size of the level 1 page table units */
-#define PAGE_SHIFT  12      /* LOG2(PAGE_SIZE) */
-// #define PAGE_SIZE   (1<<PAGE_SHIFT) /* bytes/page */
-#define NPTEPG      (PAGE_SIZE/(sizeof (pte_t)))
-#define NPTEPGSHIFT 9       /* LOG2(NPTEPG) */
-// #define PAGE_MASK   (PAGE_SIZE-1)
-/* Size of the level 2 page directory units */
-#define NPMDPG      (PAGE_SIZE/(sizeof (pmd_t)))
-#define NPMDPGSHIFT 9       /* LOG2(NPMDPG) */
-#define PMDSHIFT    21              /* LOG2(NBPMD) */
-#define NBPMD       (1<<PMDSHIFT)   /* bytes/page middle dir */
-#define PMDMASK     (NBPMD-1)
-/* Size of the level 3 page directory pointer table units */
-#define NPUDEPG     (PAGE_SIZE/(sizeof (pud_t)))
-#define NPUDEPGSHIFT    9       /* LOG2(NPUDEPG) */
-#define PUDSHIFT    30      /* LOG2(NBPUD) */
-#define NBPUD       (1<<PUDSHIFT)   /* bytes/page upper dir table */
-#define PUDMASK     (NBPUD-1)
-/* Size of the level 4 page-map level-4 table units */
-#define NP4DEPG    (PAGE_SIZE/(sizeof (p4d_t)))
-#define NP4DEPGSHIFT   9       /* LOG2(NP4D) */
-#define P4DSHIFT   39      /* LOG2(NBP4D) */
-#define NBP4D      (1UL<<P4DSHIFT)/* bytes/page map level 4 table */
-#define P4DMASK    (NBP4D-1)
-/* Size of the level 5 page-map level-5 table units */
-#define NPGDEPG    (PAGE_SIZE/(sizeof (pgd_t)))
-#define NPGDEPGSHIFT   9       /* LOG2(NPGD) */
-#define PGDSHIFT   48      /* LOG2(NBPGD) */
-#define NBPGD      (1UL<<PGDSHIFT)/* bytes/page map level 5 table */
-#define PGDMASK    (NBPGD-1)
-
-/*
- * ===========================================================================
- * END FreeBSD CODE BLOCK
- * ===========================================================================
- */
 
 extern uintptr_t getPhysicalAddr (void * v);
 extern uintptr_t mapSecurePage (uintptr_t v, uintptr_t paddr);

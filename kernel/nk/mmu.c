@@ -61,6 +61,11 @@ const uintptr_t SecureStackBase = (uintptr_t) SecureStack + 4096;
 #define NKDEBUGG(fname, fmt, args...) /* nothing: it's a placeholder */
 
 
+/*
+ *****************************************************************************
+ * MSR and control register (CR) operations.
+ *****************************************************************************
+ */
 // Rahul: Moved functions here from the header file mmu.h
  uint64_t
 _rdmsr(uintptr_t msr)
@@ -178,17 +183,26 @@ struct PTInfo PTPages[1024] SVAMEM;
 /* The index is the physical page number */
 static page_desc_t page_desc[numPageDescEntries] SVAMEM;
 
+
+
+/*
+ * Object: MMULock
+ *
+ * Description:
+ *  This is the spinlock used for synchronizing access to the page tables.
+ *  Chuqi: TODO: replace the normal OS's spinlock with our own spinlock.
+ */
 spinlock_t MMULock;
 
-static  void init_MMULock(void) {
+static void init_MMULock(void) {
     spin_lock_init(&MMULock);
 }
 
-static  void MMULock_Acquire(void) {
+static void MMULock_Acquire(void) {
     spin_lock(&MMULock);
 }
 
-static  void MMULock_Release(void) {
+static void MMULock_Release(void) {
     spin_unlock(&MMULock);
 }
 
@@ -867,7 +881,7 @@ get_pgeVaddr (uintptr_t vaddr) {
   return pge;
 }
 
-
+/* Refer to Intel SDM Section 4.5.2 */
 pgd_t *
 get_pgdVaddr (unsigned char * cr3, uintptr_t vaddr) {
   /* Offset into the page table */
@@ -878,28 +892,28 @@ get_pgdVaddr (unsigned char * cr3, uintptr_t vaddr) {
 p4d_t *
 get_p4dVaddr (pgd_t * pgd, uintptr_t vaddr) {
   /* Offset into the page table */
-  uintptr_t base   = (uintptr_t)(pgd->pgd) & 0x000ffffffffff000ul;
+  uintptr_t base   = (uintptr_t)(pgd->pgd) & addrmask;
   uintptr_t offset = (vaddr >> (39 - 3)) & vmask;
   return (p4d_t *) getVirtual (((uintptr_t)base) | offset);
 }
 
 pud_t *
 get_pudVaddr (p4d_t * p4d, uintptr_t vaddr) {
-  uintptr_t base   = (uintptr_t)(p4d->p4d) & 0x000ffffffffff000ul;
+  uintptr_t base   = (uintptr_t)(p4d->p4d) & addrmask;
   uintptr_t offset = (vaddr >> (30 - 3)) & vmask;
   return (pud_t *) getVirtual (base | offset);
 }
 
 pmd_t *
 get_pmdVaddr (pud_t * pud, uintptr_t vaddr) {
-  uintptr_t base   = (uintptr_t)(pud->pud) & 0x000ffffffffff000u;
+  uintptr_t base   = (uintptr_t)(pud->pud) & addrmask;
   uintptr_t offset = (vaddr >> (21 - 3)) & vmask;
   return (pmd_t *) getVirtual (base | offset);
 }
 
 pte_t *
 get_pteVaddr (pmd_t * pmd, uintptr_t vaddr) {
-  uintptr_t base   = (uintptr_t)(pmd->pmd) & 0x000ffffffffff000u;
+  uintptr_t base   = (uintptr_t)(pmd->pmd) & addrmask;
   uintptr_t offset = (vaddr >> (12 - 3)) & vmask;
   return (pte_t *) getVirtual (base | offset);
 }
