@@ -68,6 +68,10 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
 {
     unsigned long start, size, pg_off;
     
+    struct page **pages;
+    int i, rvl;
+    unsigned long num;
+
     bool do_allocate;
     encos_mem_t *enc_mem;
     unsigned long base_phys_addr, phys_pfn;
@@ -78,8 +82,8 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
     do_allocate = (pg_off) ? false : true;
 
 #ifdef ENCOS_DEBUG
-    log_info("Start mmap {vm_start=0x%lx, size=0x%lx, pg_off=0x%lx}.\n",
-             start, size, pg_off);
+    log_err("[Start] mmap {vm_start=0x%lx, size=0x%lx, pg_off=0x%lx}, flags=0x%lx, pgprot=0x%lx.\n",
+             start, size, pg_off, vma->vm_flags, vma->vm_page_prot.pgprot);
 #endif  
     /* allocate a physical memory chunk */
     if (do_allocate) {  /* alloc + mmap */
@@ -88,28 +92,57 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
             return -ENOMEM;
         }
         base_phys_addr = enc_mem->phys;
+        phys_pfn = base_phys_addr >> PAGE_SHIFT;
+        /* assign pages */
+        pages = (struct page **)kmalloc(sizeof(struct page *) * enc_mem->nr_pages, 
+                                        GFP_KERNEL);
+        if (!pages) {
+            log_err("Failed to allocate pages.\n");
+            return -ENOMEM;
+        }
+        for (i = 0; i < enc_mem->nr_pages; i++) {
+            // pages[i] = virt_to_page((void *)(enc_mem->virt_kern + i * PAGE_SIZE));
+            pages[i] = pfn_to_page(phys_pfn + i);
+        }
+        num = enc_mem->nr_pages;
     }
 
     /* do remap */
     if (do_allocate) {
         /* map the backend physical page */
-        phys_pfn = base_phys_addr >> PAGE_SHIFT;
         vma->vm_pgoff = pg_off = phys_pfn;
-    } else {/* in case (2), do nothing but just map the called physical offset */}
-    
-    // vma->vm_flags |= (VM_DONTEXPAND | VM_DONTDUMP | VM_READ | VM_WRITE | VM_SHARED);
-    vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP | VM_READ | VM_WRITE | VM_SHARED);
-    
+    } else {/* in case (2), do nothing but just map the called physical offset */
+        log_err("UNEXPECTED.\n");
+        return -EINVAL;
+    }
+
 #ifdef ENCOS_DEBUG
-    log_info("vma: {vm_start=0x%lx(size: 0x%lx) => vm_pgoff=0x%lx} vm_flags=0x%lx, vm_page_prot=0x%lx.\n", 
+    log_err("[try] vma: {vm_start=0x%lx(size: 0x%lx) => vm_pgoff=0x%lx} vm_flags=0x%lx, vm_page_prot=0x%lx.\n", 
              vma->vm_start, size, vma->vm_pgoff, vma->vm_flags, vma->vm_page_prot.pgprot);
 #endif
 
-    if (remap_pfn_range(vma, start, pg_off, size, vma->vm_page_prot)) {
-        log_err("Remap the physical memory failed.\n");
+    // vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP | VM_READ | VM_WRITE | VM_SHARED);
+    // if (remap_pfn_range(vma, start, pg_off, size, vma->vm_page_prot)) {
+    //     log_err("Remap the physical memory failed.\n");
+    //     return -EAGAIN;
+    // }
+    /* vm_insert_pages or remap_pfn_range? which one is better? */
+    if ((rvl = vm_insert_pages(vma, start, pages, &num)) != 0) {
+        log_err("Failed to insert all pages. nr_pages=%lu, failed: %lu, ret=%d.\n", 
+                    enc_mem->nr_pages, num, rvl);
+        // debug pages
+        for (i = 0; i < enc_mem->nr_pages; i++) {
+            log_err("page[%d]=0x%lx.\n", i, (unsigned long)pages[i]);
+        }
         return -EAGAIN;
     }
 
+#ifdef ENCOS_DEBUG
+    log_err("[done] vma: {vm_start=0x%lx(size: 0x%lx) => vm_pgoff=0x%lx} vm_flags=0x%lx, vm_page_prot=0x%lx.\n", 
+             vma->vm_start, size, vma->vm_pgoff, vma->vm_flags, vma->vm_page_prot.pgprot);
+#endif
+
+    kfree(pages);
     /* TODO: call the secure monitor to protect the assigned physical memories */
     return 0;
 }

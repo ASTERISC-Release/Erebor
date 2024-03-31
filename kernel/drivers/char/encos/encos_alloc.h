@@ -25,6 +25,7 @@ typedef struct encos_mem {
     unsigned long phys;
     /* size */
     unsigned long length;
+    unsigned long nr_pages;
     unsigned int cma_alloc : 1;
     /* link to the global chunks */
     struct list_head list;

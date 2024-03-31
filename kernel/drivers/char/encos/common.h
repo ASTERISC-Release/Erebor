@@ -11,5 +11,14 @@
     printk(KERN_ERR "[%s][%d] "pr_fmt(fmt)"", __func__, __LINE__, ##arg)
 
 
+#define ENCOS_ASSERT(cond, fmt, arg...) \
+    do { \
+        if (!(cond)) { \
+            log_err(fmt, ##arg); \
+            /* Optional: Add any error handling here. */ \
+        } \
+    } while (0)
+
+
 #define ENCOS_DEBUG   (1)
 #endif
