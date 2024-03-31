@@ -12,6 +12,15 @@ int main() {
         perror("mmap");
         return 1;
     }
+    printf("mmap buf: 0x%lx -> PROT_READ | PROT_WRITE success\n", (unsigned long)buffer);
+
+    /* get a prot_none page? */
+    void *buffer2 = mmap(NULL, PG_SIZE, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    if (buffer2 == MAP_FAILED) {
+        perror("mmap");
+        return 1;
+    }
+    printf("mmap buf2: 0x%lx -> PROT_NONE success\n", (unsigned long)buffer2);
 
     /* write data */
     char* data = buffer;
