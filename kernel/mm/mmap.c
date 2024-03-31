@@ -53,6 +53,9 @@
 #include <asm/tlb.h>
 #include <asm/mmu_context.h>
 
+// debug functions
+#include <linux/encos.h>
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/mmap.h>
 
@@ -2763,6 +2766,10 @@ cannot_expand:
 	vma->vm_page_prot = vm_get_page_prot(vm_flags);
 	vma->vm_pgoff = pgoff;
 
+	// TODO: DEBUG
+	log_kdbg("[START mmap_region] vma->start=0x%lx, pgoff=0x%lx, flags=0x%lx, pgprot=0x%lx\n",
+			 vma->vm_start, vma->vm_pgoff, vma->vm_flags, vma->vm_page_prot.pgprot);
+
 	if (file) {
 		if (vm_flags & VM_SHARED) {
 			error = mapping_map_writable(file->f_mapping);
@@ -2888,6 +2895,9 @@ expanded:
 	vma_set_page_prot(vma);
 
 	validate_mm(mm);
+	// TODO: DEBUG
+	log_kdbg("[DONE mmap_region] vma->start=0x%lx, pgoff=0x%lx, flags=0x%lx, pgprot=0x%lx\n",
+			 vma->vm_start, vma->vm_pgoff, vma->vm_flags, vma->vm_page_prot.pgprot);
 	return addr;
 
 close_and_free_vma:

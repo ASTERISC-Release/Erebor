@@ -22,12 +22,14 @@
 #include <linux/kallsyms.h>
 #include <linux/fs.h>
 
-#include <sva/config.h>
+#include <linux/encos.h>
 #include "encos_alloc.h"
 
 
 struct miscdevice *misc;
 struct mutex encos_dev_mlock;
+
+int encos_kdbg_enabled = 0;
 
 static long encos_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -41,6 +43,17 @@ static long encos_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             
             log_info("[Request enclave init] pid=%d, pgrp=%d.\n", enc_pid, enc_pgrp);
             
+            break;
+        
+        /*
+         * Kernel debug logging enable/disable
+         */
+        case ENCOS_ENABLE_KDBG:
+            encos_kdbg_enabled = 1;
+            break;
+
+        case ENCOS_DISABLE_KDBG:
+            encos_kdbg_enabled = 0;
             break;
     }
     return (long)rvl;
@@ -106,12 +119,13 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
         }
         num = enc_mem->nr_pages;
     }
-
     /* do remap */
-    if (do_allocate) {
-        /* map the backend physical page */
-        vma->vm_pgoff = pg_off = phys_pfn;
-    } else {/* in case (2), do nothing but just map the called physical offset */
+
+    // if (do_allocate) {
+    //     /* map the backend physical page */
+    //     vma->vm_pgoff = pg_off = phys_pfn;
+    // } 
+    else {/* in case (2), do nothing but just map the called physical offset */
         log_err("UNEXPECTED.\n");
         return -EINVAL;
     }

@@ -66,9 +66,9 @@ succ:
     /* clear content */
     memset((void *)encos_mem->virt_kern, 0, length);
 #ifdef ENCOS_DEBUG
-    /* inspect the allocated memory */
-    log_info("Allocated memory chunk (order=%d, nr_page=%lu): \n", order, encos_mem->nr_pages);
-    encos_mem_inspect(encos_mem);
+    // /* inspect the allocated memory */
+    // log_info("Allocated memory chunk (order=%d, nr_page=%lu): \n", order, encos_mem->nr_pages);
+    // encos_mem_inspect(encos_mem);
 #endif 
     return encos_mem;
 
