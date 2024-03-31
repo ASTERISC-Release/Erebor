@@ -550,6 +550,10 @@ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
 		if (populate)
 			mm_populate(ret, populate);
 	}
+	//debug
+	if ((long)ret < 0)
+		printk(KERN_ERR "[vm_mmap_pgoff] addr=0x%lx, prot=0x%lx, flag=0x%lx, ret=%ld\n", 
+				addr, prot, flag, (long)ret);
 	return ret;
 }
 

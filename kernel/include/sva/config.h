@@ -16,6 +16,9 @@
 #ifndef _SVA_CONFIG_H
 #define _SVA_CONFIG_H
 
+#include <linux/types.h>
+#include <linux/spinlock.h>
+#include <linux/kconfig.h>
 /* Determine whether the virtual ghost features are enabled */
 #ifdef VG
 static const unsigned char vg = 1;
@@ -35,5 +38,13 @@ static const unsigned MAX_THREADS = 1024;
 #else
   #define MAX_TRANSLATIONS 0
 #endif // VG
+
+/* ENCOS driver IOCTL interfaces */
+#define   ENCOS_DEV_NAME "encos-dev"
+
+#define   ENCOS_ENCLAVE_REQUEST          _IOW('m', 1, unsigned int)
+#define         HHKR_MMAP_BUF           _IOW('m', 4, unsigned int)
+#define         HHKR_MMAP_MSG_QUEUE     _IOW('m', 5, unsigned int)
+#define         HHKR_MMAP_FREEBACK_WL   _IOW('m', 7, unsigned int)
 
 #endif

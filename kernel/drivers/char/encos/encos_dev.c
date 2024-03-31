@@ -22,13 +22,29 @@
 #include <linux/kallsyms.h>
 #include <linux/fs.h>
 
+#include <sva/config.h>
 #include "encos_alloc.h"
 
 
-#define DEV_NAME "encos-dev"
-
 struct miscdevice *misc;
 struct mutex encos_dev_mlock;
+
+static long encos_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+    int rvl;
+    int enc_pid, enc_pgrp;
+    rvl = 0;
+    switch (cmd) {
+        case ENCOS_ENCLAVE_REQUEST:
+            enc_pid = current->pid;
+            enc_pgrp = task_pgrp_nr(current);
+            
+            log_info("[Request enclave init] pid=%d, pgrp=%d.\n", enc_pid, enc_pgrp);
+            
+            break;
+    }
+    return (long)rvl;
+}
 
 /** ==================================================
  * ENCOS memory mmap() interface
@@ -100,18 +116,17 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
 
 static struct file_operations encos_dev_ops = {
     .owner = THIS_MODULE,
-    .unlocked_ioctl = NULL,
+    .unlocked_ioctl = encos_ioctl,
     .mmap = encos_mmap,
 };
 
 static int __init encos_dev_init(void)
 {
     int rvl;
-    encos_mem_t *mem; // debug
 
     /* register device */
     misc = kzalloc(sizeof(struct miscdevice), GFP_KERNEL);
-    misc->name = DEV_NAME;
+    misc->name = ENCOS_DEV_NAME;
     misc->minor = MISC_DYNAMIC_MINOR;
     /* 
      * Note: this mode (0666) is ONLY for development purpose.
@@ -123,7 +138,7 @@ static int __init encos_dev_init(void)
 
     rvl = misc_register(misc);
     if (rvl) {
-        log_err("Failed to register misc device: %s\n", DEV_NAME);
+        log_err("Failed to register misc device: %s\n", ENCOS_DEV_NAME);
         return rvl;
     }
 
@@ -131,13 +146,10 @@ static int __init encos_dev_init(void)
     mutex_init(&encos_dev_mlock);
     /* allocator init */
     init_encos_allocator();
-    
-    /* debug: allocate a chunk of memory */
-    mem = encos_alloc(/*size=*/0x100000, /*enc_id=*/0);
-    encos_mem_inspect(mem);
 
+    /* finish */
     log_info("Initialized dev: %s (mode=%d).\n",
-             DEV_NAME, misc->mode);
+             ENCOS_DEV_NAME, misc->mode);
     return 0;
 }
 
