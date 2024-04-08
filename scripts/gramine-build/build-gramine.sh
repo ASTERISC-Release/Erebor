@@ -33,7 +33,7 @@ pushd $GRAMINEDIR
             --buildtype=debug \
             -Dencos=enabled \
             -DENCOS_DEBUG=enabled \
-            -Ddirect=disabled -Dsgx=disabled
+            -Ddirect=enabled -Dsgx=disabled
     fi
     # reconfigure
     if [ -n "$reconfigure" ]; then
