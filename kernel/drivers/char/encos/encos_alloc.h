@@ -76,13 +76,18 @@ static inline void destory_encos_allocator(void)
  */
 static inline void encos_mem_inspect(encos_mem_t *mem)
 {
+    struct page *page;
     if (!mem) {
         log_err("NULL memory chunk.\n");
         return;
     }
+
+    page = virt_to_page((void *)mem->virt_kern);
     log_info("MEM[enc_id=%d; cma=%d] phys=0x%lx, virt_kern=0x%lx, virt_user=0x%lx, length=%ld.\n",
              mem->enc_id, mem->cma_alloc, 
              mem->phys, mem->virt_kern, mem->virt_user, mem->length);
+    log_err("MEM page=0x%lx, mapping=0x%lx.\n", 
+             (unsigned long)page, (unsigned long)page->mapping);
 }
 
 /**

@@ -80,7 +80,7 @@ static long encos_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static int encos_mmap(struct file *file, struct vm_area_struct *vma)
 {
     unsigned long start, size, pg_off;
-    
+    struct page *page;
     struct page **pages;
     int i, rvl;
     unsigned long num;
@@ -95,8 +95,8 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
     do_allocate = (pg_off) ? false : true;
 
 #ifdef ENCOS_DEBUG
-    log_err("[Start] mmap {vm_start=0x%lx, size=0x%lx, pg_off=0x%lx}, flags=0x%lx, pgprot=0x%lx.\n",
-             start, size, pg_off, vma->vm_flags, vma->vm_page_prot.pgprot);
+    log_err("[Start] mmap {vm_start=0x%lx, size=0x%lx, pg_off=0x%lx}, flags=0x%lx, pgprot=0x%lx. f_mapping=0x%lx\n",
+             start, size, pg_off, vma->vm_flags, vma->vm_page_prot.pgprot, (unsigned long)file->f_mapping);
 #endif  
     /* allocate a physical memory chunk */
     if (do_allocate) {  /* alloc + mmap */
@@ -115,7 +115,8 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
         }
         for (i = 0; i < enc_mem->nr_pages; i++) {
             // pages[i] = virt_to_page((void *)(enc_mem->virt_kern + i * PAGE_SIZE));
-            pages[i] = pfn_to_page(phys_pfn + i);
+            page = pfn_to_page(phys_pfn + i);
+            pages[i] = page;
         }
         num = enc_mem->nr_pages;
     }
