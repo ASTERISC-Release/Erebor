@@ -35,10 +35,15 @@
 #include <asm/syscall.h>
 #include <asm/irq_stack.h>
 
+#include <sva/mmu_intrinsics.h>
+
 #ifdef CONFIG_X86_64
 
 static __always_inline bool do_syscall_x64(struct pt_regs *regs, int nr)
 {
+	// Intercept all syscalls
+	sva_syscall_intercept(regs, nr);
+
 	/*
 	 * Convert negative numbers to very high and thus out of range
 	 * numbers for comparisons.

@@ -1001,20 +1001,14 @@ getPhysicalAddr (void * v) {
 }
 
 
-// SECURE_WRAPPER(void, 
-// sva_mmu_test, void) {
-// void sva_mmu_test(void) {
-  // uintptr_t addr = (uintptr_t)asm_sysvec_apic_timer_interrupt;
-  // uintptr_t addr = (uintptr_t)asm_sysvec_apic_timer_interrupt;
-  // asm ("movq %0, %%r11" : : "r"(addr));
-  // asm ("pushq %r11\n");
-  // asm volatile (
-    // "pushq %0"
-    // :
-    // : "r" ((uintptr_t)asm_sysvec_apic_timer_interrupt)
-  // );
-  // asm ("ret\n");
-// }
+SECURE_WRAPPER(void, 
+sva_mmu_test, void) {
+  printk("sva_mmu_test\n");
+}
+
+SECURE_WRAPPER(void, sva_syscall_intercept, struct pt_regs* regs, int nr) {
+  printk("syscall intercept\n");
+}
 
 /*
  * Intrinsic: sva_mm_load_pgtable()
