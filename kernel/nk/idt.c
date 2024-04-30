@@ -2,10 +2,11 @@
 #include <sva/stack.h>
 #include <asm/desc.h>
 #include <sva/idt.h>
+#include "sva/svamem.h"
 
 #include <asm/idtentry.h>
 
-static gate_desc sva_idt_table[IDT_ENTRIES] __page_aligned_bss;
+gate_desc sva_idt_table[IDT_ENTRIES] SVAMEM;
 
 #define IDT_TABLE_SIZE		(IDT_ENTRIES * sizeof(gate_desc))
 

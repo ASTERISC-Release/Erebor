@@ -102,7 +102,7 @@ extern const uintptr_t SecureStackBase;
   /* Get current PKRS value */                                                 \
   "rdmsr\n"                                                                    \
   /* Restrict all access for key 1 */                                          \
-  "orq $0x0000000c, %rax\n"                                                    \
+  "orq $0x0000000000000008, %rax\n"                                            \
   /* Update the PKRS value */                                                  \
   "wrmsr\n"                                                                    \
   /* Restore clobbered register */                                             \
@@ -120,7 +120,7 @@ extern const uintptr_t SecureStackBase;
   /* Get current PKRS value */                                                 \
   "rdmsr\n"                                                                    \
   /* Allow access for key 1 */                                                 \
-  "andq $0xFFFFFFF3, %rax\n"                                                   \
+  "andq $0xFFFFFFFFFFFFFFF7, %rax\n"                                           \
   /* Update the PKRS value */                                                  \
   "wrmsr\n"                                                                    \
   /* Restore clobbered register */                                             \
@@ -157,7 +157,7 @@ extern const uintptr_t SecureStackBase;
   /* Get current PKRS value */                                                 \
   "rdmsr\n"                                                                    \
   /* Allow access for key 1 */                                                 \
-  "andq $0xFFFFFFFFFFFFFFF3, %rax\n"                                           \
+  "andq $0xFFFFFFFFFFFFFFF7, %rax\n"                                           \
   /* Update the PKRS value */                                                  \
   "wrmsr\n"                                                                    \
   /* Disable interrupts */                                                     \
@@ -192,7 +192,7 @@ extern const uintptr_t SecureStackBase;
   /* Get current PKRS value */                                                 \
   "rdmsr\n"                                                                    \
   /* Restrict all access for key 1 */                                          \
-  "orq $0x000000000000000c, %rax\n"                                            \
+  "orq $0x0000000000000008, %rax\n"                                            \
   /* Update the PKRS value */                                                  \
   "wrmsr\n"                                                                    \
   /* Restore clobbered register */                                             \
@@ -204,9 +204,7 @@ extern const uintptr_t SecureStackBase;
 
 #define SECURE_INTERRUPT_REDIRECT                                              \
   DISABLE_INTERRUPTS                                                           \
-  SWITCH_TO_SECURE_STACK                                                       \
   ENABLE_PKS_PROTECTION                                                        \
-  SWITCH_BACK_TO_NORMAL_STACK                                                  \
   ENABLE_INTERRUPTS                                                            \
 
 #endif
@@ -240,7 +238,7 @@ asm( \
   ".align 16,0x90\n" \
   ".type " #FUNC ",@function\n" \
   #FUNC ":\n" \
-SECURE_INTERRUPT_REDIRECT \
+  SECURE_INTERRUPT_REDIRECT \
   /* Call real version of function */ \
   "call " #FUNC "_intr\n" \
   "ret\n" \
