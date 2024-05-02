@@ -6,3 +6,7 @@ build.kern.log
 gramine
 
 .vscode
+
+#gdb
+.gdb_history
+peda-session-vmlinux.txt
