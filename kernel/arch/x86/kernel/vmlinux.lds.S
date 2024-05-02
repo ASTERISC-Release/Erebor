@@ -403,8 +403,6 @@ SECTIONS
 	/* Create the SVA data section */
 	_svastart = ALIGN(0x1000);
 	.svamem ALIGN(0x1000) : {
-		SVAPTPages = .;
-		. = . + 4194304;
 		*(svamem)
 		_svaend = .;
 	}

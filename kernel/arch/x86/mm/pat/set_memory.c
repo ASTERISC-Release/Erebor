@@ -2380,7 +2380,6 @@ static int __set_pages_p(struct page *page, int numpages)
 static int __set_pages_np(struct page *page, int numpages)
 {
 	unsigned long tempaddr = (unsigned long) page_address(page);
-	// printk("tempaddr = %lx", tempaddr);
 	struct cpa_data cpa = { .vaddr = &tempaddr,
 				.pgd = NULL,
 				.numpages = numpages,
