@@ -83,7 +83,10 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
     struct page *page;
     struct page **pages;
     int i, rvl;
+    int enc_id;
     unsigned long num;
+
+    encos_shmem_hash_entry_t *shmem_entry;
 
     bool do_allocate;
     encos_mem_t *enc_mem;
@@ -98,38 +101,57 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
     log_err("[Start] mmap {vm_start=0x%lx, size=0x%lx, pg_off=0x%lx}, flags=0x%lx, pgprot=0x%lx. f_mapping=0x%lx\n",
              start, size, pg_off, vma->vm_flags, vma->vm_page_prot.pgprot, (unsigned long)file->f_mapping);
 #endif  
-    /* allocate a physical memory chunk */
-    if (do_allocate) {  /* alloc + mmap */
-        if ((enc_mem = encos_alloc(size, /*enc_id=*/0)) == NULL) {
+    /* allocate an ``internal'' physical memory chunk */
+    if (!pg_off) {  /* alloc + mmap */
+        if ((enc_mem = encos_alloc(size, /*enc_id=*/1, /*add_to_memlist=*/true)) == NULL) {
             log_err("Failed to allocate memory chunk.\n");
             return -ENOMEM;
         }
-        base_phys_addr = enc_mem->phys;
-        phys_pfn = base_phys_addr >> PAGE_SHIFT;
-        /* assign pages */
-        pages = (struct page **)kmalloc(sizeof(struct page *) * enc_mem->nr_pages, 
-                                        GFP_KERNEL);
-        if (!pages) {
-            log_err("Failed to allocate pages.\n");
-            return -ENOMEM;
-        }
-        for (i = 0; i < enc_mem->nr_pages; i++) {
-            // pages[i] = virt_to_page((void *)(enc_mem->virt_kern + i * PAGE_SIZE));
-            page = pfn_to_page(phys_pfn + i);
-            pages[i] = page;
-        }
-        num = enc_mem->nr_pages;
     }
-    /* do remap */
+    else {/* in case (2), mmap a shared memory */
+        ENCOS_ASSERT(pg_off != 0, "Invalid pg_off=0x%lx.\n", pg_off);
+        enc_id = pg_off;
+        /* TODO: should also fetch the enc_id from the SM and check */
+        ENCOS_ASSERT(enc_id == 1, "Invalid enc_id=0x%x.\n", enc_id);
+        vma->vm_pgoff = 0;  // reset pgoff
+        /* lookup first */
+        shmem_entry = encos_shmem_lookup(enc_id);
+        if (!shmem_entry) { /* lookup failed */
+            /* assign with owner_pid (only if it has write permission) */
+            if (!(vma->vm_flags & VM_WRITE)) {
+                log_err("Shared memory owner does not have write permission.\n");
+                return -EPERM;
+            }
+            /* allocate a shared memory chunk */
+            if ((enc_mem = encos_shmem_alloc(size, /*enc_id=*/enc_id)) == NULL) {
+                log_err("Failed to allocate shared memory chunk.\n");
+                return -ENOMEM;
+            }
+        } else {   /* lookup succeeded */
+            /* must have R/X but not W */
+            if (vma->vm_flags & VM_WRITE) {
+                log_err("Shared memory borrower cannot have write permission.\n");
+                return -EPERM;
+            }
+            enc_mem = shmem_entry->shmem_chunk;
+        }
+    }
 
-    // if (do_allocate) {
-    //     /* map the backend physical page */
-    //     vma->vm_pgoff = pg_off = phys_pfn;
-    // } 
-    else {/* in case (2), do nothing but just map the called physical offset */
-        log_err("UNEXPECTED.\n");
-        return -EINVAL;
+    /* start mmap */
+    base_phys_addr = enc_mem->phys;
+    phys_pfn = base_phys_addr >> PAGE_SHIFT;
+    /* assign pages */
+    pages = (struct page **)kmalloc(sizeof(struct page *) * enc_mem->nr_pages, 
+                                    GFP_KERNEL);
+    if (!pages) {
+        log_err("Failed to allocate pages.\n");
+        return -ENOMEM;
     }
+    for (i = 0; i < enc_mem->nr_pages; i++) {
+        page = pfn_to_page(phys_pfn + i);
+        pages[i] = page;
+    }
+    num = enc_mem->nr_pages;
 
 #ifdef ENCOS_DEBUG
     log_err("[try] vma: {vm_start=0x%lx(size: 0x%lx) => vm_pgoff=0x%lx} vm_flags=0x%lx, vm_page_prot=0x%lx.\n", 
@@ -217,5 +239,5 @@ module_init(encos_dev_init);
 module_exit(encos_dev_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Chuqi Zhang");
+MODULE_AUTHOR("Sun Devil");
 MODULE_DESCRIPTION("ENCOS device driver");

@@ -1,14 +1,18 @@
 #include "encos_alloc.h"
 #include <linux/dma-map-ops.h>
 
+
 struct cma *encos_cma = NULL;
 
 struct list_head encos_mem_chunks;
 
+struct hlist_head encos_shmem_table[];
+DEFINE_HASHTABLE(encos_shmem_table, 8);
+
 /**
  * Allocate a memory chunk.
  */
-encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id)
+encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id, bool add_to_memlist)
 {
     struct page *page = NULL;
     int nr_pages, order;
@@ -62,7 +66,12 @@ encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id)
     encos_mem->cma_alloc = 0;
     encos_mem->nr_pages = nr_pages;
 succ:
-    list_add_tail(&encos_mem->list, &encos_mem_chunks);
+    /* 
+     * For enclave internal memory, we add them to the list.
+     * For shared memory, we don't do so.
+     */
+    if (add_to_memlist)
+        list_add_tail(&encos_mem->list, &encos_mem_chunks);
     /* clear content */
     memset((void *)encos_mem->virt_kern, 0, length);
 #ifdef ENCOS_DEBUG
@@ -77,3 +86,62 @@ fail:
             length, enc_id);
     return NULL;
 }
+
+encos_mem_t *encos_shmem_alloc(unsigned long length, unsigned long enc_id)
+{
+    /* only shmem owner can allocate id */
+    encos_mem_t *shmem_chunk;
+    encos_shmem_hash_entry_t *shmem_entry;
+    int owner_pid = current->pid;
+
+    shmem_chunk = encos_alloc(length, /*enc_id=*/enc_id, /*add_to_memlist=*/false);
+    if (!shmem_chunk) {
+        log_err("Failed to allocate shared memory chunk.\n");
+        return NULL;
+    }
+
+#ifdef ENCOS_DEBUG
+    log_info("Allocated shmem chunk succeed for owner_pid=%d, enc_id=%lu.\n",
+              owner_pid, enc_id);
+#endif 
+
+    /* insert the entry to hash table */
+    shmem_entry = (encos_shmem_hash_entry_t *)
+                    kzalloc(sizeof(encos_shmem_hash_entry_t), GFP_KERNEL | __GFP_ZERO);
+    shmem_entry->enc_id = enc_id;
+    shmem_entry->owner_pid = owner_pid;
+    shmem_entry->shmem_chunk = shmem_chunk;
+    
+    hash_add(encos_shmem_table, &shmem_entry->hlist, enc_id);
+    return shmem_chunk;
+}
+
+encos_shmem_hash_entry_t *encos_shmem_lookup(unsigned long enc_id)
+{
+    encos_shmem_hash_entry_t *shmem_entry;
+    hash_for_each_possible(encos_shmem_table, shmem_entry, hlist, enc_id) {
+        if (shmem_entry->enc_id == enc_id)
+            return shmem_entry;
+    }
+    
+    /* no such hash */
+    log_err("Failed to find shared memory chunk with enc_id=%lu.\n", enc_id);
+    return NULL;
+}
+
+// void encos_shmem_table_destroy(void)
+// {
+//     unsigned bkt;
+//     encos_shmem_hash_entry_t *shmem_entry;
+//     struct hlist_node *tmp;
+
+//     /* iterate all table */
+//     hash_for_each_safe(encos_shmem_table, bkt, tmp, shmem_entry, hlist) {
+//         hash_del(&shmem_entry->hlist);
+//         if (shmem_entry->shmem_chunk) {
+            
+//         }
+//         kfree(shmem_entry);
+//     }
+//     log_info("[Done] Destroyed encos shared memory hash table.\n");
+// }

@@ -9,6 +9,8 @@
 #include <linux/cma.h>
 #include <linux/mm.h>
 #include <linux/string.h>
+#include <linux/sched.h>
+#include <linux/hashtable.h>
 
 #define ENCOS_CMA_SIZE  SZ_1G
 
@@ -32,6 +34,20 @@ typedef struct encos_mem {
 } encos_mem_t;
 
 extern struct list_head encos_mem_chunks;
+
+typedef struct encos_shmem_hash_entry {
+    /* key */
+    int enc_id;
+    /* shmem */
+    int owner_pid;  // owner with write permission
+    encos_mem_t *shmem_chunk;
+    struct hlist_node hlist;
+} encos_shmem_hash_entry_t;
+
+// static u64 encos_shmem_hash_key(int encid)
+// {
+//     return hash_64(encid, 8);
+// }
 
 /**
  * Initialize the CMA allocator for the ENCOS driver.
@@ -93,7 +109,14 @@ static inline void encos_mem_inspect(encos_mem_t *mem)
 /**
  * Allocate a memory chunk given a enclave id.
  */
-encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id);
+encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id, bool add_to_memlist);
 
+
+/**
+ * Allocate a shared memory chunk given a enclave id.
+ */
+encos_mem_t *encos_shmem_alloc(unsigned long length, unsigned long enc_id);
+
+encos_shmem_hash_entry_t *encos_shmem_lookup(unsigned long enc_id);
 #endif
 
