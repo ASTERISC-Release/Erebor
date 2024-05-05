@@ -5,6 +5,10 @@ pushd ../
     source .env
 popd
 
+if [[ $1 == "native" ]]; then
+    LINUXFOLDER=$LINUXFOLDER_NATIVE
+fi
+
 # Check that the folder exists
 if [ ! -f "../.env" ] || [ ! -d $LINUXFOLDER ]; then
     echo "Linux folder: $LINUXFOLDER"

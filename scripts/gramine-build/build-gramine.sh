@@ -19,7 +19,7 @@ fi
 
 # Check that the folder exists
 if [ ! -f "../.env" ] || [ ! -d $GRAMINEDIR ]; then
-    echo "Gramine folder: $LINUXFOLDER does not exist."
+    echo "Gramine folder: $GRAMINEDIR does not exist."
     echo "Please get a gramine source first using ./obtain-gramine.sh"
     exit 0
 fi

@@ -15,8 +15,8 @@ echo ""
 # Map CTRL-C to CTRL-]
 stty intr ^]
 
-# memory
-VMMEM=8192M
+# memory (12GB)
+VMMEM=12288M
 
 # debug
 GDB=""
