@@ -3,7 +3,6 @@ qemu-7.1.0/
 build.kern.log
 
 # comment out first
-gramine
 
 .vscode
 
