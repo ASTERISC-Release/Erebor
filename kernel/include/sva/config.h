@@ -39,4 +39,12 @@ static const unsigned MAX_THREADS = 1024;
   #define MAX_TRANSLATIONS 0
 #endif // VG
 
+#undef pr_fmt
+#define pr_fmt(fmt) "encos.SM: " fmt
+
+#define log_info(fmt, arg...) \
+    printk(KERN_INFO "[%s][%d] "pr_fmt(fmt)"", __func__, __LINE__, ##arg)
+#define log_err(fmt, arg...) \
+    printk(KERN_ERR "[%s][%d] "pr_fmt(fmt)"", __func__, __LINE__, ##arg)
+
 #endif

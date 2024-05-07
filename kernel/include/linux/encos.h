@@ -12,8 +12,8 @@
 #define   ENCOS_ENCLAVE_REQUEST         _IOW('m', 1, unsigned int)
 #define   ENCOS_ENABLE_KDBG             _IOW('m', 2, unsigned int)
 #define   ENCOS_DISABLE_KDBG            _IOW('m', 3, unsigned int)
-#define         HHKR_MMAP_BUF           _IOW('m', 4, unsigned int)
-#define         HHKR_MMAP_MSG_QUEUE     _IOW('m', 5, unsigned int)
+#define   ENCOS_ENCLAVE_ACT             _IOW('m', 4, unsigned int)
+#define   ENCOS_ENCLAVE_EXIT            _IOW('m', 5, unsigned int)
 #define         HHKR_MMAP_FREEBACK_WL   _IOW('m', 7, unsigned int)
 
 
