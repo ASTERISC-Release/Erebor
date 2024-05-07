@@ -39,4 +39,7 @@ extern int encos_kdbg_enabled;
             printk(KERN_CRIT "[%s][%d] "pr_fmt(fmt)"", __func__, __LINE__, ##arg); \
         } \
     } while (0)
+
+extern void encos_enclave_free_all(int enc_id, int owner_pid);
+
 #endif
