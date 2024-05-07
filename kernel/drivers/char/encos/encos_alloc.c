@@ -26,6 +26,7 @@ encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id, bool add_to
         goto fail;
     
     encos_mem->enc_id = enc_id;
+    encos_mem->owner_pid = current->pid;
     /*
 	 * For anything below order 1 allocations rely on the buddy
 	 * allocator. If such low-order allocations can't be handled
@@ -76,7 +77,8 @@ succ:
     memset((void *)encos_mem->virt_kern, 0, length);
 #ifdef ENCOS_DEBUG
     // /* inspect the allocated memory */
-    log_info("Allocated memory chunk (order=%d, nr_page=%lu): \n", order, encos_mem->nr_pages);
+    log_info("[enc_id=%d,pid=%d] Allocated memory chunk (order=%d, nr_page=%lu): \n", 
+            (int)enc_id, current->pid, order, encos_mem->nr_pages);
     encos_mem_inspect(encos_mem);
 #endif 
     return encos_mem;
@@ -86,6 +88,51 @@ fail:
             length, enc_id);
     return NULL;
 }
+
+void encos_free(encos_mem_t *encos_mem)
+{
+    struct page *page;
+    int order;
+    if (!encos_mem) {
+        log_err("NULL memory chunk.\n");
+        return;
+    }
+#ifdef ENCOS_DEBUG
+    log_info("[enc=%d,pid=%d] Start free chunk KVA=0x%lx, PA=0x%lx (length=0x%lx).\n",
+            encos_mem->enc_id, current->pid, 
+            encos_mem->virt_kern, encos_mem->phys, encos_mem->length);
+#endif
+    if (encos_mem->cma_alloc) {
+        page = virt_to_page((void *)encos_mem->virt_kern);
+        dma_release_from_contiguous(NULL, page, encos_mem->nr_pages);
+    } else {
+        order = get_order(encos_mem->length);
+        free_pages(encos_mem->virt_kern, order);
+    }
+#ifdef ENCOS_DEBUG
+    log_info("[enc=%d,pid=%d] Done free chunk KVA=0x%lx, PA=0x%lx (length=0x%lx).\n",
+            encos_mem->enc_id, current->pid, 
+            encos_mem->virt_kern, encos_mem->phys, encos_mem->length);
+#endif
+}
+
+void encos_enclave_free_all(int enc_id, int owner_pid)
+{
+    struct list_head *pos, *q;
+    struct list_head *head;
+    encos_mem_t *tmp;
+
+    head = &encos_mem_chunks;
+    list_for_each_safe(pos, q, head) {
+        tmp = list_entry(pos, encos_mem_t, list);
+        if (tmp->enc_id == enc_id && tmp->owner_pid == owner_pid) { /* release */
+            list_del(pos);
+            encos_free(tmp);
+            kfree(tmp);
+        }
+    }
+}
+EXPORT_SYMBOL(encos_enclave_free_all);
 
 encos_mem_t *encos_shmem_alloc(unsigned long length, unsigned long enc_id)
 {

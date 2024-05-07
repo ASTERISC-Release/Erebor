@@ -97,10 +97,10 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
     pg_off = vma->vm_pgoff;
     do_allocate = (pg_off) ? false : true;
 
-#ifdef ENCOS_DEBUG
-    log_err("[Start] mmap {vm_start=0x%lx, size=0x%lx, pg_off=0x%lx}, flags=0x%lx, pgprot=0x%lx. f_mapping=0x%lx\n",
-             start, size, pg_off, vma->vm_flags, vma->vm_page_prot.pgprot, (unsigned long)file->f_mapping);
-#endif  
+// #ifdef ENCOS_DEBUG
+//     log_err("[Start] mmap {vm_start=0x%lx, size=0x%lx, pg_off=0x%lx}, flags=0x%lx, pgprot=0x%lx. f_mapping=0x%lx\n",
+//              start, size, pg_off, vma->vm_flags, vma->vm_page_prot.pgprot, (unsigned long)file->f_mapping);
+// #endif  
     /* allocate an ``internal'' physical memory chunk */
     if (!pg_off) {  /* alloc + mmap */
         if ((enc_mem = encos_alloc(size, /*enc_id=*/1, /*add_to_memlist=*/true)) == NULL) {
@@ -153,10 +153,10 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
     }
     num = enc_mem->nr_pages;
 
-#ifdef ENCOS_DEBUG
-    log_err("[try] vma: {vm_start=0x%lx(size: 0x%lx) => vm_pgoff=0x%lx} vm_flags=0x%lx, vm_page_prot=0x%lx.\n", 
-             vma->vm_start, size, vma->vm_pgoff, vma->vm_flags, vma->vm_page_prot.pgprot);
-#endif
+// #ifdef ENCOS_DEBUG
+//     log_err("[try] vma: {vm_start=0x%lx(size: 0x%lx) => vm_pgoff=0x%lx} vm_flags=0x%lx, vm_page_prot=0x%lx.\n", 
+//              vma->vm_start, size, vma->vm_pgoff, vma->vm_flags, vma->vm_page_prot.pgprot);
+// #endif
 
     // vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP | VM_READ | VM_WRITE | VM_SHARED);
     // if (remap_pfn_range(vma, start, pg_off, size, vma->vm_page_prot)) {
@@ -174,10 +174,10 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
         return -EAGAIN;
     }
 
-#ifdef ENCOS_DEBUG
-    log_err("[done] vma: {vm_start=0x%lx(size: 0x%lx) => vm_pgoff=0x%lx} vm_flags=0x%lx, vm_page_prot=0x%lx.\n", 
-             vma->vm_start, size, vma->vm_pgoff, vma->vm_flags, vma->vm_page_prot.pgprot);
-#endif
+// #ifdef ENCOS_DEBUG
+//     log_err("[done] vma: {vm_start=0x%lx(size: 0x%lx) => vm_pgoff=0x%lx} vm_flags=0x%lx, vm_page_prot=0x%lx.\n", 
+//              vma->vm_start, size, vma->vm_pgoff, vma->vm_flags, vma->vm_page_prot.pgprot);
+// #endif
 
     kfree(pages);
     /* TODO: call the secure monitor to protect the assigned physical memories */

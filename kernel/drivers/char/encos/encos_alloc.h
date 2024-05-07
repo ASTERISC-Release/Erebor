@@ -18,7 +18,9 @@ extern struct cma *encos_cma;
 
 typedef struct encos_mem {
     /* enclave id */
-    int enc_id; 
+    int enc_id;
+    /* pid (just to ease the memory mngr) */
+    int owner_pid;
     /* kernel virtual address */
     unsigned long virt_kern;
     /* user virutal address */
@@ -107,10 +109,13 @@ static inline void encos_mem_inspect(encos_mem_t *mem)
 }
 
 /**
- * Allocate a memory chunk given a enclave id.
+ * Allocate/free a memory chunk given a enclave id.
  */
 encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id, bool add_to_memlist);
 
+void encos_free(encos_mem_t *encos_mem);
+
+void encos_enclave_free_all(int enc_id, int owner_pid);
 
 /**
  * Allocate a shared memory chunk given a enclave id.
