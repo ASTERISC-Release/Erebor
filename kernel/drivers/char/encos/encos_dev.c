@@ -22,6 +22,7 @@
 #include <linux/kallsyms.h>
 #include <linux/fs.h>
 
+#include <sva/enc.h>
 #include <linux/encos.h>
 #include "encos_alloc.h"
 
@@ -34,17 +35,24 @@ int encos_kdbg_enabled = 0;
 static long encos_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
     int rvl;
-    int enc_pid, enc_pgrp;
+    int enc_pid, enc_pgrp, enc_id;
     rvl = 0;
     switch (cmd) {
         case ENCOS_ENCLAVE_REQUEST:
             enc_pid = current->pid;
             enc_pgrp = task_pgrp_nr(current);
-            
-            log_info("[Request enclave init] pid=%d, pgrp=%d.\n", enc_pid, enc_pgrp);
-            
+            enc_id = SM_encos_enclave_assign();
+            log_info("[Assign enclave] pid=%d, pgrp=%d enc_id=%d.\n", 
+                        enc_pid, enc_pgrp, enc_id);
             break;
         
+        case ENCOS_ENCLAVE_ACT:
+            SM_encos_enclave_act(current->pid);
+            break;
+        
+        case ENCOS_ENCLAVE_EXIT:
+            SM_encos_enclave_exit(current->pid);
+            break;
         /*
          * Kernel debug logging enable/disable
          */
