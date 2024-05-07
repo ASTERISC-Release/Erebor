@@ -76,6 +76,7 @@
 
 #ifdef CONFIG_ENCOS
 #include <linux/encos.h>	
+#include <sva/enc.h>
 #endif
 
 /*
@@ -871,6 +872,7 @@ void __noreturn do_exit(long code)
 	 */
 	/* query the security monitor for the encid (if it's enclave) */
 	/* TODO: query the enclave id */
+	SM_encos_enclave_exit(/*owner_pid*/current->pid);
 	encos_enclave_free_all(/*enc_id=*/1, /*owner_pid=*/current->pid);
 #endif
 
