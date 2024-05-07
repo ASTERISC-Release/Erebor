@@ -74,6 +74,10 @@
 #include <asm/unistd.h>
 #include <asm/mmu_context.h>
 
+#ifdef CONFIG_ENCOS
+#include <linux/encos.h>	
+#endif
+
 /*
  * The default value should be high enough to not crash a system that randomly
  * crashes its kernel from time to time, but low enough to at least not permit
@@ -859,6 +863,16 @@ void __noreturn do_exit(long code)
 	taskstats_exit(tsk, group_dead);
 
 	exit_mm();
+
+#ifdef CONFIG_ENCOS
+	/*
+	 * Chuqi: put the enclave destroy code here 
+	 * to release all its internal memory
+	 */
+	/* query the security monitor for the encid (if it's enclave) */
+	/* TODO: query the enclave id */
+	encos_enclave_free_all(/*enc_id=*/1, /*owner_pid=*/current->pid);
+#endif
 
 	if (group_dead)
 		acct_process();
