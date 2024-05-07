@@ -29,6 +29,10 @@ SM_encos_enclave_assign, void)
         panic("GG!");
     }
 
+#ifdef ENCOS_DEBUG
+    log_info("Assigned enc_id=%d for pid=%d.\n", enc_id, pid);
+#endif
+
     encos_enclave_table[pid].enc_id = enc_id;
     encos_enclave_table[pid].activate = 0;
     return enc_id;
@@ -51,6 +55,9 @@ SM_encos_enclave_act, int pid)
         panic("GG!");
     }
     entry->activate = 1;
+#ifdef ENCOS_DEBUG
+    log_info("Activated enc_id=%d pid=%d.\n", entry->enc_id, pid);
+#endif
     return;
 }
 
@@ -72,5 +79,8 @@ SM_encos_enclave_exit, int pid)
     }
     entry->enc_id = 0;
     entry->activate = 0;
+#ifdef ENCOS_DEBUG
+    log_info("Exited enc_id=%d pid=%d.\n", entry->enc_id, pid);
+#endif
     return;
 }
