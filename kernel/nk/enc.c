@@ -77,7 +77,7 @@ int is_internalmem)
 }
 
 /* activate */
-SECURE_WRAPPER(void, 
+SECURE_WRAPPER(int, 
 SM_encos_enclave_act, int pid)
 {
     encos_enclave_entry_t *entry;
@@ -91,34 +91,55 @@ SM_encos_enclave_act, int pid)
         log_err("Cannot activate enc_id=%d for pid=%d. It is already activated.\n", 
                  entry->enc_id, pid);
         panic("GG!");
+        return -1;
     }
     entry->activate = 1;
 
     log_info("Activated enc_id=%d pid=%d.\n", entry->enc_id, pid);
 
-    return;
+    return entry->enc_id;
 }
 
 /* process exit */
-SECURE_WRAPPER(void, 
+SECURE_WRAPPER(int, 
 SM_encos_enclave_exit, int pid)
 {
     encos_enclave_entry_t *entry;
     entry = &encos_enclave_table[pid];
     /* not an enclave. */
     if (!entry->enc_id) {
-        return;
+        return -1;
     }
     /* sanity checks */  
     if (!entry->activate) {
         log_err("Cannot exit enc_id=%d for pid=%d. It is not activated.\n", 
                  entry->enc_id, pid);
         panic("GG!");
+        return -1;
     }
     entry->enc_id = 0;
     entry->activate = 0;
 
     log_info("Exited enc_id=%d pid=%d.\n", entry->enc_id, pid);
 
-    return;
+    return 0;
+}
+
+
+SECURE_WRAPPER(void, SM_encos_syscall_intercept, 
+struct pt_regs* regs, int nr) {
+  log_info("[enc_pid=%d] Intercept syscall=%d.\n", 
+            current->pid, nr);
+  // if its mmap
+  // if its enclave activated
+
+  /* 
+   * 1. Try to iterate the (UVA, size) mappings in the page table.
+   * If found, then make sure there is no write permission bits
+   */
+
+  /* 
+   * 2. If UVA mappings are not found.
+   * We make the (pid, UVA) to be checked during page_fault+mmu mappings
+   */
 }

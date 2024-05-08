@@ -896,24 +896,6 @@ sva_mmu_test, void) {
   printk("sva_mmu_test\n");
 }
 
-SECURE_WRAPPER(void, sva_syscall_intercept, struct pt_regs* regs, int nr) {
-  // printk("syscall intercept\n");
-
-  // if its mmap
-  // if its enclave activated
-
-  /* 
-   * 1. Try to iterate the (UVA, size) mappings in the page table.
-   * If found, then make sure there is no write permission bits
-   */
-
-  /* 
-   * 2. If UVA mappings are not found.
-   * We make the (pid, UVA) to be checked during page_fault+mmu mappings
-   */
-
-}
-
 /*
  * Intrinsic: sva_mm_load_pgtable()
  *

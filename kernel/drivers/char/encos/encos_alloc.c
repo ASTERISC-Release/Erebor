@@ -1,4 +1,5 @@
 #include "encos_alloc.h"
+#include <linux/encos.h>
 #include <linux/dma-map-ops.h>
 
 
@@ -135,6 +136,9 @@ encos_mem_t *encos_shmem_alloc(unsigned long length, unsigned long enc_id)
     encos_mem_t *shmem_chunk;
     encos_shmem_hash_entry_t *shmem_entry;
     int owner_pid = current->pid;
+
+    /* do an untrusted entry free. bad code. useless :( */
+    free_enclave_ut(owner_pid);
 
     shmem_chunk = encos_alloc(length, /*enc_id=*/enc_id, /*add_to_memlist=*/false);
     if (!shmem_chunk) {

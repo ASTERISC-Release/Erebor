@@ -66,7 +66,6 @@
  *****************************************************************************
  */
 extern void sva_mmu_test (void);
-extern void sva_syscall_intercept (struct pt_regs *regs, int nr);
 extern void sva_mm_load_pgtable (void * pg);
 extern void sva_load_cr0 (unsigned long val);
 extern void sva_load_cr4 (unsigned long val);

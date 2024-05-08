@@ -38,6 +38,8 @@ extern void SM_encos_enclave_claim_memory(unsigned long uva,
                                           unsigned long pa, 
                                           unsigned long nr_pages, 
                                           int is_internalmem);
-extern void SM_encos_enclave_act(int pid);
-extern void SM_encos_enclave_exit(int pid);
+extern int SM_encos_enclave_act(int pid);
+extern int SM_encos_enclave_exit(int pid);
+
+extern void SM_encos_syscall_intercept(struct pt_regs *regs, int nr);
 #endif

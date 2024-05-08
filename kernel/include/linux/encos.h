@@ -41,5 +41,7 @@ extern int encos_kdbg_enabled;
     } while (0)
 
 extern void encos_enclave_free_all(int enc_id, int owner_pid);
+extern int is_enclave_activate_ut(int pid);
+extern void free_enclave_ut(int pid);
 
 #endif

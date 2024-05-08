@@ -32,6 +32,34 @@ struct mutex encos_dev_mlock;
 
 int encos_kdbg_enabled = 0;
 
+/* Chuqi:
+ * Note that this is the untrusted copy of enclave info on the system.
+ * This is just for lazy implementation (rn for syscall intercepting)
+ * 
+ * See sva/enc.h for the maintained trusted version.
+ */
+/* use a global array, indexed by pid */
+#define MAX_GLOB_VM_PROCESS    8192
+typedef struct encos_enclave_entry_ut {
+    /* assigned encid */
+    int enc_id;
+    int activate;
+} encos_enclave_entry_ut_t;
+static encos_enclave_entry_ut_t encos_enclave_table_ut[MAX_GLOB_VM_PROCESS];
+
+int is_enclave_activate_ut(int pid)
+{
+    return (&encos_enclave_table_ut[pid])->activate;
+}
+EXPORT_SYMBOL(is_enclave_activate_ut);
+
+void free_enclave_ut(int pid)
+{
+    (&encos_enclave_table_ut[pid])->enc_id = 0;
+    (&encos_enclave_table_ut[pid])->activate = 0;
+}
+EXPORT_SYMBOL(free_enclave_ut);
+
 static long encos_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
     int rvl;
@@ -44,10 +72,15 @@ static long encos_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             enc_id = SM_encos_enclave_assign();
             log_info("[Assign enclave] pid=%d, pgrp=%d enc_id=%d.\n", 
                         enc_pid, enc_pgrp, enc_id);
+            (&encos_enclave_table_ut[enc_pid])->enc_id = enc_id;
             break;
         
         case ENCOS_ENCLAVE_ACT:
-            SM_encos_enclave_act(current->pid);
+            enc_pid = current->pid;
+            rvl = SM_encos_enclave_act(enc_pid);
+            if (rvl > 0) {
+                (&encos_enclave_table_ut[enc_pid])->activate = 1;
+            }
             break;
         
         case ENCOS_ENCLAVE_EXIT:

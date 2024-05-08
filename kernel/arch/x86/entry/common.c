@@ -35,13 +35,15 @@
 #include <asm/syscall.h>
 #include <asm/irq_stack.h>
 
-#include <sva/mmu_intrinsics.h>
+#ifdef CONFIG_ENCOS
+#include <sva/enc.h>
+#include <linux/encos.h>
+#endif
 
 #ifdef CONFIG_X86_64
 
 static __always_inline bool do_syscall_x64(struct pt_regs *regs, int nr)
 {
-
 	/*
 	 * Convert negative numbers to very high and thus out of range
 	 * numbers for comparisons.
@@ -52,8 +54,14 @@ static __always_inline bool do_syscall_x64(struct pt_regs *regs, int nr)
 		unr = array_index_nospec(unr, NR_syscalls);
 		regs->ax = sys_call_table[unr](regs);
 
-		// Intercept all syscalls
-		sva_syscall_intercept(regs, nr);
+		/* Chuqi:
+		 * intercept enclave syscall return. bad code here.
+		 * In principle, this interception should be done in the 
+		 * enclave's custom exception vector (IDT) table,
+		 * instead of by this untrusted code checking.
+		 */
+		if (is_enclave_activate_ut(current->pid))
+			SM_encos_syscall_intercept(regs, nr);
 		return true;
 	}
 	return false;
