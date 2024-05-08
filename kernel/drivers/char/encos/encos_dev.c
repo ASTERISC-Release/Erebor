@@ -96,14 +96,14 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
 
     encos_shmem_hash_entry_t *shmem_entry;
 
-    bool do_allocate;
+    bool is_internalmem;
     encos_mem_t *enc_mem;
     unsigned long base_phys_addr, phys_pfn;
 
     start = vma->vm_start;
     size = vma->vm_end - vma->vm_start;
     pg_off = vma->vm_pgoff;
-    do_allocate = (pg_off) ? false : true;
+    is_internalmem = (pg_off == 0) ? true : false;
 
 // #ifdef ENCOS_DEBUG
 //     log_err("[Start] mmap {vm_start=0x%lx, size=0x%lx, pg_off=0x%lx}, flags=0x%lx, pgprot=0x%lx. f_mapping=0x%lx\n",
@@ -188,7 +188,12 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
 // #endif
 
     kfree(pages);
-    /* TODO: call the secure monitor to protect the assigned physical memories */
+    
+    /* call the secure monitor to protect the assigned physical memories */
+    SM_encos_enclave_claim_memory(/*uva=*/vma->vm_start, /*pa=*/enc_mem->phys, 
+                                  /*nr_pages=*/enc_mem->nr_pages, 
+                                  /*enc_internal_mem=*/is_internalmem);
+    
     return 0;
 }
 

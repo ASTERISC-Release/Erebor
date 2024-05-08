@@ -41,8 +41,6 @@
 
 static __always_inline bool do_syscall_x64(struct pt_regs *regs, int nr)
 {
-	// Intercept all syscalls
-	sva_syscall_intercept(regs, nr);
 
 	/*
 	 * Convert negative numbers to very high and thus out of range
@@ -53,6 +51,9 @@ static __always_inline bool do_syscall_x64(struct pt_regs *regs, int nr)
 	if (likely(unr < NR_syscalls)) {
 		unr = array_index_nospec(unr, NR_syscalls);
 		regs->ax = sys_call_table[unr](regs);
+
+		// Intercept all syscalls
+		sva_syscall_intercept(regs, nr);
 		return true;
 	}
 	return false;

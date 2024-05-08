@@ -34,6 +34,10 @@ typedef struct encos_enclave_entry {
 
 
 extern int SM_encos_enclave_assign(void);
+extern void SM_encos_enclave_claim_memory(unsigned long uva, 
+                                          unsigned long pa, 
+                                          unsigned long nr_pages, 
+                                          int is_internalmem);
 extern void SM_encos_enclave_act(int pid);
 extern void SM_encos_enclave_exit(int pid);
 #endif

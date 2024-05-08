@@ -29,13 +29,51 @@ SM_encos_enclave_assign, void)
         panic("GG!");
     }
 
-#ifdef ENCOS_DEBUG
     log_info("Assigned enc_id=%d for pid=%d.\n", enc_id, pid);
-#endif
 
     encos_enclave_table[pid].enc_id = enc_id;
     encos_enclave_table[pid].activate = 0;
     return enc_id;
+}
+
+SECURE_WRAPPER(void,
+SM_encos_enclave_claim_memory, unsigned long uva,
+unsigned long pa, unsigned long nr_pages,
+int is_internalmem)
+{
+    int enc_pid = current->pid;
+    encos_enclave_entry_t entry = encos_enclave_table[enc_pid];
+
+    log_info("Start claiming memory. enc_id=%d, is_internal=%d.\n", 
+                entry.enc_id, is_internalmem);
+    /* Chuqi: 
+     * for enclave internal memory, we should mark and
+     * check their page table entries & page descriptors
+     */
+    if (is_internalmem) {
+        /* sanity check */
+        if (!entry.enc_id) {
+            log_err("Cannot claim internal memory for a non-enclave pid=%d.\n",
+                     current->pid);
+            panic("GG!");
+        }
+        /* TODO:
+         * mark those physical page descriptors 
+         * as the enclave internal pages
+         */
+        /* TODO:
+         * check their uva -> pa mapping in the page table
+         */
+    }
+    /* Chuqi: 
+     * for enclave inter-container shared memory, we should mark and
+     * ensure no user container has write permissions
+     */
+    else {
+        if (entry.enc_id) {
+            /* revoke the W permissions in page table entries */
+        }
+    }
 }
 
 /* activate */
@@ -55,9 +93,9 @@ SM_encos_enclave_act, int pid)
         panic("GG!");
     }
     entry->activate = 1;
-#ifdef ENCOS_DEBUG
+
     log_info("Activated enc_id=%d pid=%d.\n", entry->enc_id, pid);
-#endif
+
     return;
 }
 
@@ -79,8 +117,8 @@ SM_encos_enclave_exit, int pid)
     }
     entry->enc_id = 0;
     entry->activate = 0;
-#ifdef ENCOS_DEBUG
+
     log_info("Exited enc_id=%d pid=%d.\n", entry->enc_id, pid);
-#endif
+
     return;
 }

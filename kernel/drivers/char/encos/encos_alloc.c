@@ -75,12 +75,12 @@ succ:
         list_add_tail(&encos_mem->list, &encos_mem_chunks);
     /* clear content */
     memset((void *)encos_mem->virt_kern, 0, length);
-#ifdef ENCOS_DEBUG
-    // /* inspect the allocated memory */
-    log_info("[enc_id=%d,pid=%d] Allocated memory chunk (order=%d, nr_page=%lu): \n", 
-            (int)enc_id, current->pid, order, encos_mem->nr_pages);
-    encos_mem_inspect(encos_mem);
-#endif 
+// #ifdef ENCOS_DEBUG
+//     // /* inspect the allocated memory */
+//     log_info("[enc_id=%d,pid=%d] Allocated memory chunk (order=%d, nr_page=%lu): \n", 
+//             (int)enc_id, current->pid, order, encos_mem->nr_pages);
+//     encos_mem_inspect(encos_mem);
+// #endif 
     return encos_mem;
 
 fail:
@@ -97,11 +97,6 @@ void encos_free(encos_mem_t *encos_mem)
         log_err("NULL memory chunk.\n");
         return;
     }
-#ifdef ENCOS_DEBUG
-    log_info("[enc=%d,pid=%d] Start free chunk KVA=0x%lx, PA=0x%lx (length=0x%lx).\n",
-            encos_mem->enc_id, current->pid, 
-            encos_mem->virt_kern, encos_mem->phys, encos_mem->length);
-#endif
     if (encos_mem->cma_alloc) {
         page = virt_to_page((void *)encos_mem->virt_kern);
         dma_release_from_contiguous(NULL, page, encos_mem->nr_pages);
@@ -109,11 +104,11 @@ void encos_free(encos_mem_t *encos_mem)
         order = get_order(encos_mem->length);
         free_pages(encos_mem->virt_kern, order);
     }
-#ifdef ENCOS_DEBUG
-    log_info("[enc=%d,pid=%d] Done free chunk KVA=0x%lx, PA=0x%lx (length=0x%lx).\n",
-            encos_mem->enc_id, current->pid, 
-            encos_mem->virt_kern, encos_mem->phys, encos_mem->length);
-#endif
+// #ifdef ENCOS_DEBUG
+//     log_info("[enc=%d,pid=%d] Done free chunk KVA=0x%lx, PA=0x%lx (length=0x%lx).\n",
+//             encos_mem->enc_id, current->pid, 
+//             encos_mem->virt_kern, encos_mem->phys, encos_mem->length);
+// #endif
 }
 
 void encos_enclave_free_all(int enc_id, int owner_pid)
