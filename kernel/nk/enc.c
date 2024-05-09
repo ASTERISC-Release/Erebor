@@ -49,8 +49,8 @@ int is_internalmem)
     int enc_pid = current->pid;
     encos_enclave_entry_t *entry = &encos_enclave_table[enc_pid];
 
-    log_info("Start claiming memory. pid=%d, enc_id=%d, is_internal=%d.\n", 
-                enc_pid, entry->enc_id, is_internalmem);
+    log_info("[pid=%d,enc_id=%d] Start claiming memory.{uva=0x%lx -> pa=0x%lx, nr_pages=%lu} is_internal=%d.\n", 
+                enc_pid, entry->enc_id, uva, pa, nr_pages, is_internalmem);
     /* Chuqi: 
      * for enclave internal memory, we should mark and
      * check their page table entries & page descriptors
@@ -121,11 +121,6 @@ SM_encos_enclave_exit, int pid)
     if (!entry->enc_id) {
         return -1;
     }
-    // /* sanity checks */  
-    // if (!entry->activate) {
-    //     entry->enc_id = 0;
-    //     return -1;
-    // }
     entry->enc_id = 0;
     entry->activate = 0;
 
@@ -190,6 +185,11 @@ static inline int SM_mmap_return(unsigned long uva, unsigned long len,
         len <= entry->last_claim_mem.nr_pages * PAGE_SIZE) {
         /* check pass. */
         log_info("Ignore mmap for claimed memory. uva=0x%lx, len=0x%lx.\n", uva, len);
+        return 0;
+    }
+    if ((fd == -1) && (len == 0x70)) {
+        /* ignore the stupid userspace FUTEX claim for now */
+        log_info("Ignore FUTEX claim memory. uva=0x%lx, len=0x%lx.\n", uva, len);
         return 0;
     }
         

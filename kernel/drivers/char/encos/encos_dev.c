@@ -129,25 +129,38 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
 
     encos_shmem_hash_entry_t *shmem_entry;
 
-    bool is_internalmem;
+    bool is_internalmem, is_futex;
     encos_mem_t *enc_mem;
     unsigned long base_phys_addr, phys_pfn;
 
     start = vma->vm_start;
     size = vma->vm_end - vma->vm_start;
     pg_off = vma->vm_pgoff;
-    is_internalmem = (pg_off == 0) ? true : false;
+    /* Chuqi: 
+     * `babe` you are the libOS's internal futex allocation request :p 
+     * Note that the libOS uses the OFFSET=0xbabe to distinguish futex
+     * allocation request.
+     * 
+     * We need some "secret sauce" to deal with futex memory. See 
+     * `encos_alloc`.
+     */
+    is_internalmem = (pg_off == 0 || pg_off == 0xbabe) ? true : false;
+    is_futex = (pg_off == 0xbabe);
 
-// #ifdef ENCOS_DEBUG
-//     log_err("[Start] mmap {vm_start=0x%lx, size=0x%lx, pg_off=0x%lx}, flags=0x%lx, pgprot=0x%lx. f_mapping=0x%lx\n",
-//              start, size, pg_off, vma->vm_flags, vma->vm_page_prot.pgprot, (unsigned long)file->f_mapping);
-// #endif  
     /* allocate an ``internal'' physical memory chunk */
-    if (!pg_off) {  /* alloc + mmap */
-        if ((enc_mem = encos_alloc(size, /*enc_id=*/1, /*add_to_memlist=*/true)) == NULL) {
+    if (is_internalmem) {  /* alloc + mmap */
+        if ((enc_mem = encos_alloc(size, /*enc_id=*/1, /*is_futex=*/is_futex, /*add_to_memlist=*/true)) == NULL) {
             log_err("Failed to allocate memory chunk.\n");
             return -ENOMEM;
         }
+        vma->vm_pgoff = 0;  // reset pgoff
+        /* 
+         * Before remapping, call the secure monitor to claim
+         * and protect the assigned physical memory. 
+         */
+        SM_encos_enclave_claim_memory(/*uva=*/vma->vm_start, /*pa=*/enc_mem->phys, 
+                                      /*nr_pages=*/enc_mem->nr_pages, 
+                                      /*enc_internal_mem=*/is_internalmem);
     }
     else {/* in case (2), mmap a shared memory */
         ENCOS_ASSERT(pg_off != 0, "Invalid pg_off=0x%lx.\n", pg_off);
@@ -214,19 +227,11 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
         }
         return -EAGAIN;
     }
-
 // #ifdef ENCOS_DEBUG
 //     log_err("[done] vma: {vm_start=0x%lx(size: 0x%lx) => vm_pgoff=0x%lx} vm_flags=0x%lx, vm_page_prot=0x%lx.\n", 
 //              vma->vm_start, size, vma->vm_pgoff, vma->vm_flags, vma->vm_page_prot.pgprot);
 // #endif
-
     kfree(pages);
-    
-    /* call the secure monitor to protect the assigned physical memories */
-    SM_encos_enclave_claim_memory(/*uva=*/vma->vm_start, /*pa=*/enc_mem->phys, 
-                                  /*nr_pages=*/enc_mem->nr_pages, 
-                                  /*enc_internal_mem=*/is_internalmem);
-    
     return 0;
 }
 

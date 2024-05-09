@@ -30,7 +30,7 @@ typedef struct encos_mem {
     /* size */
     unsigned long length;
     unsigned long nr_pages;
-    unsigned int cma_alloc : 1;
+    unsigned int alloc_type;  /* 0: get_page; 1: cma; 2: kmalloc */
     /* link to the global chunks */
     struct list_head list;
 } encos_mem_t;
@@ -75,14 +75,17 @@ static inline void destory_encos_allocator(void)
     /* free all chunks */
     encos_mem_t *pos, *n;
     list_for_each_entry_safe(pos, n, &encos_mem_chunks, list) {
-        if (pos->cma_alloc) {
+        if (pos->alloc_type == 1) {
             page = virt_to_page((void *)pos->virt_kern);
             nr_pages = ALIGN(pos->length, PAGE_SIZE) >> PAGE_SHIFT;
             cma_release(NULL, page, nr_pages);
         } 
-        else {
+        else if (pos->alloc_type == 2){
             order = get_order(pos->length);
             free_pages((unsigned long)pos->virt_kern, order);
+        }
+        else {
+            kfree((void *)pos->virt_kern);
         }
         list_del(&pos->list);
         kfree(pos);
@@ -101,8 +104,8 @@ static inline void encos_mem_inspect(encos_mem_t *mem)
     }
 
     page = virt_to_page((void *)mem->virt_kern);
-    log_info("MEM[enc_id=%d; cma=%d] phys=0x%lx, virt_kern=0x%lx, virt_user=0x%lx, length=%ld.\n",
-             mem->enc_id, mem->cma_alloc, 
+    log_info("MEM[enc_id=%d; type=%d] phys=0x%lx, virt_kern=0x%lx, virt_user=0x%lx, length=%ld.\n",
+             mem->enc_id, mem->alloc_type, 
              mem->phys, mem->virt_kern, mem->virt_user, mem->length);
     log_err("MEM page=0x%lx, mapping=0x%lx.\n", 
              (unsigned long)page, (unsigned long)page->mapping);
@@ -111,7 +114,8 @@ static inline void encos_mem_inspect(encos_mem_t *mem)
 /**
  * Allocate/free a memory chunk given a enclave id.
  */
-encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id, bool add_to_memlist);
+encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id, 
+                         bool is_futex, bool add_to_memlist);
 
 void encos_free(encos_mem_t *encos_mem);
 

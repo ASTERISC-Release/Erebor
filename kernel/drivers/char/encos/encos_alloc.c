@@ -13,7 +13,7 @@ DEFINE_HASHTABLE(encos_shmem_table, 8);
 /**
  * Allocate a memory chunk.
  */
-encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id, bool add_to_memlist)
+encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id, bool is_futex, bool add_to_memlist)
 {
     struct page *page = NULL;
     int nr_pages, order;
@@ -25,9 +25,32 @@ encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id, bool add_to
                                 kzalloc(sizeof(encos_mem_t), GFP_KERNEL);
     if (!encos_mem)
         goto fail;
-    
+
     encos_mem->enc_id = enc_id;
     encos_mem->owner_pid = current->pid;
+    
+    /*
+     * If the LibOS is asking for allocating a futex, we can only give it an anonymous page.
+     * Otherwise, `page->mapping` will be NULL and futex check won't pass.
+     * Refer to kernel's get_futex_key() for more details.
+     */
+    if (is_futex) {
+        // assert a futex (size 0x70 in our PAL) here
+        ENCOS_ASSERT(length == 0x70, "Futex size is not 0x70.\n");
+        encos_mem->virt_kern = (unsigned long)kmalloc(PAGE_SIZE, GFP_KERNEL);
+        if (!encos_mem->virt_kern) {
+            kfree(encos_mem);
+            goto fail;
+        }
+        encos_mem->phys = (unsigned long)virt_to_phys((void *)encos_mem->virt_kern);
+        encos_mem->length = PAGE_SIZE;
+        encos_mem->nr_pages = 1;
+        encos_mem->alloc_type = 2;
+        /* PAGE ALIGNED */
+        ENCOS_ASSERT((encos_mem->virt_kern & 0xFFF) == 0, 
+            "Futex KVA is not page aligned.\n");
+        goto succ;
+    }
     /*
 	 * For anything below order 1 allocations rely on the buddy
 	 * allocator. If such low-order allocations can't be handled
@@ -35,13 +58,12 @@ encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id, bool add_to
 	 */
     /* CMA allocator */
 	if (order > 0) {
-        // page = cma_alloc(NULL, nr_pages, 0, false);
         page = dma_alloc_from_contiguous(NULL, nr_pages, 1, false);
         if (page) {
             encos_mem->virt_kern = (unsigned long)page_to_virt(page);
             encos_mem->phys = (unsigned long)page_to_phys(page);
             encos_mem->length = length;
-            encos_mem->cma_alloc = 1;
+            encos_mem->alloc_type = 1;
             encos_mem->nr_pages = nr_pages;
 
             // debug assert
@@ -65,7 +87,7 @@ encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id, bool add_to
     }
     encos_mem->phys = (unsigned long)virt_to_phys((void *)encos_mem->virt_kern);
     encos_mem->length = length;
-    encos_mem->cma_alloc = 0;
+    encos_mem->alloc_type = 0;
     encos_mem->nr_pages = nr_pages;
 succ:
     /* 
@@ -93,23 +115,43 @@ fail:
 void encos_free(encos_mem_t *encos_mem)
 {
     struct page *page;
-    int order;
+    int order, i;
+    unsigned long count = 0;
+
     if (!encos_mem) {
         log_err("NULL memory chunk.\n");
         return;
     }
-    if (encos_mem->cma_alloc) {
+    /* check page count */
+    for (i = 0; i < encos_mem->nr_pages; i++)
+    {
+        page = pfn_to_page((encos_mem->phys >> PAGE_SHIFT) + i);
+        count += (page_count(page) != 1);
+    }
+    /* still in use. let's ignore this chunk */
+    if (count != 0) {
+#ifdef ENCOS_DEBUG
+        log_info("[enc=%d,pid=%d] Ignore free chunk KVA=0x%lx, PA=0x%lx (length=0x%lx), pagecount=%lu.\n",
+            encos_mem->enc_id, current->pid, 
+            encos_mem->virt_kern, encos_mem->phys, encos_mem->length,
+            count);
+#endif
+        return;
+    }
+    if (encos_mem->alloc_type == 1) {
         page = virt_to_page((void *)encos_mem->virt_kern);
         dma_release_from_contiguous(NULL, page, encos_mem->nr_pages);
-    } else {
+    } else if (encos_mem->alloc_type == 0) {
         order = get_order(encos_mem->length);
         free_pages(encos_mem->virt_kern, order);
+    } else {
+        kfree((void *)encos_mem->virt_kern);
     }
-// #ifdef ENCOS_DEBUG
-//     log_info("[enc=%d,pid=%d] Done free chunk KVA=0x%lx, PA=0x%lx (length=0x%lx).\n",
-//             encos_mem->enc_id, current->pid, 
-//             encos_mem->virt_kern, encos_mem->phys, encos_mem->length);
-// #endif
+#ifdef ENCOS_DEBUG
+    log_info("[enc=%d,pid=%d] Done free chunk KVA=0x%lx, PA=0x%lx (length=0x%lx).\n",
+            encos_mem->enc_id, current->pid, 
+            encos_mem->virt_kern, encos_mem->phys, encos_mem->length);
+#endif
 }
 
 void encos_enclave_free_all(int enc_id, int owner_pid)
@@ -140,7 +182,8 @@ encos_mem_t *encos_shmem_alloc(unsigned long length, unsigned long enc_id)
     /* do an untrusted entry free. bad code. useless :( */
     free_enclave_ut(owner_pid);
 
-    shmem_chunk = encos_alloc(length, /*enc_id=*/enc_id, /*add_to_memlist=*/false);
+    shmem_chunk = encos_alloc(length, /*enc_id=*/enc_id, /*is_futex=*/false,
+                              /*add_to_memlist=*/false);
     if (!shmem_chunk) {
         log_err("Failed to allocate shared memory chunk.\n");
         return NULL;
