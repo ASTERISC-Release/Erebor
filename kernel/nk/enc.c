@@ -6,6 +6,11 @@
 #include <asm/current.h>
 #include <linux/sched.h>
 
+#include <asm/unistd.h>
+
+#ifndef PAGE_SIZE
+#define PAGE_SIZE   4096
+#endif
 /* management structure */
 static encos_enclave_entry_t encos_enclave_table[MAX_GLOB_VM_PROCESS] SVAMEM;
 
@@ -42,17 +47,17 @@ unsigned long pa, unsigned long nr_pages,
 int is_internalmem)
 {
     int enc_pid = current->pid;
-    encos_enclave_entry_t entry = encos_enclave_table[enc_pid];
+    encos_enclave_entry_t *entry = &encos_enclave_table[enc_pid];
 
     log_info("Start claiming memory. enc_id=%d, is_internal=%d.\n", 
-                entry.enc_id, is_internalmem);
+                entry->enc_id, is_internalmem);
     /* Chuqi: 
      * for enclave internal memory, we should mark and
      * check their page table entries & page descriptors
      */
     if (is_internalmem) {
         /* sanity check */
-        if (!entry.enc_id) {
+        if (!entry->enc_id) {
             log_err("Cannot claim internal memory for a non-enclave pid=%d.\n",
                      current->pid);
             panic("GG!");
@@ -64,13 +69,19 @@ int is_internalmem)
         /* TODO:
          * check their uva -> pa mapping in the page table
          */
+        /* Chuqi:
+         * Add to the just claimed memory
+         */
+        entry->last_claim_mem.uva = uva;
+        entry->last_claim_mem.pa = pa;
+        entry->last_claim_mem.nr_pages = nr_pages;
     }
     /* Chuqi: 
      * for enclave inter-container shared memory, we should mark and
      * ensure no user container has write permissions
      */
     else {
-        if (entry.enc_id) {
+        if (entry->enc_id) {
             /* revoke the W permissions in page table entries */
         }
     }
@@ -125,21 +136,83 @@ SM_encos_enclave_exit, int pid)
     return 0;
 }
 
+/* ===================================================
+ * SYSCALL
+ * =================================================== */
+
+/* 
+ * mmap: 
+ * @uva: mapped userspace virtual address
+ * @len: length of the mapping
+ * @fd: file descriptor
+ * @offset: offset in the file
+ */
+static inline int SM_mmap_return(unsigned long uva, unsigned long len, 
+                                 int fd, unsigned long offset)
+{
+    encos_enclave_entry_t *entry;
+    entry = &encos_enclave_table[current->pid];
+
+    log_info("[enc_pid=%d] mmap ret(addr=0x%lx). arg (len=0x%lx,fd=%d,offset=0x%lx).\n", 
+                  current->pid, uva, len, fd, offset);
+    /* Chuqi: 
+     * 1. If we just claimed the memory as the enclave internal
+     * memory (during encos_mmap), then it is safe to ignore.
+     *
+     * Because we already validate its uva->pa mappings, as the 
+     * `SM_encos_enclave_claim_memory` is invoked just now.
+     * 
+     * If the adversary OS tried to bypass memory claiming, we 
+     * will catch this and then revoke the write permissions here,
+     * because `SM_encos_enclave_claim_memory` is not called and 
+     * `encos_enclave_last_claim_mem_t` is not set for that proc.
+     */
+    if (uva == entry->last_claim_mem.uva && 
+        len <= entry->last_claim_mem.nr_pages * PAGE_SIZE) {
+        /* check pass. */
+        log_info("Ignore mmap for claimed memory. uva=0x%lx, len=0x%lx.\n", uva, len);
+        return 0;
+    }
+        
+    /* 2. Else, we should properly handle the page permissions */
+    /* 
+     * 1. Try to iterate the (UVA, size) mappings in the page table.
+     * If found, then make sure there is no write permission bits
+     */
+
+    /* 
+     * 2. If UVA mappings are not found.
+     * We make the (pid, UVA) to be checked during page_fault+mmu mappings
+     */
+    return 0;
+}
 
 SECURE_WRAPPER(void, SM_encos_syscall_intercept, 
 struct pt_regs* regs, int nr) {
-  log_info("[enc_pid=%d] Intercept syscall=%d.\n", 
-            current->pid, nr);
-  // if its mmap
-  // if its enclave activated
+    /*
+     * Once an enclave is activated, we 
+     * intercept its syscalls (ret) into here.
+     */
+    unsigned long arg0, arg1, arg2, arg3, arg4, arg5;
+    unsigned long ret = regs->ax;
+    arg0 = regs->di;
+    arg1 = regs->si;
+    arg2 = regs->dx;
+    arg3 = regs->r10;
+    arg4 = regs->r8;
+    arg5 = regs->r9;
 
-  /* 
-   * 1. Try to iterate the (UVA, size) mappings in the page table.
-   * If found, then make sure there is no write permission bits
-   */
-
-  /* 
-   * 2. If UVA mappings are not found.
-   * We make the (pid, UVA) to be checked during page_fault+mmu mappings
-   */
+    log_info("[enc_pid=%d] Intercept syscall=%d.\n", 
+              current->pid, nr);
+    
+    /* mmap */
+    switch (nr)
+    {
+        case __NR_mmap:
+            SM_mmap_return(ret, arg1, (int)arg4, arg5);
+            break;
+        
+        default:
+            break;
+    }
 }

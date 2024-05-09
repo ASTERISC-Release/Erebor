@@ -39,7 +39,7 @@ int encos_kdbg_enabled = 0;
  * See sva/enc.h for the maintained trusted version.
  */
 /* use a global array, indexed by pid */
-#define MAX_GLOB_VM_PROCESS    8192
+#define MAX_GLOB_VM_PROCESS    16384
 typedef struct encos_enclave_entry_ut {
     /* assigned encid */
     int enc_id;

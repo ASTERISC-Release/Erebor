@@ -879,7 +879,9 @@ void start_kernel(void)
 	char *after_dashes;
 
 	printk("Start Kernel");
-
+#ifdef CONFIG_ENCOS
+	printk(KERN_EMERG "ENCOS Enabled!");
+#endif
 	// extern char _stext[]; 	
 	// extern char _etext[]; 
 	// sva_mmu_init((uintptr_t)init_top_pgt, 512, (uintptr_t)read_cr3(), (uintptr_t)_stext, (uintptr_t)_etext);

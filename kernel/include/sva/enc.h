@@ -14,11 +14,17 @@
 /* 
  * Lazy static management. 
  * Let's assume the CVM has only few processes lol.
- * 8192 slots are enough for now.
+ * 16384 slots are enough for now.
  */
-#define MAX_GLOB_VM_PROCESS    8192
+#define MAX_GLOB_VM_PROCESS    16384
 
 /* use a global array, indexed by pid */
+typedef struct encos_enclave_last_claim_mem {
+    unsigned long uva;
+    unsigned long pa;
+    int nr_pages;
+} encos_enclave_last_claim_mem_t;
+
 typedef struct encos_enclave_entry {
     /* assigned encid */
     int enc_id;
@@ -30,6 +36,11 @@ typedef struct encos_enclave_entry {
      * When the process is executed, it is considered as ``dead''.
      */
     int activate;
+    /* 
+     * Just claimed enclave internal memory in encos_mmap.
+     * This is used for the mmap double check.
+     */
+    encos_enclave_last_claim_mem_t last_claim_mem;
 } encos_enclave_entry_t;
 
 
