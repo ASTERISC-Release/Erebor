@@ -111,6 +111,10 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/task.h>
 
+#ifdef CONFIG_ENCOS
+#include <sva/enc.h>
+#endif
+
 /*
  * Minimum number of threads to boot the kernel
  */
@@ -2929,6 +2933,10 @@ pid_t kernel_clone(struct kernel_clone_args *args)
 		init_completion(&vfork);
 		get_task_struct(p);
 	}
+
+#ifdef CONFIG_ENCOS
+	SM_encos_populate_child(current->pid, p->pid);
+#endif
 
 	if (IS_ENABLED(CONFIG_LRU_GEN) && !(clone_flags & CLONE_VM)) {
 		/* lock the task to synchronize with memcg migration */

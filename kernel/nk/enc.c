@@ -31,7 +31,7 @@ SM_encos_enclave_assign, void)
     
     if (pid > MAX_GLOB_VM_PROCESS) {
         log_err("Cannot assign enc_id for pid=%d. Please adjust MAX_GLOB_VM_PROCESS.\n", pid);
-        panic("GG!");
+        panic("GGWP!");
     }
 
     log_info("Assigned enc_id=%d for pid=%d.\n", enc_id, pid);
@@ -49,8 +49,8 @@ int is_internalmem)
     int enc_pid = current->pid;
     encos_enclave_entry_t *entry = &encos_enclave_table[enc_pid];
 
-    log_info("Start claiming memory. enc_id=%d, is_internal=%d.\n", 
-                entry->enc_id, is_internalmem);
+    log_info("Start claiming memory. pid=%d, enc_id=%d, is_internal=%d.\n", 
+                enc_pid, entry->enc_id, is_internalmem);
     /* Chuqi: 
      * for enclave internal memory, we should mark and
      * check their page table entries & page descriptors
@@ -60,7 +60,7 @@ int is_internalmem)
         if (!entry->enc_id) {
             log_err("Cannot claim internal memory for a non-enclave pid=%d.\n",
                      current->pid);
-            panic("GG!");
+            panic("GGWP!");
         }
         /* TODO:
          * mark those physical page descriptors 
@@ -96,12 +96,12 @@ SM_encos_enclave_act, int pid)
     /* sanity checks */    
     if (!entry->enc_id) {
         log_err("Cannot activate enc_id for pid=%d. Please assign enc_id first.\n", pid);
-        panic("GG!");
+        panic("GGWP!");
     }
     if (entry->activate) {
         log_err("Cannot activate enc_id=%d for pid=%d. It is already activated.\n", 
                  entry->enc_id, pid);
-        panic("GG!");
+        panic("GGWP!");
         return -1;
     }
     entry->activate = 1;
@@ -121,19 +121,38 @@ SM_encos_enclave_exit, int pid)
     if (!entry->enc_id) {
         return -1;
     }
-    /* sanity checks */  
-    if (!entry->activate) {
-        log_err("Cannot exit enc_id=%d for pid=%d. It is not activated.\n", 
-                 entry->enc_id, pid);
-        panic("GG!");
-        return -1;
-    }
+    // /* sanity checks */  
+    // if (!entry->activate) {
+    //     entry->enc_id = 0;
+    //     return -1;
+    // }
     entry->enc_id = 0;
     entry->activate = 0;
 
     log_info("Exited enc_id=%d pid=%d.\n", entry->enc_id, pid);
 
     return 0;
+}
+
+SECURE_WRAPPER(void,
+SM_encos_populate_child, int parent_pid, int child_pid)
+{
+    encos_enclave_entry_t *parent, *child;
+    parent = &encos_enclave_table[parent_pid];
+    child = &encos_enclave_table[child_pid];
+
+    if (!parent->enc_id) {
+        return;
+    }
+    if (child->enc_id) {
+        log_err("Cannot populate child for an existed enclave child pid=%d.\n",
+                 child_pid);
+        panic("GGWP!");
+    }
+    child->enc_id = parent->enc_id;
+    child->activate = 0;
+
+    log_info("Populated child enc_id=%d pid=%d.\n", parent->enc_id, child_pid);
 }
 
 /* ===================================================
