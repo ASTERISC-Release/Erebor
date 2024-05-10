@@ -6,6 +6,7 @@
 
 #include "futex.h"
 
+#include <linux/encos.h>
 /*
  * READ this before attempting to hack on futexes!
  *
@@ -640,6 +641,11 @@ int futex_wait(u32 __user *uaddr, unsigned int flags, u32 val, ktime_t *abs_time
 	if (!bitset)
 		return -EINVAL;
 	q.bitset = bitset;
+
+	// TODO: debug
+	if (encos_kdbg_enabled != 0) {
+		log_kdbg("futex_wait start.\n");
+	}
 
 	to = futex_setup_timer(abs_time, &timeout, flags,
 			       current->timer_slack_ns);

@@ -6,6 +6,7 @@
 
 #include "futex.h"
 
+#include <linux/encos.h>
 /*
  * Support for robust futexes: the kernel cleans up held futexes at
  * thread exit time.
@@ -168,15 +169,21 @@ SYSCALL_DEFINE6(futex, u32 __user *, uaddr, int, op, u32, val,
 	int ret, cmd = op & FUTEX_CMD_MASK;
 	ktime_t t, *tp = NULL;
 	struct timespec64 ts;
-
+	// TODO: debug
 	if (utime && futex_cmd_has_timeout(cmd)) {
-		if (unlikely(should_fail_futex(!(op & FUTEX_PRIVATE_FLAG))))
+		if (unlikely(should_fail_futex(!(op & FUTEX_PRIVATE_FLAG)))) {
+			log_kdbg("futex: should_fail_futex\n");
 			return -EFAULT;
-		if (get_timespec64(&ts, utime))
+		}
+		if (get_timespec64(&ts, utime)) {
+			log_kdbg("futex: get_timespec64\n");
 			return -EFAULT;
+		}
 		ret = futex_init_timeout(cmd, op, &ts, &t);
-		if (ret)
+		if (ret) {
+			log_kdbg("futex: futex_init_timeout. ret=%d\n", ret);
 			return ret;
+		}
 		tp = &t;
 	}
 
