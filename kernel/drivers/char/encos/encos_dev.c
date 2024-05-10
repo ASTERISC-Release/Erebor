@@ -113,7 +113,7 @@ static long encos_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
  *                          unsigned long fd, unsigned long pgoff);
  * 
  * The @param offset / pgoff is used to control the behavior of this mmap.
- * (1) When vma->vm_pgoff = 0: Allocate a physical memory chunk for the enclave (do allocation + mmap)
+ * (1) When vma->vm_pgoff = (0 || 0xbabe): Allocate a physical memory chunk for the enclave (do allocation + mmap)
  * (2) else vma->vm_pgoff > 0: Map a physical page starting from pg_off for the enclave (only do anonymous mapping)
  * 
  * Case (2) is unlikely happened.
@@ -154,9 +154,15 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
             return -ENOMEM;
         }
         vma->vm_pgoff = 0;  // reset pgoff
-        /* 
+        /* Chuqi: 
          * Before remapping, call the secure monitor to claim
          * and protect the assigned physical memory. 
+         * 
+         * If the adversary refuse to claim this (i.e., hijack the 
+         * control flow and bypass this security monitor call),
+         * then SM will revoke the write access permission to the 
+         * unclaimed enclave's internal memory during MMU update,
+         * as the pages are not claimed here.
          */
         SM_encos_enclave_claim_memory(/*uva=*/vma->vm_start, /*pa=*/enc_mem->phys, 
                                       /*nr_pages=*/enc_mem->nr_pages, 
