@@ -2,8 +2,7 @@ qemu-7.1.0.tar.xz
 qemu-7.1.0/
 build.kern.log
 
-# comment out first
-
+*.swp
 .vscode
 
 #gdb
