@@ -25,7 +25,7 @@
 #include "sva/pks.h"
 #include "sva/idt.h"
 
-#define NCPU 8
+#define NCPU       24
 
 /* 
  * Description: 

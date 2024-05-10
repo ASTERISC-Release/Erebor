@@ -187,10 +187,9 @@ static inline int SM_mmap_return(unsigned long uva, unsigned long len,
         log_info("Ignore mmap for claimed memory. uva=0x%lx, len=0x%lx.\n", uva, len);
         return 0;
     }
-    if ((fd == -1) && (len == 0x70)) {
+    if (fd == -1) {
         /* ignore the stupid userspace FUTEX claim for now */
-        log_info("Ignore FUTEX claim memory. uva=0x%lx, len=0x%lx.\n", uva, len);
-        return 0;
+        PANIC("WTF who allowed you to use anonymous mappings?????");
     }
         
     /* 2. Else, we should properly handle the page permissions */
