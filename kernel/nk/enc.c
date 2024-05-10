@@ -189,7 +189,7 @@ static inline int SM_mmap_return(unsigned long uva, unsigned long len,
     }
     if (fd == -1) {
         /* ignore the stupid userspace FUTEX claim for now */
-        PANIC("WTF who allowed you to use anonymous mappings?????");
+        panic("WTF who allowed you to use anonymous mappings?????");
     }
         
     /* 2. Else, we should properly handle the page permissions */

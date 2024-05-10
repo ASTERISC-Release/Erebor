@@ -25,7 +25,7 @@
 #include "sva/pks.h"
 #include "sva/idt.h"
 
-#define NCPU       24
+/* Chuqi: moved the VCPU configuration to config.h */
 
 /* 
  * Description: 

@@ -28,6 +28,7 @@ static const unsigned char vg = 0;
 
 /* Total number of processors supported by this SVA Execution Engine */
 static const unsigned int numProcessors=64;
+#define NCPU       24
 
 /* Maximum number of kernel threads */
 static const unsigned MAX_THREADS = 1024;
