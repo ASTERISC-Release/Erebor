@@ -127,10 +127,14 @@ extern const uintptr_t SecureStackBase;
   "popq %rdx\n"                                                                \
   "popq %rcx\n"                                                                \
   "popq %rax\n"                                                                \
+  "cli\n"                                                                      \
 
 //===-- Entry/Exit High-Level Descriptions --------------------------------===//
 
-#ifdef __MODULAR_AND_READABLE
+#ifndef __MODULAR_AND_READABLE
+
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_STACK) && defined(CONFIG_ENCOS_PKS)
+
 #define SECURE_ENTRY                                                           \
   DISABLE_INTERRUPTS                                                           \
   DISABLE_PKS_PROTECTION                                                       \
@@ -140,6 +144,56 @@ extern const uintptr_t SecureStackBase;
   SWITCH_BACK_TO_NORMAL_STACK                                                  \
   ENABLE_PKS_PROTECTION                                                        \
   ENABLE_INTERRUPTS
+
+#define SECURE_INTERRUPT_REDIRECT                                              \
+  DISABLE_INTERRUPTS                                                           \
+  ENABLE_PKS_PROTECTION                                                        \
+  ENABLE_INTERRUPTS                                                            \
+
+#elif defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_STACK) && !defined(CONFIG_ENCOS_PKS)
+
+#define SECURE_ENTRY                                                           \
+  DISABLE_INTERRUPTS                                                           \
+  SWITCH_TO_SECURE_STACK
+
+#define SECURE_EXIT                                                            \
+  SWITCH_BACK_TO_NORMAL_STACK                                                  \
+  ENABLE_INTERRUPTS
+
+#define SECURE_INTERRUPT_REDIRECT                                              \
+  DISABLE_INTERRUPTS                                                           \
+  ENABLE_INTERRUPTS                                                            \
+
+#elif defined(CONFIG_ENCOS) && !defined(CONFIG_ENCOS_STACK) && defined(CONFIG_ENCOS_PKS)
+
+#define SECURE_ENTRY                                                           \
+  DISABLE_INTERRUPTS                                                           \
+  DISABLE_PKS_PROTECTION                                                       \
+
+#define SECURE_EXIT                                                            \
+  ENABLE_PKS_PROTECTION                                                        \
+  ENABLE_INTERRUPTS
+
+#define SECURE_INTERRUPT_REDIRECT                                              \
+  DISABLE_INTERRUPTS                                                           \
+  ENABLE_PKS_PROTECTION                                                        \
+  ENABLE_INTERRUPTS                                                            \
+
+#else
+
+#define SECURE_ENTRY                                                           \
+  DISABLE_INTERRUPTS                                                           \
+
+#define SECURE_EXIT                                                            \
+  ENABLE_INTERRUPTS
+
+#define SECURE_INTERRUPT_REDIRECT                                              \
+  DISABLE_INTERRUPTS                                                           \
+  ENABLE_INTERRUPTS                                                            \
+
+#endif
+
+
 #else
 // More optimized variants
 
