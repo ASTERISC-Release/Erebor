@@ -177,11 +177,11 @@ static struct desc_ptr idt_descr __ro_after_init = {
 void load_current_idt(void)
 {
 	lockdep_assert_irqs_disabled();
-	#ifndef CONFIG_ENCOS
-		load_idt(&idt_descr);
-	#else
-		sva_load_idt();
-	#endif
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
+	sva_load_idt();
+#else
+	load_idt(&idt_descr);
+#endif
 }
 
 #ifdef CONFIG_X86_F00F_BUG
@@ -191,7 +191,7 @@ bool idt_is_f00f_address(unsigned long address)
 }
 #endif
 
-#ifndef CONFIG_ENCOS
+#if !defined(CONFIG_ENCOS) || !defined(CONFIG_ENCOS_INTR)
 static __init void
 idt_setup_from_table(gate_desc *idt, const struct idt_data *t, int size, bool sys)
 {
@@ -212,10 +212,10 @@ static __init void set_intr_gate(unsigned int n, const void *addr)
 
 	init_idt_data(&data, n, addr);
 
-#ifndef CONFIG_ENCOS
-	idt_setup_from_table(idt_table, &data, 1, false);
-#else
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
 	sva_idt_setup_from_table(&data, 1, false);
+#else
+	idt_setup_from_table(idt_table, &data, 1, false);
 #endif
 }
 
@@ -228,13 +228,13 @@ static __init void set_intr_gate(unsigned int n, const void *addr)
  */
 void __init idt_setup_early_traps(void)
 {
-#ifndef CONFIG_ENCOS
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
+	sva_idt_setup_from_table(early_idts, ARRAY_SIZE(early_idts), true);
+	sva_load_idt();
+#else
 	idt_setup_from_table(idt_table, early_idts, ARRAY_SIZE(early_idts), 
 				true);
 	load_idt(&idt_descr);
-#else
-	sva_idt_setup_from_table(early_idts, ARRAY_SIZE(early_idts), true);
-	sva_load_idt();
 #endif
 }
 
@@ -243,10 +243,10 @@ void __init idt_setup_early_traps(void)
  */
 void __init idt_setup_traps(void)
 {
-#ifndef CONFIG_ENCOS
-	idt_setup_from_table(idt_table, def_idts, ARRAY_SIZE(def_idts), true);
-#else
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
 	sva_idt_setup_from_table(def_idts, ARRAY_SIZE(def_idts), true);
+#else
+	idt_setup_from_table(idt_table, def_idts, ARRAY_SIZE(def_idts), true);
 #endif
 }
 
@@ -273,11 +273,12 @@ static const __initconst struct idt_data early_pf_idts[] = {
  */
 void __init idt_setup_early_pf(void)
 {
-#ifndef CONFIG_ENCOS
-	idt_setup_from_table(idt_table, early_pf_idts, 
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
+	sva_idt_setup_from_table(early_pf_idts, 
 				ARRAY_SIZE(early_pf_idts), true);
 #else
-	sva_idt_setup_from_table(early_pf_idts, ARRAY_SIZE(early_pf_idts), true);
+	idt_setup_from_table(idt_table, early_pf_idts, 
+				ARRAY_SIZE(early_pf_idts), true);
 #endif
 }
 #endif
@@ -303,10 +304,10 @@ void __init idt_setup_apic_and_irq_gates(void)
 	int i = FIRST_EXTERNAL_VECTOR;
 	void *entry;
 
-#ifndef CONFIG_ENCOS
-	idt_setup_from_table(idt_table, apic_idts, ARRAY_SIZE(apic_idts), true);
-#else
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
 	sva_idt_setup_from_table(apic_idts, ARRAY_SIZE(apic_idts), true);
+#else
+	idt_setup_from_table(idt_table, apic_idts, ARRAY_SIZE(apic_idts), true);
 #endif
 
 	for_each_clear_bit_from(i, system_vectors, FIRST_SYSTEM_VECTOR) {
@@ -328,10 +329,10 @@ void __init idt_setup_apic_and_irq_gates(void)
 	/* Map IDT into CPU entry area and reload it. */
 	idt_map_in_cea();
 
-#ifndef CONFIG_ENCOS
-	load_idt(&idt_descr);
-#else
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
 	sva_load_idt();
+#else
+	load_idt(&idt_descr);
 #endif
 
 	/* Make the IDT table read only */
@@ -354,10 +355,10 @@ void __init idt_setup_early_handler(void)
 		set_intr_gate(i, early_ignore_irq);
 #endif
 
-#ifndef CONFIG_ENCOS
-	load_idt(&idt_descr);
-#else
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
 	sva_load_idt();
+#else
+	load_idt(&idt_descr);
 #endif
 }
 
