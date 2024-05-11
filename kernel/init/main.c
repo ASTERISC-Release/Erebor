@@ -866,12 +866,6 @@ static void __init print_unknown_bootoptions(void)
 	memblock_free(unknown_options, len);
 }
 
-unsigned long read_cr3(void) {
-    unsigned long cr3;
-    asm volatile ("mov %%cr3, %0" : "=r" (cr3));
-    return cr3;
-}
-
 asmlinkage __visible __init __no_sanitize_address __noreturn __no_stack_protector
 void start_kernel(void)
 {
