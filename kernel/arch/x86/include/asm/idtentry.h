@@ -48,7 +48,7 @@
  * arbitrary code in the body. irqentry_exit() contains common code
  * which has to run before returning to the low level assembly code.
  */
-#ifdef CONFIG_ENCOS
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
 
 #define DEFINE_IDTENTRY(func)						\
 static __always_inline void __##func(struct pt_regs *regs);		\
@@ -82,7 +82,7 @@ __visible noinstr void func(struct pt_regs *regs)			\
 									\
 static __always_inline void __##func(struct pt_regs *regs)
 
-#endif // CONFIG_ENCOS
+#endif /* CONFIG_ENCOS && CONFIG_ENCOS_INTR */
 
 /* Special case for 32bit IRET 'trap' */
 #define DECLARE_IDTENTRY_SW	DECLARE_IDTENTRY
@@ -114,7 +114,7 @@ static __always_inline void __##func(struct pt_regs *regs)
  *
  * Same as DEFINE_IDTENTRY, but has an extra error_code argument
  */
-#ifdef CONFIG_ENCOS
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
 
 #define DEFINE_IDTENTRY_ERRORCODE(func)					\
 static __always_inline void __##func(struct pt_regs *regs,		\
@@ -154,7 +154,7 @@ __visible noinstr void func(struct pt_regs *regs,			\
 static __always_inline void __##func(struct pt_regs *regs,		\
 				     unsigned long error_code)
 
-#endif
+#endif    /* CONFIG_ENCOS && CONFIG_ENCOS_INTR */
 
 /**
  * DECLARE_IDTENTRY_RAW - Declare functions for raw IDT entry points
@@ -181,7 +181,7 @@ static __always_inline void __##func(struct pt_regs *regs,		\
  * needs to be done in the body itself if applicable. Use if extra work
  * is required before the enter/exit() helpers are invoked.
  */
-#ifdef CONFIG_ENCOS
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
 
 #define DEFINE_IDTENTRY_RAW(func)					\
 SECURE_WRAPPER_INTERRUPT(__visible noinstr void, func, struct pt_regs *regs)
@@ -191,7 +191,7 @@ SECURE_WRAPPER_INTERRUPT(__visible noinstr void, func, struct pt_regs *regs)
 #define DEFINE_IDTENTRY_RAW(func)					\
 __visible noinstr void func(struct pt_regs *regs)
 
-#endif // CONFIG_ENCOS
+#endif /* CONFIG_ENCOS && CONFIG_ENCOS_INTR */
 
 /**
  * DECLARE_IDTENTRY_RAW_ERRORCODE - Declare functions for raw IDT entry points
@@ -219,7 +219,7 @@ __visible noinstr void func(struct pt_regs *regs)
  * is required before the enter/exit() helpers are invoked.
  */
 
-#ifdef CONFIG_ENCOS
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
 
 #define DEFINE_IDTENTRY_RAW_ERRORCODE(func)				\
 SECURE_WRAPPER_INTERRUPT(__visible noinstr void, func, struct pt_regs *regs, unsigned long error_code)
@@ -229,7 +229,7 @@ SECURE_WRAPPER_INTERRUPT(__visible noinstr void, func, struct pt_regs *regs, uns
 #define DEFINE_IDTENTRY_RAW_ERRORCODE(func)				\
 __visible noinstr void func(struct pt_regs *regs, unsigned long error_code)
 
-#endif // CONFIG_ENCOS
+#endif /* CONFIG_ENCOS && CONFIG_ENCOS_INTR */
 
 /**
  * DECLARE_IDTENTRY_IRQ - Declare functions for device interrupt IDT entry
@@ -255,7 +255,7 @@ __visible noinstr void func(struct pt_regs *regs, unsigned long error_code)
  * has to be done in the function body if necessary.
  */
 
-#ifdef CONFIG_ENCOS
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
 
 #define DEFINE_IDTENTRY_IRQ(func)					\
 static void __##func(struct pt_regs *regs, u32 vector);			\
@@ -295,7 +295,7 @@ __visible noinstr void func(struct pt_regs *regs,			\
 									\
 static noinline void __##func(struct pt_regs *regs, u32 vector)
 
-#endif
+#endif /* CONFIG_ENCOS && CONFIG_ENCOS_INTR */
 
 /**
  * DECLARE_IDTENTRY_SYSVEC - Declare functions for system vector entry points
@@ -322,7 +322,7 @@ static noinline void __##func(struct pt_regs *regs, u32 vector)
  * Runs the function on the interrupt stack if the entry hit kernel mode
  */
 
-#ifdef CONFIG_ENCOS
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
 
 #define DEFINE_IDTENTRY_SYSVEC(func)					\
 static void __##func(struct pt_regs *regs);				\
@@ -358,7 +358,7 @@ __visible noinstr void func(struct pt_regs *regs)			\
 									\
 static noinline void __##func(struct pt_regs *regs)
 
-#endif
+#endif /* CONFIG_ENCOS && CONFIG_ENCOS_INTR */
 
 /**
  * DEFINE_IDTENTRY_SYSVEC_SIMPLE - Emit code for simple system vector IDT
@@ -371,7 +371,7 @@ static noinline void __##func(struct pt_regs *regs)
  * Only use for 'empty' vectors like reschedule IPI and KVM posted
  * interrupt vectors.
  */
-#ifdef CONFIG_ENCOS
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
 
 #define DEFINE_IDTENTRY_SYSVEC_SIMPLE(func)				\
 static __always_inline void __##func(struct pt_regs *regs);		\
@@ -411,7 +411,7 @@ __visible noinstr void func(struct pt_regs *regs)			\
 									\
 static __always_inline void __##func(struct pt_regs *regs)
 
-#endif
+#endif /* CONFIG_ENCOS && CONFIG_ENCOS_INTR */
 
 /**
  * DECLARE_IDTENTRY_XENCB - Declare functions for XEN HV callback entry point
