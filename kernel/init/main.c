@@ -1083,9 +1083,9 @@ void start_kernel(void)
 #ifdef CONFIG_ENCOS_MMU
 	// Initialize the SVA MMU
 	sva_mmu_init();
+#endif
 	// Test that the secure call works
 	sva_mmu_test();
-#endif
 #endif
 
 	/* Do the rest non-__init'ed, we're now alive */
