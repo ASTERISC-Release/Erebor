@@ -1140,9 +1140,11 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
 
 		// Hence, while splitting the large page, we have to remove it from the nested kernel metadata
 		// and redeclare it as an L2
-		sva_remove_page(__pa((uintptr_t)kpte & PTE_PFN_MASK));
-		sva_declare_l2_page(__pa((uintptr_t)kpte & PTE_PFN_MASK));
-		
+		#ifdef CONFIG_ENCOS
+			sva_remove_page(__pa((uintptr_t)kpte & PTE_PFN_MASK));
+			sva_declare_l2_page(__pa((uintptr_t)kpte & PTE_PFN_MASK));
+		#endif
+
 		set_pmd((pmd_t*)kpte, pmd);
 	} else if(level == PG_LEVEL_1G) {
 		// Rahul: Probably have to remove the L2 + declare the page as an L3 here too

@@ -16,7 +16,7 @@
 #include <linux/threads.h>
 #include <asm/fixmap.h>
 
-#ifndef __EARLY_BOOT
+#if !defined(__EARLY_BOOT) && defined(CONFIG_ENCOS) 
 	#include <sva/mmu_intrinsics.h>
 	#include <sva/mmu.h>
 #endif
@@ -69,7 +69,7 @@ void set_pte_vaddr_pud(pud_t *pud_page, unsigned long vaddr, pte_t new_pte);
 
 static inline void native_set_pte(pte_t *ptep, pte_t pte)
 {
-	#ifndef __EARLY_BOOT
+	#if !defined(__EARLY_BOOT) && defined(CONFIG_ENCOS)
 		sva_update_l1_mapping(ptep, (page_entry_t)pte.pte);
 	#else
 		WRITE_ONCE(*ptep, pte);
@@ -79,7 +79,7 @@ static inline void native_set_pte(pte_t *ptep, pte_t pte)
 static inline void native_pte_clear(struct mm_struct *mm, unsigned long addr,
 				    pte_t *ptep)
 {
-	#ifndef __EARLY_BOOT
+	#if !defined(__EARLY_BOOT) && defined(CONFIG_ENCOS)
 		sva_remove_mapping((page_entry_t*)&ptep->pte);
 	#else
 		WRITE_ONCE(*ptep, native_make_pte(0));
@@ -94,7 +94,7 @@ static inline void native_set_pte_atomic(pte_t *ptep, pte_t pte)
 
 static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
 {
-	#ifndef __EARLY_BOOT
+	#if !defined(__EARLY_BOOT) && defined(CONFIG_ENCOS)
 		sva_update_l2_mapping(pmdp, (page_entry_t)pmd.pmd);
 	#else
 		WRITE_ONCE(*pmdp, pmd);
@@ -103,7 +103,7 @@ static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
 
 static inline void native_pmd_clear(pmd_t *pmd)
 {
-	#ifndef __EARLY_BOOT
+	#if !defined(__EARLY_BOOT) && defined(CONFIG_ENCOS)
 		sva_remove_mapping((page_entry_t*)&pmd->pmd);
 	#else
 		WRITE_ONCE(*pmd, native_make_pmd(0));
@@ -139,7 +139,7 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
 
 static inline void native_set_pud(pud_t *pudp, pud_t pud)
 {
-	#ifndef __EARLY_BOOT
+	#if !defined(__EARLY_BOOT) && defined(CONFIG_ENCOS)
 		sva_update_l3_mapping(pudp, (page_entry_t)pud.pud);
 	#else
 		WRITE_ONCE(*pudp, pud);
@@ -148,7 +148,7 @@ static inline void native_set_pud(pud_t *pudp, pud_t pud)
 
 static inline void native_pud_clear(pud_t *pud)
 {
-	#ifndef __EARLY_BOOT
+	#if !defined(__EARLY_BOOT) && defined(CONFIG_ENCOS)
 		sva_remove_mapping((page_entry_t*)&pud->pud);
 	#else
 		WRITE_ONCE(*pud, native_make_pud(0));
@@ -176,7 +176,7 @@ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
 	pgd_t pgd;
 
 	if (pgtable_l5_enabled() || !IS_ENABLED(CONFIG_PAGE_TABLE_ISOLATION)) {
-		#ifndef __EARLY_BOOT
+		#if !defined(__EARLY_BOOT) && defined(CONFIG_ENCOS)
 			sva_update_l4_mapping(p4dp, (page_entry_t)p4d.p4d);
 		#else
 			WRITE_ONCE(*p4dp, p4d);
@@ -184,9 +184,9 @@ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
 		return;
 	}
 
-	#ifndef __EARLY_BOOT
-		printk("[P4D DEBUG]");
-	#endif
+	// #ifndef __EARLY_BOOT
+		// printk("[P4D DEBUG]");
+	// #endif
 	// Rahul: Skipping for now, since 5-level pagin is enabled
 	pgd = native_make_pgd(native_p4d_val(p4d));
 	pgd = pti_set_user_pgtbl((pgd_t *)p4dp, pgd);
@@ -195,7 +195,7 @@ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
 
 static inline void native_p4d_clear(p4d_t *p4d)
 {
-	#ifndef __EARLY_BOOT
+	#if !defined(__EARLY_BOOT) && defined(CONFIG_ENCOS)
 		sva_remove_mapping((page_entry_t*)&p4d->p4d);
 	#else
 		WRITE_ONCE(*p4d, native_make_p4d(0));
@@ -205,7 +205,7 @@ static inline void native_p4d_clear(p4d_t *p4d)
 
 static inline void native_set_pgd(pgd_t *pgdp, pgd_t pgd)
 {
-	#ifndef __EARLY_BOOT
+	#if !defined(__EARLY_BOOT) && defined(CONFIG_ENCOS)
 		sva_update_l5_mapping(pgdp, (page_entry_t)pgd.pgd);
 	#else
 		WRITE_ONCE(*pgdp, pti_set_user_pgtbl(pgdp, pgd));
@@ -214,7 +214,7 @@ static inline void native_set_pgd(pgd_t *pgdp, pgd_t pgd)
 
 static inline void native_pgd_clear(pgd_t *pgd)
 {
-	#ifndef __EARLY_BOOT
+	#if !defined(__EARLY_BOOT) && defined(CONFIG_ENCOS)
 		sva_remove_mapping((page_entry_t*)&pgd->pgd);
 	#else
 		WRITE_ONCE(*pgd, native_make_pgd(0));

@@ -422,7 +422,9 @@ static inline pgd_t *_pgd_alloc(void)
 {
 	pgd_t *new = (pgd_t *)__get_free_pages(GFP_PGTABLE_USER,
 					 PGD_ALLOCATION_ORDER);
-	sva_declare_l5_page(__pa(new));
+	#ifdef CONFIG_ENCOS
+		sva_declare_l5_page(__pa(new));
+	#endif
 	return new;	
 }
 

@@ -1079,6 +1079,7 @@ void start_kernel(void)
 	arch_post_acpi_subsys_init();
 	kcsan_init();
 
+#ifdef CONFIG_ENCOS
 	// Enable the PKS bit in CR4
 	native_write_cr4(native_read_cr4() | (1 << 24));
 
@@ -1090,6 +1091,7 @@ void start_kernel(void)
 
 	// Test that the secure call works
 	sva_mmu_test();
+#endif
 
 	/* Do the rest non-__init'ed, we're now alive */
 	arch_call_rest_init();

@@ -843,7 +843,9 @@ done_merging:
 	if (!(fpi_flags & FPI_SKIP_REPORT_NOTIFY))
 		page_reporting_notify_free(order);
 
-	sva_remove_page(__pa(page_address(page)));
+	#ifdef CONFIG_ENCOS
+		sva_remove_page(__pa(page_address(page)));
+	#endif
 }
 
 /**
@@ -2377,8 +2379,10 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
 	int pindex;
 	bool free_high;
 
-	sva_remove_page(__pa(page_address(page)));		
-
+	#ifdef CONFIG_ENCOS
+		sva_remove_page(__pa(page_address(page)));		
+	#endif
+	
 	__count_vm_events(PGFREE, 1 << order);
 	pindex = order_to_pindex(migratetype, order);
 	list_add(&page->pcp_list, &pcp->lists[pindex]);

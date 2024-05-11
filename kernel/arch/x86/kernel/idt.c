@@ -175,8 +175,11 @@ static struct desc_ptr idt_descr __ro_after_init = {
 void load_current_idt(void)
 {
 	lockdep_assert_irqs_disabled();
-	// load_idt(&idt_descr);
-	sva_load_idt();
+	#ifndef CONFIG_ENCOS
+		load_idt(&idt_descr);
+	#else
+		sva_load_idt();
+	#endif
 }
 
 #ifdef CONFIG_X86_F00F_BUG
@@ -207,8 +210,11 @@ static __init void set_intr_gate(unsigned int n, const void *addr)
 
 	init_idt_data(&data, n, addr);
 
-	// idt_setup_from_table(idt_table, &data, 1, false);
+#ifndef CONFIG_ENCOS
+	idt_setup_from_table(idt_table, &data, 1, false);
+#else
 	sva_idt_setup_from_table(&data, 1, false);
+#endif
 }
 
 /**
@@ -220,12 +226,13 @@ static __init void set_intr_gate(unsigned int n, const void *addr)
  */
 void __init idt_setup_early_traps(void)
 {
-	// idt_setup_from_table(idt_table, early_idts, ARRAY_SIZE(early_idts),
-			    //  true);
-	sva_idt_setup_from_table(early_idts, ARRAY_SIZE(early_idts),
-				 true);
-	// load_idt(&idt_descr);
+#ifndef CONFIG_ENCOS
+	idt_setup_from_table(idt_table, early_idts, ARRAY_SIZE(early_idts), true);
+	load_idt(&idt_descr);
+#else
+	sva_idt_setup_from_table(early_idts, ARRAY_SIZE(early_idts), true);
 	sva_load_idt();
+#endif
 }
 
 /**
@@ -233,8 +240,11 @@ void __init idt_setup_early_traps(void)
  */
 void __init idt_setup_traps(void)
 {
-	// idt_setup_from_table(idt_table, def_idts, ARRAY_SIZE(def_idts), true);
+#ifndef CONFIG_ENCOS
+	idt_setup_from_table(idt_table, def_idts, ARRAY_SIZE(def_idts), true);
+#else
 	sva_idt_setup_from_table(def_idts, ARRAY_SIZE(def_idts), true);
+#endif
 }
 
 #ifdef CONFIG_X86_64
@@ -260,10 +270,11 @@ static const __initconst struct idt_data early_pf_idts[] = {
  */
 void __init idt_setup_early_pf(void)
 {
-	// idt_setup_from_table(idt_table, early_pf_idts,
-			    //  ARRAY_SIZE(early_pf_idts), true);
-	sva_idt_setup_from_table(early_pf_idts,
-			     ARRAY_SIZE(early_pf_idts), true);
+#ifndef CONFIG_ENCOS
+	idt_setup_from_table(idt_table, early_pf_idts, ARRAY_SIZE(early_pf_idts), true);
+#else
+	sva_idt_setup_from_table(early_pf_idts, ARRAY_SIZE(early_pf_idts), true);
+#endif
 }
 #endif
 
@@ -288,8 +299,11 @@ void __init idt_setup_apic_and_irq_gates(void)
 	int i = FIRST_EXTERNAL_VECTOR;
 	void *entry;
 
-	// idt_setup_from_table(idt_table, apic_idts, ARRAY_SIZE(apic_idts), true);
+#ifndef CONFIG_ENCOS
+	idt_setup_from_table(idt_table, apic_idts, ARRAY_SIZE(apic_idts), true);
+#else
 	sva_idt_setup_from_table(apic_idts, ARRAY_SIZE(apic_idts), true);
+#endif
 
 	for_each_clear_bit_from(i, system_vectors, FIRST_SYSTEM_VECTOR) {
 		entry = irq_entries_start + IDT_ALIGN * (i - FIRST_EXTERNAL_VECTOR);
@@ -309,8 +323,12 @@ void __init idt_setup_apic_and_irq_gates(void)
 #endif
 	/* Map IDT into CPU entry area and reload it. */
 	idt_map_in_cea();
-	// load_idt(&idt_descr);
+
+#ifndef CONFIG_ENCOS
+	load_idt(&idt_descr);
+#else
 	sva_load_idt();
+#endif
 
 	/* Make the IDT table read only */
 	set_memory_ro((unsigned long)&idt_table, 1);
@@ -331,8 +349,12 @@ void __init idt_setup_early_handler(void)
 	for ( ; i < NR_VECTORS; i++)
 		set_intr_gate(i, early_ignore_irq);
 #endif
-	// load_idt(&idt_descr);
+
+#ifndef CONFIG_ENCOS
+	load_idt(&idt_descr);
+#else
 	sva_load_idt();
+#endif
 }
 
 /**
@@ -342,7 +364,7 @@ void idt_invalidate(void)
 {
 	static const struct desc_ptr idt = { .address = 0, .size = 0 };
 
-	// Rahul: Add an sva_invalidate_idt() call ?
+	// Rahul: Add an sva_invalidate_idt() call ? (TODO)
 	load_idt(&idt);
 }
 
