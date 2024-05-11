@@ -12,12 +12,12 @@ source "arch/$(SRCARCH)/Kconfig"
 menu "General architecture-dependent options"
 
 config ENCOS
-	def_bool n
+	def_bool y
 	help
 	  Enclave nested-OS monitor enabled.
 
 config ENCOS_PKS
-	def_bool y
+	def_bool n
 	help
 	  Enclave nested-OS (PKS).
 	
@@ -32,7 +32,7 @@ config ENCOS_STACK
 	  Enclave nested-OS (Secure nested stack).
 
 config ENCOS_INTR
-	def_bool n
+	def_bool y
 	help
 	  Enclave nested-OS (Exception interposition).
 

@@ -51,6 +51,8 @@ extern const uintptr_t SecureStackBase;
 // Use only RAX/RCX registers to accomplish this.
 // (Or spill more in calling context)
 
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_STACK)
+
 #define SWITCH_TO_SECURE_STACK                                                 \
   /* Spill registers for temporary use */                                      \
   "movq %rax, -8(%rsp)\n"                                                      \
@@ -76,6 +78,14 @@ extern const uintptr_t SecureStackBase;
 /* Switch back to original stack */                                            \
   "movq 0(%rsp), %rsp\n"                                                       \
 
+#else
+
+#define SWITCH_TO_SECURE_STACK                                                 \
+
+#define SWITCH_BACK_TO_NORMAL_STACK                                            \
+
+#endif  /* CONFIG_ENCOS && CONFIG_ENCOS_STACK */
+
 //===-- Interrupt Flag Control --------------------------------------------===//
 
 #define DISABLE_INTERRUPTS                                                     \
@@ -91,6 +101,7 @@ extern const uintptr_t SecureStackBase;
 
 //===-- PKS-Protect Control ---------------------------------------------===//
 
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_PKS)
 
 #define ENABLE_PKS_PROTECTION                                                  \
   /* Save scratch register to stack */                                         \
@@ -129,12 +140,19 @@ extern const uintptr_t SecureStackBase;
   "popq %rax\n"                                                                \
   "cli\n"                                                                      \
 
+#else 
+
+#define ENABLE_PKS_PROTECTION                                                  \
+
+#define DISABLE_PKS_PROTECTION                                                 \
+
+#endif  /* CONFIG_ENCOS && CONFIG_ENCOS_PKS */
+
+
 //===-- Entry/Exit High-Level Descriptions --------------------------------===//
 
 #ifndef __MODULAR_AND_READABLE
 
-#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_STACK) && defined(CONFIG_ENCOS_PKS)
-
 #define SECURE_ENTRY                                                           \
   DISABLE_INTERRUPTS                                                           \
   DISABLE_PKS_PROTECTION                                                       \
@@ -149,50 +167,6 @@ extern const uintptr_t SecureStackBase;
   DISABLE_INTERRUPTS                                                           \
   ENABLE_PKS_PROTECTION                                                        \
   ENABLE_INTERRUPTS                                                            \
-
-#elif defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_STACK) && !defined(CONFIG_ENCOS_PKS)
-
-#define SECURE_ENTRY                                                           \
-  DISABLE_INTERRUPTS                                                           \
-  SWITCH_TO_SECURE_STACK
-
-#define SECURE_EXIT                                                            \
-  SWITCH_BACK_TO_NORMAL_STACK                                                  \
-  ENABLE_INTERRUPTS
-
-#define SECURE_INTERRUPT_REDIRECT                                              \
-  DISABLE_INTERRUPTS                                                           \
-  ENABLE_INTERRUPTS                                                            \
-
-#elif defined(CONFIG_ENCOS) && !defined(CONFIG_ENCOS_STACK) && defined(CONFIG_ENCOS_PKS)
-
-#define SECURE_ENTRY                                                           \
-  DISABLE_INTERRUPTS                                                           \
-  DISABLE_PKS_PROTECTION                                                       \
-
-#define SECURE_EXIT                                                            \
-  ENABLE_PKS_PROTECTION                                                        \
-  ENABLE_INTERRUPTS
-
-#define SECURE_INTERRUPT_REDIRECT                                              \
-  DISABLE_INTERRUPTS                                                           \
-  ENABLE_PKS_PROTECTION                                                        \
-  ENABLE_INTERRUPTS                                                            \
-
-#else
-
-#define SECURE_ENTRY                                                           \
-  DISABLE_INTERRUPTS                                                           \
-
-#define SECURE_EXIT                                                            \
-  ENABLE_INTERRUPTS
-
-#define SECURE_INTERRUPT_REDIRECT                                              \
-  DISABLE_INTERRUPTS                                                           \
-  ENABLE_INTERRUPTS                                                            \
-
-#endif
-
 
 #else
 // More optimized variants
