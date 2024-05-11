@@ -1080,17 +1080,18 @@ void start_kernel(void)
 	kcsan_init();
 
 #ifdef CONFIG_ENCOS
+#ifdef CONFIG_ENCOS_PKS
 	// Enable the PKS bit in CR4
 	native_write_cr4(native_read_cr4() | (1 << 24));
-
 	// Disable write access for key 1
 	wrmsrl(0x6e1, 0x8);
-
+#endif
+#ifdef CONFIG_ENCOS_MMU
 	// Initialize the SVA MMU
 	sva_mmu_init();
-
 	// Test that the secure call works
 	sva_mmu_test();
+#endif
 #endif
 
 	/* Do the rest non-__init'ed, we're now alive */

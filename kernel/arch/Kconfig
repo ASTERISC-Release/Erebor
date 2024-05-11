@@ -16,6 +16,26 @@ config ENCOS
 	help
 	  Enclave nested-OS monitor enabled.
 
+config ENCOS_PKS
+	def_bool y
+	help
+	  Enclave nested-OS (PKS).
+	
+config ENCOS_MMU
+	def_bool n
+	help
+	  Enclave nested-OS (MMU interposition).
+
+config ENCOS_STACK
+	def_bool n
+	help
+	  Enclave nested-OS (Secure nested stack).
+
+config ENCOS_INTR
+	def_bool n
+	help
+	  Enclave nested-OS (Exception interposition).
+
 config ARCH_HAS_SUBPAGE_FAULTS
 	bool
 	help
