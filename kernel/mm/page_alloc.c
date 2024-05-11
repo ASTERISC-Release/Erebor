@@ -57,8 +57,10 @@
 #include "shuffle.h"
 #include "page_reporting.h"
 
+#ifdef CONFIG_ENCOS
 #include <sva/mmu_intrinsics.h>
 #include <sva/mmu.h>
+#endif
 
 /* Free Page Internal flags: for internal, non-pcp variants of free_pages(). */
 typedef int __bitwise fpi_t;

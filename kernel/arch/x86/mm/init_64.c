@@ -60,7 +60,9 @@
 
 #include "ident_map.c"
 
+#ifdef CONFIG_ENCOS
 #include <sva/mmu_intrinsics.h>
+#endif
 
 #define DEFINE_POPULATE(fname, type1, type2, init)		\
 static inline void fname##_init(struct mm_struct *mm,		\

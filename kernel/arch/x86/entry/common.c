@@ -53,7 +53,7 @@ static __always_inline bool do_syscall_x64(struct pt_regs *regs, int nr)
 	if (likely(unr < NR_syscalls)) {
 		unr = array_index_nospec(unr, NR_syscalls);
 		regs->ax = sys_call_table[unr](regs);
-
+#ifdef CONFIG_ENCOS
 		/* Chuqi:
 		 * intercept enclave syscall return. bad code here.
 		 * In principle, this interception should be done in the 
@@ -62,6 +62,7 @@ static __always_inline bool do_syscall_x64(struct pt_regs *regs, int nr)
 		 */
 		if (is_enclave_activate_ut(current->pid))
 			SM_encos_syscall_intercept(regs, nr);
+#endif
 		return true;
 	}
 	return false;

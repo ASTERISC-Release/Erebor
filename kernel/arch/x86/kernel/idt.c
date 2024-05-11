@@ -12,7 +12,9 @@
 #include <asm/hw_irq.h>
 #include <asm/idtentry.h>
 
+#ifdef CONFIG_ENCOS
 #include <sva/idt.h>
+#endif
 
 #define DPL0		0x0
 #define DPL3		0x3
@@ -227,7 +229,8 @@ static __init void set_intr_gate(unsigned int n, const void *addr)
 void __init idt_setup_early_traps(void)
 {
 #ifndef CONFIG_ENCOS
-	idt_setup_from_table(idt_table, early_idts, ARRAY_SIZE(early_idts), true);
+	idt_setup_from_table(idt_table, early_idts, ARRAY_SIZE(early_idts), 
+				true);
 	load_idt(&idt_descr);
 #else
 	sva_idt_setup_from_table(early_idts, ARRAY_SIZE(early_idts), true);
@@ -271,7 +274,8 @@ static const __initconst struct idt_data early_pf_idts[] = {
 void __init idt_setup_early_pf(void)
 {
 #ifndef CONFIG_ENCOS
-	idt_setup_from_table(idt_table, early_pf_idts, ARRAY_SIZE(early_pf_idts), true);
+	idt_setup_from_table(idt_table, early_pf_idts, 
+				ARRAY_SIZE(early_pf_idts), true);
 #else
 	sva_idt_setup_from_table(early_pf_idts, ARRAY_SIZE(early_pf_idts), true);
 #endif

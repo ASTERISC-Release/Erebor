@@ -12,7 +12,9 @@
 #include <linux/hardirq.h>
 
 #include <asm/irq_stack.h>
+#ifdef CONFIG_ENCOS
 #include <sva/stack.h>
+#endif
 /**
  * DECLARE_IDTENTRY - Declare functions for simple IDT entry points
  *		      No error code pushed by hardware
