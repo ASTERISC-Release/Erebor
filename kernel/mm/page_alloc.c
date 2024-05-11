@@ -846,7 +846,7 @@ done_merging:
 		page_reporting_notify_free(order);
 
 #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
-		sva_remove_page(__pa(page_address(page)));
+	sva_remove_page(__pa(page_address(page)));
 #endif
 }
 

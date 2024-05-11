@@ -22,7 +22,7 @@ config ENCOS_PKS
 	  Enclave nested-OS (PKS).
 	
 config ENCOS_MMU
-	def_bool n
+	def_bool y
 	help
 	  Enclave nested-OS (MMU interposition).
 
