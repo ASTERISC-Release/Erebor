@@ -8,7 +8,7 @@ fi
 pushd $LINUX_DIR
 	for i in $(seq 1 44)
 	do
-		echo "patching file ../pks_$i.patch"
-		patch -p1 < ../pks_$i.patch
+		echo "patching file ../patches/pks_$i.patch"
+		patch -p1 < ../patches/pks_$i.patch
 	done
 popd
