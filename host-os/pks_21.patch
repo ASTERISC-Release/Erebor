@@ -1,0 +1,119 @@
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 69e611d3b8ef..43464511ea9d 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -1890,8 +1890,9 @@ config X86_INTEL_MEMORY_PROTECTION_KEYS
+ 	  If unsure, say y.
+ 
+ config ARCH_HAS_PTREGS_AUXILIARY
++	def_bool y
+ 	depends on X86_64
+-	bool
++	depends on ARCH_ENABLE_SUPERVISOR_PKEYS
+ 
+ choice
+ 	prompt "TSX enable mode"
+diff --git a/arch/x86/include/asm/entry-common.h b/arch/x86/include/asm/entry-common.h
+index 5fa5dd2d539c..803727b95b3a 100644
+--- a/arch/x86/include/asm/entry-common.h
++++ b/arch/x86/include/asm/entry-common.h
+@@ -8,6 +8,7 @@
+ #include <asm/nospec-branch.h>
+ #include <asm/io_bitmap.h>
+ #include <asm/fpu/api.h>
++#include <asm/pks.h>
+ 
+ /* Check that the stack and regs on entry from user mode are sane. */
+ static __always_inline void arch_check_user_regs(struct pt_regs *regs)
+@@ -99,10 +100,12 @@ static __always_inline void arch_exit_to_user_mode(void)
+ 
+ static inline void arch_save_aux_pt_regs(struct pt_regs *regs)
+ {
++	pks_save_pt_regs(regs);
+ }
+ 
+ static inline void arch_restore_aux_pt_regs(struct pt_regs *regs)
+ {
++	pks_restore_pt_regs(regs);
+ }
+ 
+ #endif
+diff --git a/arch/x86/include/asm/pks.h b/arch/x86/include/asm/pks.h
+index e9ad3ecd7ed0..b69e03a141fe 100644
+--- a/arch/x86/include/asm/pks.h
++++ b/arch/x86/include/asm/pks.h
+@@ -6,6 +6,8 @@
+ 
+ void pks_setup(void);
+ void x86_pkrs_load(struct thread_struct *thread);
++void pks_save_pt_regs(struct pt_regs *regs);
++void pks_restore_pt_regs(struct pt_regs *regs);
+ 
+ bool pks_handle_key_fault(struct pt_regs *regs, unsigned long hw_error_code,
+ 			  unsigned long address);
+@@ -14,6 +16,8 @@ bool pks_handle_key_fault(struct pt_regs *regs, unsigned long hw_error_code,
+ 
+ static inline void pks_setup(void) { }
+ static inline void x86_pkrs_load(struct thread_struct *thread) { }
++static inline void pks_save_pt_regs(struct pt_regs *regs) { }
++static inline void pks_restore_pt_regs(struct pt_regs *regs) { }
+ 
+ static inline bool pks_handle_key_fault(struct pt_regs *regs,
+ 					unsigned long hw_error_code,
+diff --git a/arch/x86/include/asm/ptrace.h b/arch/x86/include/asm/ptrace.h
+index 0889045b3a6f..73936739c7e7 100644
+--- a/arch/x86/include/asm/ptrace.h
++++ b/arch/x86/include/asm/ptrace.h
+@@ -97,6 +97,9 @@ struct pt_regs {
+  * ARCH_HAS_PTREGS_AUXILIARY.  Failure to do so will result in a build failure.
+  */
+ struct pt_regs_auxiliary {
++#ifdef CONFIG_ARCH_ENABLE_SUPERVISOR_PKEYS
++	u32 pkrs;
++#endif
+ };
+ 
+ struct pt_regs_extended {
+diff --git a/arch/x86/mm/pkeys.c b/arch/x86/mm/pkeys.c
+index a3b27b7811da..dd02e76d0359 100644
+--- a/arch/x86/mm/pkeys.c
++++ b/arch/x86/mm/pkeys.c
+@@ -342,6 +342,38 @@ void x86_pkrs_load(struct thread_struct *thread)
+ 	pks_write_pkrs(thread->pkrs);
+ }
+ 
++/*
++ * PKRS is a per-logical-processor MSR which overlays additional protection for
++ * pages which have been mapped with a protection key.
++ *
++ * To protect against exceptions having potentially privileged access to memory
++ * of an interrupted thread, save the current thread value and set the PKRS
++ * value to be used during the exception.
++ */
++void pks_save_pt_regs(struct pt_regs *regs)
++{
++	struct pt_regs_auxiliary *aux_pt_regs;
++
++	if (!cpu_feature_enabled(X86_FEATURE_PKS))
++		return;
++
++	aux_pt_regs = &to_extended_pt_regs(regs)->aux;
++	aux_pt_regs->pkrs = current->thread.pkrs;
++	pks_write_pkrs(PKS_INIT_VALUE);
++}
++
++void pks_restore_pt_regs(struct pt_regs *regs)
++{
++	struct pt_regs_auxiliary *aux_pt_regs;
++
++	if (!cpu_feature_enabled(X86_FEATURE_PKS))
++		return;
++
++	aux_pt_regs = &to_extended_pt_regs(regs)->aux;
++	current->thread.pkrs = aux_pt_regs->pkrs;
++	pks_write_pkrs(current->thread.pkrs);
++}
++
+ /*
+  * PKS is independent of PKU and either or both may be supported on a CPU.
+  *

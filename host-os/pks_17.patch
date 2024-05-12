@@ -1,0 +1,295 @@
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index c53deda2ea25..69e611d3b8ef 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -1889,6 +1889,10 @@ config X86_INTEL_MEMORY_PROTECTION_KEYS
+ 
+ 	  If unsure, say y.
+ 
++config ARCH_HAS_PTREGS_AUXILIARY
++	depends on X86_64
++	bool
++
+ choice
+ 	prompt "TSX enable mode"
+ 	depends on CPU_SUP_INTEL
+diff --git a/arch/x86/entry/calling.h b/arch/x86/entry/calling.h
+index a4c061fb7c6e..d0ebf9b069c9 100644
+--- a/arch/x86/entry/calling.h
++++ b/arch/x86/entry/calling.h
+@@ -63,6 +63,26 @@ For 32-bit we have the following conventions - kernel is built with
+  * for assembly code:
+  */
+ 
++
++#ifdef CONFIG_ARCH_HAS_PTREGS_AUXILIARY
++
++.macro PUSH_PTREGS_AUXILIARY
++	/* add space for pt_regs_auxiliary */
++	subq $PTREGS_AUX_SIZE, %rsp
++.endm
++
++.macro POP_PTREGS_AUXILIARY
++	/* remove space for pt_regs_auxiliary */
++	addq $PTREGS_AUX_SIZE, %rsp
++.endm
++
++#else
++
++#define PUSH_PTREGS_AUXILIARY
++#define POP_PTREGS_AUXILIARY
++
++#endif
++
+ .macro PUSH_REGS rdx=%rdx rax=%rax save_ret=0
+ 	.if \save_ret
+ 	pushq	%rsi		/* pt_regs->si */
+diff --git a/arch/x86/entry/entry_64.S b/arch/x86/entry/entry_64.S
+index 4faac48ebec5..5a037a56814d 100644
+--- a/arch/x86/entry/entry_64.S
++++ b/arch/x86/entry/entry_64.S
+@@ -335,7 +335,9 @@ SYM_CODE_END(ret_from_fork)
+ 		movq	$-1, ORIG_RAX(%rsp)	/* no syscall to restart */
+ 	.endif
+ 
++	PUSH_PTREGS_AUXILIARY
+ 	call	\cfunc
++	POP_PTREGS_AUXILIARY
+ 
+ 	jmp	error_return
+ .endm
+@@ -440,7 +442,9 @@ SYM_CODE_START(\asmsym)
+ 
+ 	movq	%rsp, %rdi		/* pt_regs pointer */
+ 
++	PUSH_PTREGS_AUXILIARY
+ 	call	\cfunc
++	POP_PTREGS_AUXILIARY
+ 
+ 	jmp	paranoid_exit
+ 
+@@ -502,7 +506,9 @@ SYM_CODE_START(\asmsym)
+ 	 * stack.
+ 	 */
+ 	movq	%rsp, %rdi		/* pt_regs pointer */
++	PUSH_PTREGS_AUXILIARY
+ 	call	vc_switch_off_ist
++	POP_PTREGS_AUXILIARY
+ 	movq	%rax, %rsp		/* Switch to new stack */
+ 
+ 	UNWIND_HINT_REGS
+@@ -513,7 +519,9 @@ SYM_CODE_START(\asmsym)
+ 
+ 	movq	%rsp, %rdi		/* pt_regs pointer */
+ 
++	PUSH_PTREGS_AUXILIARY
+ 	call	kernel_\cfunc
++	POP_PTREGS_AUXILIARY
+ 
+ 	/*
+ 	 * No need to switch back to the IST stack. The current stack is either
+@@ -549,7 +557,9 @@ SYM_CODE_START(\asmsym)
+ 	movq	%rsp, %rdi		/* pt_regs pointer into first argument */
+ 	movq	ORIG_RAX(%rsp), %rsi	/* get error code into 2nd argument*/
+ 	movq	$-1, ORIG_RAX(%rsp)	/* no syscall to restart */
++	PUSH_PTREGS_AUXILIARY
+ 	call	\cfunc
++	POP_PTREGS_AUXILIARY
+ 
+ 	/* For some configurations \cfunc ends up being a noreturn. */
+ 	REACHABLE
+@@ -802,7 +812,9 @@ SYM_CODE_START_LOCAL(exc_xen_hypervisor_callback)
+ 	movq	%rdi, %rsp			/* we don't return, adjust the stack frame */
+ 	UNWIND_HINT_REGS
+ 
++	PUSH_PTREGS_AUXILIARY
+ 	call	xen_pv_evtchn_do_upcall
++	POP_PTREGS_AUXILIARY
+ 
+ 	jmp	error_return
+ SYM_CODE_END(exc_xen_hypervisor_callback)
+@@ -1003,7 +1015,9 @@ SYM_CODE_START_LOCAL(error_entry)
+ 	/* Put us onto the real thread stack. */
+ 	popq	%r12				/* save return addr in %12 */
+ 	movq	%rsp, %rdi			/* arg0 = pt_regs pointer */
++	PUSH_PTREGS_AUXILIARY
+ 	call	sync_regs
++	POP_PTREGS_AUXILIARY
+ 	movq	%rax, %rsp			/* switch stack */
+ 	ENCODE_FRAME_POINTER
+ 	pushq	%r12
+@@ -1059,7 +1073,9 @@ SYM_CODE_START_LOCAL(error_entry)
+ 	 * as if we faulted immediately after IRET.
+ 	 */
+ 	mov	%rsp, %rdi
++	PUSH_PTREGS_AUXILIARY
+ 	call	fixup_bad_iret
++	POP_PTREGS_AUXILIARY
+ 	mov	%rax, %rsp
+ 	jmp	.Lerror_entry_from_usermode_after_swapgs
+ SYM_CODE_END(error_entry)
+@@ -1166,7 +1182,9 @@ SYM_CODE_START(asm_exc_nmi)
+ 
+ 	movq	%rsp, %rdi
+ 	movq	$-1, %rsi
++	PUSH_PTREGS_AUXILIARY
+ 	call	exc_nmi
++	POP_PTREGS_AUXILIARY
+ 
+ 	/*
+ 	 * Return back to user mode.  We must *not* do the normal exit
+@@ -1202,6 +1220,8 @@ SYM_CODE_START(asm_exc_nmi)
+ 	 * +---------------------------------------------------------+
+ 	 * | pt_regs                                                 |
+ 	 * +---------------------------------------------------------+
++	 * | (Optionally) pt_regs_extended                           |
++	 * +---------------------------------------------------------+
+ 	 *
+ 	 * The "original" frame is used by hardware.  Before re-enabling
+ 	 * NMIs, we need to be done with it, and we need to leave enough
+@@ -1380,7 +1400,9 @@ end_repeat_nmi:
+ 
+ 	movq	%rsp, %rdi
+ 	movq	$-1, %rsi
++	PUSH_PTREGS_AUXILIARY
+ 	call	exc_nmi
++	POP_PTREGS_AUXILIARY
+ 
+ 	/* Always restore stashed CR3 value (see paranoid_entry) */
+ 	RESTORE_CR3 scratch_reg=%r15 save_reg=%r14
+diff --git a/arch/x86/entry/entry_64_compat.S b/arch/x86/entry/entry_64_compat.S
+index 4fdb007cddbd..cf6c88eb384d 100644
+--- a/arch/x86/entry/entry_64_compat.S
++++ b/arch/x86/entry/entry_64_compat.S
+@@ -137,7 +137,9 @@ SYM_INNER_LABEL(entry_SYSENTER_compat_after_hwframe, SYM_L_GLOBAL)
+ .Lsysenter_flags_fixed:
+ 
+ 	movq	%rsp, %rdi
++	PUSH_PTREGS_AUXILIARY
+ 	call	do_SYSENTER_32
++	POP_PTREGS_AUXILIARY
+ 	/* XEN PV guests always use IRET path */
+ 	ALTERNATIVE "testl %eax, %eax; jz swapgs_restore_regs_and_return_to_usermode", \
+ 		    "jmp swapgs_restore_regs_and_return_to_usermode", X86_FEATURE_XENPV
+@@ -257,7 +259,9 @@ SYM_INNER_LABEL(entry_SYSCALL_compat_after_hwframe, SYM_L_GLOBAL)
+ 	UNWIND_HINT_REGS
+ 
+ 	movq	%rsp, %rdi
++	PUSH_PTREGS_AUXILIARY
+ 	call	do_fast_syscall_32
++	POP_PTREGS_AUXILIARY
+ 	/* XEN PV guests always use IRET path */
+ 	ALTERNATIVE "testl %eax, %eax; jz swapgs_restore_regs_and_return_to_usermode", \
+ 		    "jmp swapgs_restore_regs_and_return_to_usermode", X86_FEATURE_XENPV
+@@ -415,6 +419,8 @@ SYM_CODE_START(entry_INT80_compat)
+ 	cld
+ 
+ 	movq	%rsp, %rdi
++	PUSH_PTREGS_AUXILIARY
+ 	call	do_int80_syscall_32
++	POP_PTREGS_AUXILIARY
+ 	jmp	swapgs_restore_regs_and_return_to_usermode
+ SYM_CODE_END(entry_INT80_compat)
+diff --git a/arch/x86/include/asm/ptrace.h b/arch/x86/include/asm/ptrace.h
+index 4357e0f2cd5f..0889045b3a6f 100644
+--- a/arch/x86/include/asm/ptrace.h
++++ b/arch/x86/include/asm/ptrace.h
+@@ -2,6 +2,7 @@
+ #ifndef _ASM_X86_PTRACE_H
+ #define _ASM_X86_PTRACE_H
+ 
++#include <linux/container_of.h>
+ #include <asm/segment.h>
+ #include <asm/page_types.h>
+ #include <uapi/asm/ptrace.h>
+@@ -91,6 +92,23 @@ struct pt_regs {
+ /* top of stack page */
+ };
+ 
++/*
++ * NOTE: Features which add data to pt_regs_auxiliary must select
++ * ARCH_HAS_PTREGS_AUXILIARY.  Failure to do so will result in a build failure.
++ */
++struct pt_regs_auxiliary {
++};
++
++struct pt_regs_extended {
++	struct pt_regs_auxiliary aux;
++	struct pt_regs pt_regs __aligned(8);
++};
++
++static inline struct pt_regs_extended *to_extended_pt_regs(struct pt_regs *regs)
++{
++	return container_of(regs, struct pt_regs_extended, pt_regs);
++}
++
+ #endif /* !__i386__ */
+ 
+ #ifdef CONFIG_PARAVIRT
+diff --git a/arch/x86/kernel/asm-offsets_64.c b/arch/x86/kernel/asm-offsets_64.c
+index b14533af7676..66f08ac3507a 100644
+--- a/arch/x86/kernel/asm-offsets_64.c
++++ b/arch/x86/kernel/asm-offsets_64.c
+@@ -4,6 +4,7 @@
+ #endif
+ 
+ #include <asm/ia32.h>
++#include <asm/ptrace.h>
+ 
+ #if defined(CONFIG_KVM_GUEST) && defined(CONFIG_PARAVIRT_SPINLOCKS)
+ #include <asm/kvm_para.h>
+@@ -60,5 +61,19 @@ int main(void)
+ 	DEFINE(stack_canary_offset, offsetof(struct fixed_percpu_data, stack_canary));
+ 	BLANK();
+ #endif
++
++#ifdef CONFIG_ARCH_HAS_PTREGS_AUXILIARY
++	/* Size of Auxiliary pt_regs data */
++	DEFINE(PTREGS_AUX_SIZE, sizeof(struct pt_regs_extended) -
++				sizeof(struct pt_regs));
++#else
++	/*
++	 * Adding data to struct pt_regs_auxiliary requires setting
++	 * ARCH_HAS_PTREGS_AUXILIARY
++	 */
++	BUILD_BUG_ON((sizeof(struct pt_regs_extended) -
++		      sizeof(struct pt_regs)) != 0);
++#endif
++
+ 	return 0;
+ }
+diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
+index b8e3019547a5..00bc3a74efb7 100644
+--- a/arch/x86/kernel/head_64.S
++++ b/arch/x86/kernel/head_64.S
+@@ -341,8 +341,10 @@ SYM_CODE_START_NOALIGN(vc_boot_ghcb)
+ 	movq    %rsp, %rdi
+ 	movq	ORIG_RAX(%rsp), %rsi
+ 	movq	initial_vc_handler(%rip), %rax
++	PUSH_PTREGS_AUXILIARY
+ 	ANNOTATE_RETPOLINE_SAFE
+ 	call	*%rax
++	POP_PTREGS_AUXILIARY
+ 
+ 	/* Unwind pt_regs */
+ 	POP_REGS
+@@ -421,7 +423,9 @@ SYM_CODE_START_LOCAL(early_idt_handler_common)
+ 	UNWIND_HINT_REGS
+ 
+ 	movq %rsp,%rdi		/* RDI = pt_regs; RSI is already trapnr */
++	PUSH_PTREGS_AUXILIARY
+ 	call do_early_exception
++	POP_PTREGS_AUXILIARY
+ 
+ 	decl early_recursion_flag(%rip)
+ 	jmp restore_regs_and_return_to_kernel
+@@ -448,7 +452,9 @@ SYM_CODE_START_NOALIGN(vc_no_ghcb)
+ 	/* Call C handler */
+ 	movq    %rsp, %rdi
+ 	movq	ORIG_RAX(%rsp), %rsi
++	PUSH_PTREGS_AUXILIARY
+ 	call    do_vc_no_ghcb
++	POP_PTREGS_AUXILIARY
+ 
+ 	/* Unwind pt_regs */
+ 	POP_REGS

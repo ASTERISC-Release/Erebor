@@ -1,0 +1,54 @@
+---
+ arch/x86/mm/pkeys.c | 3 +++
+ include/linux/pks.h | 7 +++++++
+ lib/pks/pks_test.c  | 6 ++++++
+ 3 files changed, 16 insertions(+)
+
+diff --git a/arch/x86/mm/pkeys.c b/arch/x86/mm/pkeys.c
+index e9a8c67f6b66..9e0948766427 100644
+--- a/arch/x86/mm/pkeys.c
++++ b/arch/x86/mm/pkeys.c
+@@ -248,6 +248,9 @@ static const pks_key_callback pks_key_callbacks[PKS_KEY_MAX] = {
+ #ifdef CONFIG_DEVMAP_ACCESS_PROTECTION
+ 	[PKS_KEY_PGMAP_PROTECTION]   = pgmap_pks_fault_callback,
+ #endif
++#ifdef CONFIG_PKS_TEST
++	[PKS_KEY_TEST]		= pks_test_fault_callback,
++#endif
+ };
+ 
+ static bool pks_call_fault_callback(struct pt_regs *regs, unsigned long address,
+diff --git a/include/linux/pks.h b/include/linux/pks.h
+index 151a3fda9de4..fd0ed09dd143 100644
+--- a/include/linux/pks.h
++++ b/include/linux/pks.h
+@@ -57,4 +57,11 @@ static inline void pks_update_exception(struct pt_regs *regs,
+ 
+ #endif /* CONFIG_ARCH_ENABLE_SUPERVISOR_PKEYS */
+ 
++#ifdef CONFIG_PKS_TEST
++
++bool pks_test_fault_callback(struct pt_regs *regs, unsigned long address,
++			     bool write);
++
++#endif /* CONFIG_PKS_TEST */
++
+ #endif /* _LINUX_PKS_H */
+diff --git a/lib/pks/pks_test.c b/lib/pks/pks_test.c
+index 2fc92aaa54e8..37f2cd7d0f56 100644
+--- a/lib/pks/pks_test.c
++++ b/lib/pks/pks_test.c
+@@ -85,6 +85,12 @@ static void debug_result(const char *label, int test_num,
+ 		     sd->last_test_pass ? "PASS" : "FAIL");
+ }
+ 
++bool pks_test_fault_callback(struct pt_regs *regs, unsigned long address,
++			     bool write)
++{
++	return false;
++}
++
+ static void *alloc_test_page(u8 pkey)
+ {
+ 	return __vmalloc_node_range(PKS_TEST_MEM_SIZE, 1, VMALLOC_START,
+-- 

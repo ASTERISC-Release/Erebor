@@ -1,0 +1,63 @@
+---
+ include/linux/highmem-internal.h | 6 ++++++
+ mm/Kconfig                       | 1 +
+ 2 files changed, 7 insertions(+)
+
+diff --git a/include/linux/highmem-internal.h b/include/linux/highmem-internal.h
+index a77be5630209..32ed07c2994b 100644
+--- a/include/linux/highmem-internal.h
++++ b/include/linux/highmem-internal.h
+@@ -151,6 +151,8 @@ static inline void totalhigh_pages_add(long count)
+ 
+ #else /* CONFIG_HIGHMEM */
+ 
++#include <linux/memremap.h>
++
+ static inline struct page *kmap_to_page(void *addr)
+ {
+ 	return virt_to_page(addr);
+@@ -174,6 +176,7 @@ static inline void kunmap(struct page *page)
+ 
+ static inline void *kmap_local_page(struct page *page)
+ {
++	pgmap_set_readwrite(page);
+ 	return page_address(page);
+ }
+ 
+@@ -197,6 +200,7 @@ static inline void __kunmap_local(void *addr)
+ #ifdef ARCH_HAS_FLUSH_ON_KUNMAP
+ 	kunmap_flush_on_unmap(addr);
+ #endif
++	pgmap_set_noaccess(kmap_to_page(addr));
+ }
+ 
+ static inline void *kmap_atomic(struct page *page)
+@@ -206,6 +210,7 @@ static inline void *kmap_atomic(struct page *page)
+ 	else
+ 		preempt_disable();
+ 	pagefault_disable();
++	pgmap_set_readwrite(page);
+ 	return page_address(page);
+ }
+ 
+@@ -224,6 +229,7 @@ static inline void __kunmap_atomic(void *addr)
+ #ifdef ARCH_HAS_FLUSH_ON_KUNMAP
+ 	kunmap_flush_on_unmap(addr);
+ #endif
++	pgmap_set_noaccess(kmap_to_page(addr));
+ 	pagefault_enable();
+ 	if (IS_ENABLED(CONFIG_PREEMPT_RT))
+ 		migrate_enable();
+diff --git a/mm/Kconfig b/mm/Kconfig
+index fe1752e6e76c..616baee3f62d 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -800,6 +800,7 @@ config ZONE_DEVICE
+ config DEVMAP_ACCESS_PROTECTION
+ 	bool "Access protection for memremap_pages()"
+ 	depends on NVDIMM_PFN
++	depends on !HIGHMEM
+ 	depends on ARCH_HAS_SUPERVISOR_PKEYS
+ 	select ARCH_ENABLE_PKS_CONSUMER
+ 	default n
+-- 

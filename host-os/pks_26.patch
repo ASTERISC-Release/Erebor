@@ -1,0 +1,36 @@
+ include/linux/memremap.h | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/include/linux/memremap.h b/include/linux/memremap.h
+index 8af304f6b504..7980d0db8617 100644
+--- a/include/linux/memremap.h
++++ b/include/linux/memremap.h
+@@ -6,6 +6,7 @@
+ #include <linux/range.h>
+ #include <linux/ioport.h>
+ #include <linux/percpu-refcount.h>
++#include <linux/pks.h>
+ 
+ struct resource;
+ struct device;
+@@ -214,4 +215,20 @@ static inline void put_dev_pagemap(struct dev_pagemap *pgmap)
+ 		percpu_ref_put(&pgmap->ref);
+ }
+ 
++#ifdef CONFIG_DEVMAP_ACCESS_PROTECTION
++
++static inline bool pgmap_protection_available(void)
++{
++	return pks_available();
++}
++
++#else
++
++static inline bool pgmap_protection_available(void)
++{
++	return false;
++}
++
++#endif /* CONFIG_DEVMAP_ACCESS_PROTECTION */
++
+ #endif /* _LINUX_MEMREMAP_H_ */
