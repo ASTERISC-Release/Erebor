@@ -111,6 +111,10 @@
 
 #include <kunit/test.h>
 
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_PKS)
+#include <sva/pks.h>
+#endif
+
 static int kernel_init(void *);
 
 /*
@@ -1075,16 +1079,26 @@ void start_kernel(void)
 
 #ifdef CONFIG_ENCOS
 #ifdef CONFIG_ENCOS_PKS
-	// Enable the PKS bit in CR4
-	native_write_cr4(native_read_cr4() | (1 << 24));
-	// Disable write access for key 1
-	wrmsrl(0x6e1, 0x8);
+	if (!check_pks_available()) {
+		panic("PKS not available on the CPU.");
+	}
+	/* Enable the PKS bit in CR4 */
+	printk(KERN_EMERG "Enabling PKS bit in CR4\n");
+	// native_write_cr4(native_read_cr4()| (1 << 24));
+	native_write_cr4(native_read_cr4()| (1 << 24));
+	/* Disable write access for key 1 */
+	printk(KERN_EMERG "Disable PKS write for Key1.\n");
+	// wrmsrl(0x6e1, 0x8);
+	printk(KERN_EMERG "Disable PKS write for Key1.done.\n");
 #endif
 #ifdef CONFIG_ENCOS_MMU
 	// Initialize the SVA MMU
 	sva_mmu_init();
 #endif
 	// Test that the secure call works
+	uintptr_t sp;
+    asm volatile ("movq %%rsp, %0\n\t": "=r" (sp) :: "memory");
+	printk(KERN_INFO "NORM_stack pointer: %lx\n", sp);
 	sva_mmu_test();
 #endif
 

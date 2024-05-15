@@ -60,6 +60,7 @@ extern const uintptr_t SecureStackBase;
   /* Get the processor ID */                                                   \
   "rdtscp\n"                                                                   \
   /* Find the secure stack offset for the processor ID */                      \
+  "andq $0xFFF, %rcx\n"                                                        \
   "movq %rcx, %rax\n"                                                          \
   "movq $4096, %rcx\n"                                                         \
   "mulq %rcx\n"                                                                \
@@ -72,11 +73,11 @@ extern const uintptr_t SecureStackBase;
   "pushq %rcx\n"                                                               \
   /* Restore spilled registers from original stack (rcx) */                    \
   "movq -8(%rcx), %rax\n"                                                      \
-  "movq -16(%rcx), %rcx\n"                                                     \
+  "movq -16(%rcx), %rcx\n"                                                     
   
 #define SWITCH_BACK_TO_NORMAL_STACK                                            \
 /* Switch back to original stack */                                            \
-  "movq 0(%rsp), %rsp\n"                                                       \
+  "movq 0(%rsp), %rsp\n"                                                       
 
 #else
 
@@ -105,9 +106,9 @@ extern const uintptr_t SecureStackBase;
 
 #define ENABLE_PKS_PROTECTION                                                  \
   /* Save scratch register to stack */                                         \
-  "pushq %rax\n"                                                               \
-  "pushq %rcx\n"                                                               \
-  "pushq %rdx\n"                                                               \
+  "movq %rax, -8(%rsp)\n"                                                      \
+  "movq %rdx, -16(%rsp)\n"                                                     \
+  "movq %rcx, -24(%rsp)\n"                                                     \
   /* Write the PKRS MSR ID in rcx */                                           \
   "movq $0x6e1, %rcx\n"                                                        \
   /* Get current PKRS value */                                                 \
@@ -117,15 +118,15 @@ extern const uintptr_t SecureStackBase;
   /* Update the PKRS value */                                                  \
   "wrmsr\n"                                                                    \
   /* Restore clobbered register */                                             \
-  "popq %rdx\n"                                                                \
-  "popq %rcx\n"                                                                \
-  "popq %rax\n"                                                                \
+  "movq -8(%rsp), %rax\n"                                                      \
+  "movq -16(%rsp), %rdx\n"                                                     \
+  "movq -24(%rsp), %rcx\n"                                                     
 
 #define DISABLE_PKS_PROTECTION                                                 \
   /* Save scratch register to stack */                                         \
-  "pushq %rax\n"                                                               \
-  "pushq %rcx\n"                                                               \
-  "pushq %rdx\n"                                                               \
+  "movq %rax, -8(%rsp)\n"                                                      \
+  "movq %rdx, -16(%rsp)\n"                                                     \
+  "movq %rcx, -24(%rsp)\n"                                                     \
   /* Write the PKRS MSR ID in rcx */                                           \
   "movq $0x6e1, %rcx\n"                                                        \
   /* Get current PKRS value */                                                 \
@@ -135,10 +136,10 @@ extern const uintptr_t SecureStackBase;
   /* Update the PKRS value */                                                  \
   "wrmsr\n"                                                                    \
   /* Restore clobbered register */                                             \
-  "popq %rdx\n"                                                                \
-  "popq %rcx\n"                                                                \
-  "popq %rax\n"                                                                \
-  "cli\n"                                                                      \
+  "movq -8(%rsp), %rax\n"                                                      \
+  "movq -16(%rsp), %rdx\n"                                                     \
+  "movq -24(%rsp), %rcx\n"                                                     \
+  "cli\n"                                                                      
 
 #else 
 
@@ -151,7 +152,7 @@ extern const uintptr_t SecureStackBase;
 
 //===-- Entry/Exit High-Level Descriptions --------------------------------===//
 
-#ifndef __MODULAR_AND_READABLE
+#if (0)
 
 #define SECURE_ENTRY                                                           \
   DISABLE_INTERRUPTS                                                           \
@@ -162,11 +163,6 @@ extern const uintptr_t SecureStackBase;
   SWITCH_BACK_TO_NORMAL_STACK                                                  \
   ENABLE_PKS_PROTECTION                                                        \
   ENABLE_INTERRUPTS
-
-#define SECURE_INTERRUPT_REDIRECT                                              \
-  DISABLE_INTERRUPTS                                                           \
-  ENABLE_PKS_PROTECTION                                                        \
-  ENABLE_INTERRUPTS                                                            \
 
 #else
 // More optimized variants
@@ -193,6 +189,7 @@ extern const uintptr_t SecureStackBase;
   /* Get the processor ID */                                                   \
   "rdtscp\n"                                                                   \
   /* Find the secure stack offset for the processor ID */                      \
+  "andq $0xFFF, %rcx\n"                                                        \
   "movq %rcx, %rax\n"                                                          \
   "movq $4096, %rcx\n"                                                         \
   "mulq %rcx\n"                                                                \
@@ -230,12 +227,13 @@ extern const uintptr_t SecureStackBase;
   /* Restore flags, enabling interrupts if they were before */                 \
   "popf\n"
 
+#endif
+
 #define SECURE_INTERRUPT_REDIRECT                                              \
   DISABLE_INTERRUPTS                                                           \
   ENABLE_PKS_PROTECTION                                                        \
   ENABLE_INTERRUPTS                                                            \
 
-#endif
 
 //===-- Wrapper macro for marking Secure Entrypoints ----------------------===//
 

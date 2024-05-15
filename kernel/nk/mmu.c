@@ -140,6 +140,9 @@ static page_desc_t page_desc[numPageDescEntries] SVAMEM;
  * Description:
  *  This is the spinlock used for synchronizing access to the page tables.
  *  Chuqi: TODO: replace the normal OS's spinlock with our own spinlock.
+ * 
+ * Chuqi: check. Since all `spin_lock_init`, `spin_lock`, and `spin_unlock`
+ * seem to be inline functions or macros, it might be safe to use them now.
  */
 spinlock_t MMULock;
 
@@ -206,6 +209,7 @@ init_mmu () {
  * Assumptions: 
  *  - This function assumes that write protection is enabled in CR0 (WP bit set
  *    to 1). 
+ * - Chuqi: s/WP/PKS
  *
  * Inputs:
  *  *page_entry -: A pointer to the page entry to store the new value to, a
@@ -619,6 +623,9 @@ initDeclaredPage (unsigned long frameAddr) {
       page_entry_store (page_entry, setMappingReadWrite(*page_entry)); // Rahul: Change to read-only once done testing
       sva_mm_flush_tlb (vaddr);
     }
+  } else {
+    /* debug log. unlikely to happen */
+    log_err("Unfound page table entry for frame=0x%lx\n", frameAddr);
   }
 
   return;
@@ -893,7 +900,14 @@ getPhysicalAddr (void * v) {
 
 SECURE_WRAPPER(void, 
 sva_mmu_test, void) {
-  printk("sva_mmu_test\n");
+  uintptr_t sp;
+    asm volatile (
+        "movq %%rsp, %0\n\t"
+        : "=r" (sp)
+        :
+        : "memory"
+    );
+  log_info("sva_mmu_test, SP=0x%lx.\n", sp);
 }
 
 /*
