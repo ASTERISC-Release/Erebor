@@ -7,8 +7,10 @@ CFLAGS := -I$(PWD)/
 UL_SRC = $(wildcard $(PWD)/*.c)
 UL_OBJ = $(patsubst %.c, %.o, $(UL_SRC))
 
-obj-m += kmod.o
-CFLAGS_kmod.o := -Wall -O0
+# obj-m += kmod.o
+# CFLAGS_kmod.o := -Wall -O0
+
+obj-m += cpuid_kmod.o
 
 EXEC := encos_dev_user
 EXEC2 := mprotect_test

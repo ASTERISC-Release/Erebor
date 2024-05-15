@@ -23,13 +23,14 @@ VMMEM=4096M
 # debug
 GDB=""
 if [[ $1 == "debug" ]]; then
-    GDB="-gdb tcp::1234"
+    #GDB="-gdb tcp::1234"
+    GDB="-s -S"
     echo "Enable GDB debugging."
 fi
 # launch the QEMU VM
 # the 'max' version of the emulation provides all 
 # CPU features (including our needed PKS)
-qemu-system-x86_64 -cpu host -enable-kvm -smp 1,maxcpus=1\
+qemu-system-x86_64 -enable-kvm -cpu host -smp 8,maxcpus=8\
     $GDB\
     -m $VMMEM -no-reboot -netdev user,id=vmnic,hostfwd=tcp::8000-:22\
     -device e1000,netdev=vmnic,romfile= -drive file=$VMDISK,if=none,id=disk0,format=qcow2\
