@@ -568,6 +568,8 @@ __do_mmu_update (page_entry_t* pteptr, page_entry_t mapping) {
 
   /* Perform the actual write to into the page table entry */
   page_entry_store ((page_entry_t *)pteptr, mapping);
+
+  /* TODO: tlb */
   return;
 }
 

@@ -12,9 +12,7 @@
 #include <linux/hardirq.h>
 
 #include <asm/irq_stack.h>
-#ifdef CONFIG_ENCOS
 #include <sva/stack.h>
-#endif
 /**
  * DECLARE_IDTENTRY - Declare functions for simple IDT entry points
  *		      No error code pushed by hardware
@@ -48,8 +46,6 @@
  * arbitrary code in the body. irqentry_exit() contains common code
  * which has to run before returning to the low level assembly code.
  */
-#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
-
 #define DEFINE_IDTENTRY(func)						\
 static __always_inline void __##func(struct pt_regs *regs);		\
 									\
@@ -64,25 +60,6 @@ SECURE_WRAPPER_INTERRUPT(__visible noinstr void, func, struct pt_regs *regs)			\
 }									\
 									\
 static __always_inline void __##func(struct pt_regs *regs)
-
-#else
-
-#define DEFINE_IDTENTRY(func)						\
-static __always_inline void __##func(struct pt_regs *regs);		\
-									\
-__visible noinstr void func(struct pt_regs *regs)			\
-{									\
-	irqentry_state_t state = irqentry_enter(regs);			\
-									\
-	instrumentation_begin();					\
-	__##func (regs);						\
-	instrumentation_end();						\
-	irqentry_exit(regs, state);					\
-}									\
-									\
-static __always_inline void __##func(struct pt_regs *regs)
-
-#endif /* CONFIG_ENCOS && CONFIG_ENCOS_INTR */
 
 /* Special case for 32bit IRET 'trap' */
 #define DECLARE_IDTENTRY_SW	DECLARE_IDTENTRY
@@ -114,8 +91,6 @@ static __always_inline void __##func(struct pt_regs *regs)
  *
  * Same as DEFINE_IDTENTRY, but has an extra error_code argument
  */
-#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
-
 #define DEFINE_IDTENTRY_ERRORCODE(func)					\
 static __always_inline void __##func(struct pt_regs *regs,		\
 				     unsigned long error_code);		\
@@ -133,28 +108,6 @@ SECURE_WRAPPER_INTERRUPT(__visible noinstr void, func, struct pt_regs *regs,			\
 									\
 static __always_inline void __##func(struct pt_regs *regs,		\
 				     unsigned long error_code)
-
-#else
-
-#define DEFINE_IDTENTRY_ERRORCODE(func)					\
-static __always_inline void __##func(struct pt_regs *regs,		\
-				     unsigned long error_code);		\
-									\
-__visible noinstr void func(struct pt_regs *regs,			\
-			    unsigned long error_code)			\
-{									\
-	irqentry_state_t state = irqentry_enter(regs);			\
-									\
-	instrumentation_begin();					\
-	__##func (regs, error_code);					\
-	instrumentation_end();						\
-	irqentry_exit(regs, state);					\
-}									\
-									\
-static __always_inline void __##func(struct pt_regs *regs,		\
-				     unsigned long error_code)
-
-#endif    /* CONFIG_ENCOS && CONFIG_ENCOS_INTR */
 
 /**
  * DECLARE_IDTENTRY_RAW - Declare functions for raw IDT entry points
@@ -181,17 +134,8 @@ static __always_inline void __##func(struct pt_regs *regs,		\
  * needs to be done in the body itself if applicable. Use if extra work
  * is required before the enter/exit() helpers are invoked.
  */
-#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
-
 #define DEFINE_IDTENTRY_RAW(func)					\
 SECURE_WRAPPER_INTERRUPT(__visible noinstr void, func, struct pt_regs *regs)
-
-#else
-
-#define DEFINE_IDTENTRY_RAW(func)					\
-__visible noinstr void func(struct pt_regs *regs)
-
-#endif /* CONFIG_ENCOS && CONFIG_ENCOS_INTR */
 
 /**
  * DECLARE_IDTENTRY_RAW_ERRORCODE - Declare functions for raw IDT entry points
@@ -218,18 +162,8 @@ __visible noinstr void func(struct pt_regs *regs)
  * needs to be done in the body itself if applicable. Use if extra work
  * is required before the enter/exit() helpers are invoked.
  */
-
-#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
-
 #define DEFINE_IDTENTRY_RAW_ERRORCODE(func)				\
 SECURE_WRAPPER_INTERRUPT(__visible noinstr void, func, struct pt_regs *regs, unsigned long error_code)
-
-#else
-
-#define DEFINE_IDTENTRY_RAW_ERRORCODE(func)				\
-__visible noinstr void func(struct pt_regs *regs, unsigned long error_code)
-
-#endif /* CONFIG_ENCOS && CONFIG_ENCOS_INTR */
 
 /**
  * DECLARE_IDTENTRY_IRQ - Declare functions for device interrupt IDT entry
@@ -254,9 +188,6 @@ __visible noinstr void func(struct pt_regs *regs, unsigned long error_code)
  * KVM L1D flush request is set. Stack switching to the interrupt stack
  * has to be done in the function body if necessary.
  */
-
-#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
-
 #define DEFINE_IDTENTRY_IRQ(func)					\
 static void __##func(struct pt_regs *regs, u32 vector);			\
 									\
@@ -274,28 +205,6 @@ SECURE_WRAPPER_INTERRUPT(__visible noinstr void, func, struct pt_regs *regs,			\
 }									\
 									\
 static noinline void __##func(struct pt_regs *regs, u32 vector)
-
-#else 
-
-#define DEFINE_IDTENTRY_IRQ(func)					\
-static void __##func(struct pt_regs *regs, u32 vector);			\
-									\
-__visible noinstr void func(struct pt_regs *regs,			\
-			    unsigned long error_code)			\
-{									\
-	irqentry_state_t state = irqentry_enter(regs);			\
-	u32 vector = (u32)(u8)error_code;				\
-									\
-	instrumentation_begin();					\
-	kvm_set_cpu_l1tf_flush_l1d();					\
-	run_irq_on_irqstack_cond(__##func, regs, vector);		\
-	instrumentation_end();						\
-	irqentry_exit(regs, state);					\
-}									\
-									\
-static noinline void __##func(struct pt_regs *regs, u32 vector)
-
-#endif /* CONFIG_ENCOS && CONFIG_ENCOS_INTR */
 
 /**
  * DECLARE_IDTENTRY_SYSVEC - Declare functions for system vector entry points
@@ -321,9 +230,6 @@ static noinline void __##func(struct pt_regs *regs, u32 vector)
  *
  * Runs the function on the interrupt stack if the entry hit kernel mode
  */
-
-#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
-
 #define DEFINE_IDTENTRY_SYSVEC(func)					\
 static void __##func(struct pt_regs *regs);				\
 									\
@@ -339,26 +245,6 @@ SECURE_WRAPPER_INTERRUPT(__visible noinstr void, func, struct pt_regs *regs)			\
 }									\
 									\
 static noinline void __##func(struct pt_regs *regs)
-
-#else 
-
-#define DEFINE_IDTENTRY_SYSVEC(func)					\
-static void __##func(struct pt_regs *regs);				\
-									\
-__visible noinstr void func(struct pt_regs *regs)			\
-{									\
-	irqentry_state_t state = irqentry_enter(regs);			\
-									\
-	instrumentation_begin();					\
-	kvm_set_cpu_l1tf_flush_l1d();					\
-	run_sysvec_on_irqstack_cond(__##func, regs);			\
-	instrumentation_end();						\
-	irqentry_exit(regs, state);					\
-}									\
-									\
-static noinline void __##func(struct pt_regs *regs)
-
-#endif /* CONFIG_ENCOS && CONFIG_ENCOS_INTR */
 
 /**
  * DEFINE_IDTENTRY_SYSVEC_SIMPLE - Emit code for simple system vector IDT
@@ -371,8 +257,6 @@ static noinline void __##func(struct pt_regs *regs)
  * Only use for 'empty' vectors like reschedule IPI and KVM posted
  * interrupt vectors.
  */
-#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_INTR)
-
 #define DEFINE_IDTENTRY_SYSVEC_SIMPLE(func)				\
 static __always_inline void __##func(struct pt_regs *regs);		\
 									\
@@ -390,28 +274,6 @@ SECURE_WRAPPER_INTERRUPT(__visible noinstr void, func, struct pt_regs *regs)			\
 }									\
 									\
 static __always_inline void __##func(struct pt_regs *regs)
-
-#else
-
-#define DEFINE_IDTENTRY_SYSVEC_SIMPLE(func)				\
-static __always_inline void __##func(struct pt_regs *regs);		\
-									\
-__visible noinstr void func(struct pt_regs *regs)			\
-{									\
-	irqentry_state_t state = irqentry_enter(regs);			\
-									\
-	instrumentation_begin();					\
-	__irq_enter_raw();						\
-	kvm_set_cpu_l1tf_flush_l1d();					\
-	__##func (regs);						\
-	__irq_exit_raw();						\
-	instrumentation_end();						\
-	irqentry_exit(regs, state);					\
-}									\
-									\
-static __always_inline void __##func(struct pt_regs *regs)
-
-#endif /* CONFIG_ENCOS && CONFIG_ENCOS_INTR */
 
 /**
  * DECLARE_IDTENTRY_XENCB - Declare functions for XEN HV callback entry point
