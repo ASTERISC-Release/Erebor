@@ -12,6 +12,10 @@ echo "  2. Press CTRL-] to stop the VM"
 echo "----------------------------------"
 echo ""
 
+# Disable huge pages
+sudo sh -c "echo never > /sys/kernel/mm/transparent_hugepage/enabled"
+sudo sh -c "echo never > /sys/kernel/mm/transparent_hugepage/defrag"
+
 # Map CTRL-C to CTRL-]
 stty intr ^]
 
