@@ -19,10 +19,8 @@ sudo sh -c "echo never > /sys/kernel/mm/transparent_hugepage/defrag"
 # Map CTRL-C to CTRL-]
 stty intr ^]
 
-# memory (12GB)
-# VMMEM=12288M
-# memory (64GB)
-VMMEM=4096M
+# memory (32GB)
+VMMEM=24576M
 
 # debug
 GDB=""
