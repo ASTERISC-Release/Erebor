@@ -4,8 +4,8 @@
 
 void pks_update_mapping(uintptr_t vaddr, int key) {
     page_entry_t *page_entry = get_pgeVaddr(vaddr);
-    printk(KERN_INFO "[pks_update_mapping] vaddr=0x%lx, page_entry=0x%lx\n",
-             (unsigned long)vaddr, (unsigned long)page_entry);
+    // printk(KERN_INFO "[pks_update_mapping] vaddr=0x%lx, page_entry=0x%lx\n",
+            //  (unsigned long)vaddr, (unsigned long)page_entry);
     *page_entry |= ((unsigned long long)key << 59);
 }
 

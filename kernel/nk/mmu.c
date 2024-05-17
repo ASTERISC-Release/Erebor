@@ -231,7 +231,7 @@ page_entry_store (unsigned long *page_entry, page_entry_t newVal) {
   // *page_entry = newVal;
   WRITE_ONCE(*page_entry, newVal);
 
-  __flush_tlb_all();
+  // __flush_tlb_all();
   /* TODO: Add a check here to make sure the value matches the one passed in */
 }
 
@@ -559,20 +559,20 @@ __do_mmu_update (page_entry_t* pteptr, page_entry_t mapping) {
    * vetted.
    */
   if (newPA != origPA) {
-    // if(*pteptr & PG_V) updateOrigPageData(origPA);
-    // if(mapping & PG_V) updateNewPageData(newPA);
+    if(*pteptr & PG_V) updateOrigPageData(origPA);
+    if(mapping & PG_V) updateNewPageData(newPA);
   } else if ((*pteptr & PG_V) && ((mapping & PG_V) == 0)) {
     /*
      * If the old mapping is marked valid but the new mapping is not, then
      * decrement the reference count of the old page.
      */
-    // updateOrigPageData(origPA);
+    updateOrigPageData(origPA);
   } else if (((*pteptr & PG_V) == 0) && (mapping & PG_V)) {
     /*
      * Contrariwise, if the old mapping is invalid but the new mapping is valid,
      * then increment the reference count of the new page.
      */
-    // updateNewPageData(newPA);
+    updateNewPageData(newPA);
   }
 
   /* Perform the actual write to into the page table entry */
@@ -1381,7 +1381,7 @@ init_protected_pages (uintptr_t startVA, uintptr_t endVA) {
       pks_update_mapping(page, 1);
 
       // Flush the TLB for this virtual address
-      sva_mm_flush_tlb(page);
+      // sva_mm_flush_tlb(page);
   }
 }
 
@@ -1500,7 +1500,7 @@ sva_declare_l1_page, uintptr_t frameAddr) {
       break;
 
     default:
-      // panic ("SVA: Declaring L1 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x\n", frameAddr, pgDesc, pgDesc->type);
+      panic ("SVA: Declaring L1 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x\n", frameAddr, pgDesc, pgDesc->type);
       break;
   }
 
@@ -1525,7 +1525,7 @@ sva_declare_l1_page, uintptr_t frameAddr) {
      */
     initDeclaredPage(frameAddr);
   } else {
-    // panic ("SVA: declare L1: type = %x\n", pgDesc->type);
+    panic ("SVA: declare L1: type = %x\n", pgDesc->type);
   }
 
   MMULock_Release();
@@ -1563,7 +1563,7 @@ sva_declare_l2_page, uintptr_t frameAddr) {
       break;
 
     default:
-      // panic ("SVA: Declaring L2 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x count=%x\n", frameAddr, pgDesc, pgDesc->type, pgDesc->count);
+      panic ("SVA: Declaring L2 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x count=%x\n", frameAddr, pgDesc, pgDesc->type, pgDesc->count);
       break;
   }
 
@@ -1587,7 +1587,7 @@ sva_declare_l2_page, uintptr_t frameAddr) {
      */
     initDeclaredPage(frameAddr);
   } else {
-    // panic ("SVA: declare L2: type = %x\n", pgDesc->type);
+    panic ("SVA: declare L2: type = %x\n", pgDesc->type);
   }
 
   MMULock_Release();
@@ -1626,7 +1626,8 @@ sva_declare_l3_page, uintptr_t frameAddr) {
       break;
 
     default:
-      // panic ("SVA: Declaring L3 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x count=%x\n", frameAddr, pgDesc, pgDesc->type, pgDesc->count);
+      if(pgDesc->count != 0)
+        panic ("SVA: Declaring L3 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x count=%x\n", frameAddr, pgDesc, pgDesc->type, pgDesc->count);
       break;
   }
 
@@ -1649,7 +1650,7 @@ sva_declare_l3_page, uintptr_t frameAddr) {
      */
     initDeclaredPage(frameAddr);
   } else {
-    // panic ("SVA: declare L3: type = %x\n", pgDesc->type);
+    panic ("SVA: declare L3: type = %x\n", pgDesc->type);
   }
 
   MMULock_Release();
@@ -1686,7 +1687,7 @@ sva_declare_l4_page, uintptr_t frameAddr) {
       break;
 
     default:
-      // panic ("SVA: Declaring L4 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x\n", frameAddr, pgDesc, pgDesc->type);
+      panic ("SVA: Declaring L4 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x\n", frameAddr, pgDesc, pgDesc->type);
       break;
   }
 
@@ -1715,7 +1716,7 @@ sva_declare_l4_page, uintptr_t frameAddr) {
      */
     initDeclaredPage(frameAddr);
   } else {
-    // panic ("SVA: declare L4: type = %x\n", pgDesc->type);
+    panic ("SVA: declare L4: type = %x\n", pgDesc->type);
   }
   MMULock_Release();
 }
@@ -1750,7 +1751,7 @@ sva_declare_l5_page, uintptr_t frameAddr) {
       break;
 
     default:
-      // panic ("SVA: Declaring L5 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x\n", frameAddr, pgDesc, pgDesc->type);
+      panic ("SVA: Declaring L5 for wrong page: frameAddr = %lx, pgDesc=%lx, type=%x\n", frameAddr, pgDesc, pgDesc->type);
       break;
   }
 
@@ -1773,7 +1774,7 @@ sva_declare_l5_page, uintptr_t frameAddr) {
      */
     initDeclaredPage(frameAddr);
   } else {
-    // panic ("SVA: declare L5: type = %x\n", pgDesc->type);
+    panic ("SVA: declare L5: type = %x\n", pgDesc->type);
   }
   MMULock_Release();
 }
@@ -1834,7 +1835,7 @@ sva_remove_page, uintptr_t paddr) {
    * Note that we check for a reference count of 1 because the page is always
    * mapped into the direct map.
    */
-  if ((pgDesc->count == 1) || (pgDesc->count == 0)) {
+  // if ((pgDesc->count == 1) || (pgDesc->count == 0)) {
     /*
      * Mark the page frame as an unused page.
      */
@@ -1851,9 +1852,9 @@ sva_remove_page, uintptr_t paddr) {
      */
     // page_entry_store ((page_entry_t *) pte, setMappingReadWrite (*pte));
     // sva_mm_flush_tlb (getVirtual (paddr));
-  } else {
-    panic ("SVA: remove_page: type=%x count %x\n", pgDesc->type, pgDesc->count);
-  }
+  // } else {
+    // panic ("SVA: remove_page: type=%x count %x\n", pgDesc->type, pgDesc->count);
+  // }
  
   MMULock_Release();
   return;
@@ -1924,7 +1925,7 @@ sva_update_l1_mapping, pte_t *pte, page_entry_t val) {
   #endif
 
   if (ptDesc->type != PG_L1) {
-    // panic ("SVA: MMU: update_l1 not an L1: %lx %lx: %lx\n", &pte->pte, val, ptDesc->type);
+    panic ("SVA: MMU: update_l1 not an L1: %lx %lx: %lx\n", &pte->pte, val, ptDesc->type);
   }
 
   /*
@@ -1970,7 +1971,7 @@ sva_update_l2_mapping, pmd_t *pmd, page_entry_t val) {
   #endif
 
   if (ptDesc->type != PG_L2) {
-    // panic ("SVA: MMU: update_l2 not an L2: %lx %lx: type=%lx count=%lx\n", &pmd->pmd, val, ptDesc->type, ptDesc->count);
+    panic ("SVA: MMU: update_l2 not an L2: %lx %lx: type=%lx count=%lx\n", &pmd->pmd, val, ptDesc->type, ptDesc->count);
   }
 
   /*
@@ -2009,7 +2010,7 @@ SECURE_WRAPPER(void, sva_update_l3_mapping, pud_t * pud, page_entry_t val) {
   #endif
 
   if (ptDesc->type != PG_L3) {
-    // panic ("SVA: MMU: update_l3 not an L3: %lx %lx: %lx\n", &pud->pud, val, ptDesc->type);
+    panic ("SVA: MMU: update_l3 not an L3: %lx %lx: %lx\n", &pud->pud, val, ptDesc->type);
   }
 
   __update_mapping(&pud->pud, val);
@@ -2048,7 +2049,7 @@ SECURE_WRAPPER( void, sva_update_l4_mapping ,p4d_t * p4d, page_entry_t val) {
   #endif
   
   if (ptDesc->type != PG_L4) {
-    // panic ("SVA: MMU: update_l4 not an L4: %lx %lx: %lx\n", &p4d->p4d, val, ptDesc->type);
+    panic ("SVA: MMU: update_l4 not an L4: %lx %lx: %lx\n", &p4d->p4d, val, ptDesc->type);
   }
 
   __update_mapping(&p4d->p4d, val);
@@ -2087,7 +2088,7 @@ SECURE_WRAPPER( void, sva_update_l5_mapping, pgd_t * pgd, page_entry_t val) {
   #endif
 
   if (ptDesc->type != PG_L5) {
-    // panic ("SVA: MMU: update_l5 not an L5: %lx %lx: %lx\n", &pgd->pgd, val, ptDesc->type);
+    panic ("SVA: MMU: update_l5 not an L5: %lx %lx: %lx\n", &pgd->pgd, val, ptDesc->type);
   }
 
   __update_mapping(&pgd->pgd, val);
@@ -2095,7 +2096,3 @@ SECURE_WRAPPER( void, sva_update_l5_mapping, pgd_t * pgd, page_entry_t val) {
   MMULock_Release();
   return;
 }
-
-// int getPageType(uintptr_t pfn) {
-//   return getPageDescPtr(pfn)->type;
-// }
