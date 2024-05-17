@@ -432,6 +432,7 @@ void pmd_install(struct mm_struct *mm, pmd_t *pmd, pgtable_t *pte)
 		 */
 		smp_wmb(); /* Could be smp_wmb__xxx(before|after)_spin_lock */
 #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+		sva_remove_page(__pa(page_address(*pte)));
 		sva_declare_l1_page(__pa(page_address(*pte)));
 #endif
 		pmd_populate(mm, pmd, *pte);
@@ -462,6 +463,7 @@ int __pte_alloc_kernel(pmd_t *pmd)
 	if (likely(pmd_none(*pmd))) {	/* Has another populated it ? */
 		smp_wmb(); /* See comment in pmd_install() */
 #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+		sva_remove_page(__pa(new));
 		sva_declare_l1_page(__pa(new));
 #endif
 		pmd_populate_kernel(&init_mm, pmd, new);
@@ -5504,6 +5506,7 @@ int __p4d_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
 	} else {
 		smp_wmb(); /* See comment in pmd_install() */
 #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+		sva_remove_page(__pa(new));
 		sva_declare_l4_page(__pa(new));
 #endif
 		pgd_populate(mm, pgd, new);
@@ -5529,6 +5532,7 @@ int __pud_alloc(struct mm_struct *mm, p4d_t *p4d, unsigned long address)
 		mm_inc_nr_puds(mm);
 		smp_wmb(); /* See comment in pmd_install() */
 #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+		sva_remove_page(__pa(new));
 		sva_declare_l3_page(__pa(new));
 #endif
 		p4d_populate(mm, p4d, new);
@@ -5556,6 +5560,7 @@ int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
 		mm_inc_nr_pmds(mm);
 		smp_wmb(); /* See comment in pmd_install() */
 #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+		sva_remove_page(__pa(new));
 		sva_declare_l2_page(__pa(new));
 #endif
 		pud_populate(mm, pud, new);
