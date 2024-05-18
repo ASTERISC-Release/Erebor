@@ -770,9 +770,6 @@ static inline void __free_one_page(struct page *page,
 		struct zone *zone, unsigned int order,
 		int migratetype, fpi_t fpi_flags)
 {
-#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
-	sva_remove_page(__pa(page_address(page)));
-#endif
 	struct capture_control *capc = task_capc(zone);
 	unsigned long buddy_pfn = 0;
 	unsigned long combined_pfn;
