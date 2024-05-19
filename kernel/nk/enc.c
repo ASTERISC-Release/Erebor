@@ -1,11 +1,17 @@
 #include <sva/config.h>
 #include <sva/enc.h>
+#include <sva/mmu.h>
 #include <sva/svamem.h>
 #include <sva/stack.h>
 
-#include <asm/current.h>
 #include <linux/sched.h>
 
+
+#include <linux/string.h> 
+
+#include <asm/current.h>
+// #include <asm/proto.h>  /* SM_entry_SYSCALL_64 */
+#include <asm/msr-index.h>
 #include <asm/unistd.h>
 
 #ifndef PAGE_SIZE
@@ -20,6 +26,65 @@ static inline int _assign_enc_id(void) {
     /* TODO: increase value */
     return g_enc_id;
 }
+
+static void save_restore_pt_regs(struct pt_regs* dest, 
+                                 const struct pt_regs *src)
+{
+    memcpy(dest, src, sizeof(struct pt_regs));
+}
+
+static encos_enclave_entry_t *current_enclave_entry(void) {
+    if (unlikely(current->pid > MAX_GLOB_VM_PROCESS)) {
+        log_err("Cannot find enc_id for pid=%d. Please adjust MAX_GLOB_VM_PROCESS.\n", current->pid);
+        panic("GGWP!");
+    }
+    return &encos_enclave_table[current->pid];
+}
+
+/* Chuqi: Just an optimization. Ignore now.
+ * Enclave user to kernel (u2k) interface.
+ * It should use an interposed syscall handler
+ */
+// static void prepare_u2k_interface(int is_enclave)
+// {  
+//     /* enclave */
+//     if (is_enclave) {
+//         _wrmsr(MSR_LSTAR, (unsigned long)SM_entry_SYSCALL_64);
+//     }
+//     /* normal */
+//     else {
+//         _wrmsr(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
+//     }
+// }
+
+/*
+ * SM controls the kernel to user path (e.g., exception returns).
+ * Whenever switching into an activate enclave, SM should
+ * 1) restore the enclave context (e.g., pt_regs)
+ * 2) prepare the enclave u2k interface (e.g., syscall handler)
+ */
+SECURE_WRAPPER(void, 
+SM_sched_in_userspace, struct pt_regs* regs)
+{
+    // encos_enclave_entry_t *entry = current_enclave_entry();
+    // if (entry->activate) {
+    //     prepare_u2k_interface(/*is_enclave=*/1);
+    // }
+    // /* normal process */
+    // else {
+    //     prepare_u2k_interface(/*is_enclave=*/0);
+    // }
+    return;
+}
+EXPORT_SYMBOL(SM_sched_in_userspace);
+
+/* empty security monitor call */
+SECURE_WRAPPER(void, 
+SM_encos_empty, void)
+{
+    return;
+}
+EXPORT_SYMBOL(SM_encos_empty);
 
 /* assign a fresh enclave id for the process */
 SECURE_WRAPPER(int, 
@@ -107,7 +172,6 @@ SM_encos_enclave_act, int pid)
     entry->activate = 1;
 
     log_info("Activated enc_id=%d pid=%d.\n", entry->enc_id, pid);
-
     return entry->enc_id;
 }
 
@@ -205,14 +269,22 @@ static inline int SM_mmap_return(unsigned long uva, unsigned long len,
     return 0;
 }
 
-SECURE_WRAPPER(void, SM_encos_syscall_intercept, 
+SECURE_WRAPPER(void, SM_encos_syscall_enter, 
 struct pt_regs* regs, int nr) {
     /*
      * Once an enclave is activated, we 
-     * intercept its syscalls (ret) into here.
+     * intercept its syscalls (enter) into here.
      */
+    encos_enclave_entry_t *entry;
     unsigned long arg0, arg1, arg2, arg3, arg4, arg5;
-    unsigned long ret = regs->ax;
+
+    entry = current_enclave_entry();
+    if (!entry || !entry->activate) {
+        return;
+    }
+
+    save_restore_pt_regs(&entry->pt_regs, regs);
+
     arg0 = regs->di;
     arg1 = regs->si;
     arg2 = regs->dx;
@@ -220,7 +292,43 @@ struct pt_regs* regs, int nr) {
     arg4 = regs->r8;
     arg5 = regs->r9;
 
-    log_info("[enc_pid=%d] Intercept syscall=%d.\n", 
+    log_info("[enc_pid=%d] Intercept syscall_enter[%d].\n", 
+              current->pid, nr);
+    
+    /* mmap */
+    switch (nr)
+    {
+        case __NR_mmap:
+            break;
+        default:
+            break;
+    }
+}
+
+SECURE_WRAPPER(void, SM_encos_syscall_return, 
+struct pt_regs* regs, int nr) {
+    /*
+     * Once an enclave is activated, we 
+     * intercept its syscalls (ret) into here.
+     */
+    encos_enclave_entry_t *entry;
+    unsigned long arg0, arg1, arg2, arg3, arg4, arg5;
+    unsigned long ret;
+    
+    entry = current_enclave_entry();
+    if (!entry || !entry->activate) {
+        return;
+    }
+
+    ret = regs->ax;
+    arg0 = regs->di;
+    arg1 = regs->si;
+    arg2 = regs->dx;
+    arg3 = regs->r10;
+    arg4 = regs->r8;
+    arg5 = regs->r9;
+
+    log_info("[enc_pid=%d] Intercept syscall_return[%d].\n", 
               current->pid, nr);
     
     /* mmap */

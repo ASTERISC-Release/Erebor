@@ -53,16 +53,16 @@ static __always_inline bool do_syscall_x64(struct pt_regs *regs, int nr)
 	if (likely(unr < NR_syscalls)) {
 		unr = array_index_nospec(unr, NR_syscalls);
 		regs->ax = sys_call_table[unr](regs);
-#ifdef CONFIG_ENCOS
-		/* Chuqi:
-		 * intercept enclave syscall return. bad code here.
-		 * In principle, this interception should be done in the 
-		 * enclave's custom exception vector (IDT) table,
-		 * instead of by this untrusted code checking.
-		 */
-		if (is_enclave_activate_ut(current->pid))
-			SM_encos_syscall_intercept(regs, nr);
-#endif
+// #ifdef CONFIG_ENCOS
+// 		/* Chuqi:
+// 		 * intercept enclave syscall return. bad code here.
+// 		 * This interception is moved into the 
+// 		 * enclave's custom MSR_LSTAR,
+// 		 * instead of by this untrusted code checking.
+// 		 */
+// 		if (is_enclave_activate_ut(current->pid))
+// 			SM_encos_syscall_intercept(regs, nr);
+// #endif
 		return true;
 	}
 	return false;
@@ -91,7 +91,7 @@ __visible noinstr void do_syscall_64(struct pt_regs *regs, int nr)
 	nr = syscall_enter_from_user_mode(regs, nr);
 
 	instrumentation_begin();
-
+	
 	if (!do_syscall_x64(regs, nr) && !do_syscall_x32(regs, nr) && nr != -1) {
 		/* Invalid system call, but still a system call. */
 		regs->ax = __x64_sys_ni_syscall(regs);

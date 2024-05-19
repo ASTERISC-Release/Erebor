@@ -41,6 +41,10 @@
 #include <asm/fsgsbase.h>
 #include <linux/err.h>
 
+#ifdef CONFIG_ENCOS
+#include <sva/enc.h>
+#endif
+
 #include "calling.h"
 
 .code64
@@ -117,7 +121,15 @@ SYM_INNER_LABEL(entry_SYSCALL_64_after_hwframe, SYM_L_GLOBAL)
 	IBRS_ENTER
 	UNTRAIN_RET
 
+#ifdef CONFIG_ENCOS
+	SM_ENCOS_SYSCALL_ENTER
+#endif
+
 	call	do_syscall_64		/* returns with IRQs disabled */
+
+#ifdef CONFIG_ENCOS
+	SM_ENCOS_SYSCALL_RETURN
+#endif
 
 	/*
 	 * Try to use SYSRET instead of IRET if we're returning to

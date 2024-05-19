@@ -1,15 +1,37 @@
 #ifndef _SVA_X86_H
 #define _SVA_X86_H
 
-/*
- * Chuqi: Given that all interfaces from the kernel
- * hashtable.h are basically macros and static inline 
- * functions.
- * 
- * Therefore, it is probably safe to just include the
- * header and steal them ;p
+#include <asm/ptrace.h>  /* for struct pt_regs */
+
+#ifdef __ASSEMBLY__
+/* Chuqi:
+ * The following interfaces are exposed to entry_64.S
+ * to interpose the system call table.
  */
-#include <linux/hashtable.h>
+.extern SM_encos_syscall_enter(struct pt_regs *regs, int nr);
+.extern SM_encos_syscall_return(struct pt_regs *regs, int nr);
+
+.macro SM_ENCOS_SYSCALL_ENTER
+	pushq	%rdi
+	pushq	%rsi
+	call	SM_encos_syscall_enter
+	popq	%rsi
+	popq	%rdi
+	pushq	%rdi
+	pushq	%rsi
+.endm
+
+.macro SM_ENCOS_SYSCALL_RETURN
+    popq	%rsi
+	popq	%rdi
+	pushq	%rdi
+	pushq	%rsi
+	call	SM_encos_syscall_return
+	popq	%rsi
+	popq	%rdi
+.endm
+
+#else
 
 /* 
  * Lazy static management. 
@@ -24,6 +46,7 @@ typedef struct encos_enclave_last_claim_mem {
     unsigned long pa;
     int nr_pages;
 } encos_enclave_last_claim_mem_t;
+
 
 typedef struct encos_enclave_entry {
     /* assigned encid */
@@ -41,8 +64,21 @@ typedef struct encos_enclave_entry {
      * This is used for the mmap double check.
      */
     encos_enclave_last_claim_mem_t last_claim_mem;
+    /* Chuqi:
+     * We should save the context here
+     */
+    struct pt_regs pt_regs;
+    /* Chuqi:
+     * We only allow enclave trigger pagefault during mmap
+     */
+    int in_mmap;
 } encos_enclave_entry_t;
 
+
+/* empty */
+extern void SM_encos_empty(void);
+
+extern void SM_sched_in_userspace(struct pt_regs* regs);
 
 extern int SM_encos_enclave_assign(void);
 extern void SM_encos_enclave_claim_memory(unsigned long uva, 
@@ -53,5 +89,6 @@ extern int SM_encos_enclave_act(int pid);
 extern int SM_encos_enclave_exit(int pid);
 
 extern void SM_encos_populate_child(int parent_pid, int child_pid);
-extern void SM_encos_syscall_intercept(struct pt_regs *regs, int nr);
-#endif
+
+#endif /* __ASSEMBLY__ */
+#endif /* _SVA_X86_H */
