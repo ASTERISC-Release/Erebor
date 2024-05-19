@@ -45,9 +45,6 @@ pushd $LINUXFOLDER
     # sed -i "s/CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP=y/CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP=n/g" .config
     # sed -i "s/CONFIG_CGROUP_HUGETLB=y/CONFIG_CGROUP_HUGETLB=n/g" .config
     
-    # Disable CONFIG_ENCOS
-    sed -i "s/CONFIG_ENCOS=y/CONFIG_ENCOS=n/g" .config 
-
     # Enable kernel debugging using GDB
     sed -i "s/CONFIG_RANDOMIZE_BASE=y/CONFIG_RANDOMIZE_BASE=n/g" .config 
     sed -i "s/CONFIG_DEBUG_INFO_NONE=y/CONFIG_DEBUG_INFO=y/g" .config 
