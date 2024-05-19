@@ -141,15 +141,15 @@ int is_internalmem)
         entry->last_claim_mem.pa = pa;
         entry->last_claim_mem.nr_pages = nr_pages;
     }
-    /* Chuqi: 
-     * for enclave inter-container shared memory, we should mark and
-     * ensure no user container has write permissions
-     */
-    else {
-        if (entry->enc_id) {
-            /* revoke the W permissions in page table entries */
-        }
-    }
+    // /* Chuqi: 
+    //  * for enclave inter-container shared memory, we should mark and
+    //  * ensure no user container has write permissions
+    //  */
+    // else {
+    //     if (entry->enc_id) {
+    //         /* revoke the W permissions in page table entries */
+    //     }
+    // }
 }
 
 /* activate */

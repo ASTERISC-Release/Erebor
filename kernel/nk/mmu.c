@@ -1377,8 +1377,9 @@ init_protected_pages (uintptr_t startVA, uintptr_t endVA) {
   for (page = startVA; page < endVA; page += pageSize) {
       // Set the physical page descriptor with the pgType
 
-      // Set the PKS key for the virtual address
-      pks_update_mapping(page, 1);
+      // Set the page protection for the virtual address
+      // pks_update_mapping(page, 1);
+      set_page_protection(page, /*should_protect=*/1);
 
       // Flush the TLB for this virtual address
       // sva_mm_flush_tlb(page);
