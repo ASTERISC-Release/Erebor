@@ -10,6 +10,10 @@
 #include <linux/audit.h>
 #include <linux/tick.h>
 
+#ifdef CONFIG_ENCOS
+#include <sva/enc.h>
+#endif
+
 #include "common.h"
 
 #define CREATE_TRACE_POINTS
@@ -195,6 +199,10 @@ static void exit_to_user_mode_prepare(struct pt_regs *regs)
 	unsigned long ti_work;
 
 	lockdep_assert_irqs_disabled();
+
+#ifdef CONFIG_ENCOS
+	SM_sched_in_userspace(regs);
+#endif
 
 	/* Flush pending rcuog wakeup before the last need_resched() check */
 	tick_nohz_user_enter_prepare();

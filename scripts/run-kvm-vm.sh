@@ -12,24 +12,27 @@ echo "  2. Press CTRL-] to stop the VM"
 echo "----------------------------------"
 echo ""
 
+# Disable huge pages
+sudo sh -c "echo never > /sys/kernel/mm/transparent_hugepage/enabled"
+sudo sh -c "echo never > /sys/kernel/mm/transparent_hugepage/defrag"
+
 # Map CTRL-C to CTRL-]
 stty intr ^]
 
-# memory (12GB)
-# VMMEM=12288M
-# memory (64GB)
+# memory (32GB)
 VMMEM=24576M
 
 # debug
 GDB=""
 if [[ $1 == "debug" ]]; then
-    GDB="-gdb tcp::1234"
+    #GDB="-gdb tcp::1234"
+    GDB="-s -S"
     echo "Enable GDB debugging."
 fi
 # launch the QEMU VM
 # the 'max' version of the emulation provides all 
 # CPU features (including our needed PKS)
-qemu-system-x86_64 -cpu host -enable-kvm -smp 24,maxcpus=24\
+sudo qemu-system-x86_64 -enable-kvm -cpu host,-pdpe1gb -smp 8,maxcpus=8\
     $GDB\
     -m $VMMEM -no-reboot -netdev user,id=vmnic,hostfwd=tcp::8000-:22\
     -device e1000,netdev=vmnic,romfile= -drive file=$VMDISK,if=none,id=disk0,format=qcow2\

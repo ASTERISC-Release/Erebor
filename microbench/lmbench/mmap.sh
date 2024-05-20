@@ -4,8 +4,18 @@ source .env
 
 FSIZE="4m"
 
-# perform the benchmark
-echo "Running lmbench mmap benchmark..."
-echo "$lmbench_mmap -P $PARALLEL -W $WARMUP -N $NTIMES $FSIZE $LARGEFILE"
+
+source .env
+file_sizes=("1M" "2M" "4M" "8M")
+file_prefix="testfile_"
+
 echo "Output format is CB"%0.2f %d\n", megabytes, usecs."
-$lmbench_mmap -P $PARALLEL -W $WARMUP -N $NTIMES $FSIZE $LARGEFILE
+
+# create file
+for size in "${file_sizes[@]}"; do
+    # benchmark testing
+        echo "Running lmbench mmap benchmark... stride=16K, fsize=$size."
+        $lmbench_mmap -P $PARALLEL -W $WARMUP -N $NTIMES $size $LARGEFILE
+done
+
+
