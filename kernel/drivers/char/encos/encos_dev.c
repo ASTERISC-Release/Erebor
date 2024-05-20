@@ -214,8 +214,8 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
     num = enc_mem->nr_pages;
 
 // #ifdef ENCOS_DEBUG
-//     log_err("[try] vma: {vm_start=0x%lx(size: 0x%lx) => vm_pgoff=0x%lx} vm_flags=0x%lx, vm_page_prot=0x%lx.\n", 
-//              vma->vm_start, size, vma->vm_pgoff, vma->vm_flags, vma->vm_page_prot.pgprot);
+    log_err("[try] vma: {vm_start=0x%lx(size: 0x%lx) => vm_pgoff=0x%lx} vm_flags=0x%lx, vm_page_prot=0x%lx.\n", 
+             vma->vm_start, size, vma->vm_pgoff, vma->vm_flags, vma->vm_page_prot.pgprot);
 // #endif
 
     // vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP | VM_READ | VM_WRITE | VM_SHARED);
@@ -233,6 +233,10 @@ static int encos_mmap(struct file *file, struct vm_area_struct *vma)
         }
         return -EAGAIN;
     }
+
+    /* set page protection here */
+    SM_encos_enclave_protect_memory(/*pa=*/enc_mem->phys, /*nr_pages=*/enc_mem->nr_pages);
+
 // #ifdef ENCOS_DEBUG
 //     log_err("[done] vma: {vm_start=0x%lx(size: 0x%lx) => vm_pgoff=0x%lx} vm_flags=0x%lx, vm_page_prot=0x%lx.\n", 
 //              vma->vm_start, size, vma->vm_pgoff, vma->vm_flags, vma->vm_page_prot.pgprot);

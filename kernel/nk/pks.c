@@ -15,9 +15,13 @@
  */
 void set_page_protection(uintptr_t virtual_page, int should_protect)
 {
-    page_entry_t *page_entry = get_pgeVaddr(virtual_page);
+    int is_l1 = 0;
+    page_entry_t *page_entry = get_pgeVaddr(virtual_page, &is_l1);
     unsigned long long key;
 #ifdef CONFIG_ENCOS_PKS
+    if (!is_l1) {
+        return;
+    }
     /* set protection key in PTE */
     key = should_protect ? 1 : 0;
     *page_entry |= ((unsigned long long)key << 59);

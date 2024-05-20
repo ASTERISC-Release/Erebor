@@ -74,6 +74,8 @@ typedef struct encos_enclave_entry {
     int in_mmap;
 } encos_enclave_entry_t;
 
+/* internal */
+extern int current_encid(void);
 
 /* empty */
 extern void SM_encos_empty(void);
@@ -85,6 +87,8 @@ extern void SM_encos_enclave_claim_memory(unsigned long uva,
                                           unsigned long pa, 
                                           unsigned long nr_pages, 
                                           int is_internalmem);
+extern void SM_encos_enclave_protect_memory(unsigned long pa, 
+                                            unsigned long nr_pages);
 extern int SM_encos_enclave_act(int pid);
 extern int SM_encos_enclave_exit(int pid);
 

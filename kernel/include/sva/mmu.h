@@ -457,6 +457,7 @@ static inline int isFramePg (page_desc_t *page) {
   return (page->type == PG_UNUSED)   ||      /* Defines an unused page */
          (page->type == PG_TKDATA)   ||      /* Defines a kernel data page */
          (page->type == PG_TUDATA)   ||      /* Defines a user data page */
+         (page->type == PG_ENC)      ||      /* Defines an enclave page */
          (page->type == PG_CODE);           /* Defines a code page */
 }
 
@@ -582,7 +583,7 @@ mapPageReadOnly(page_desc_t * ptePG, page_entry_t mapping) {
 /* 
  * Function prototypes for finding the virtual address of page table components
  */
-extern inline page_entry_t * get_pgeVaddr (uintptr_t vaddr);
+extern inline page_entry_t * get_pgeVaddr (uintptr_t vaddr, int *is_l1);
 extern inline pgd_t * get_pgdVaddr (unsigned char * cr3, uintptr_t vaddr);
 extern inline p4d_t * get_p4dVaddr (pgd_t * pgd, uintptr_t vaddr);
 extern inline pud_t * get_pudVaddr (p4d_t * p4d, uintptr_t vaddr);

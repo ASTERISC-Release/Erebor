@@ -26,6 +26,7 @@
 #include "sva/x86.h"
 #include "sva/pks.h"
 #include "sva/idt.h"
+#include "sva/enc.h"
 
 /* Chuqi: moved the VCPU configuration to config.h */
 
@@ -286,6 +287,15 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
   /* Return value */
   unsigned char retValue = 2;
 
+  /*
+   * Deal with the enclave page
+   */
+  if (newPG->type == PG_ENC) {
+    if (current_encid() != newPG->encID) {
+      panic ("SVA: MMU: Mapping enclave page to wrong enclave container.");
+    }
+  }
+
   /* 
    * If we aren't mapping a new page then we can skip several checks, and in
    * some cases we must, otherwise, the checks will fail. For example if this
@@ -332,7 +342,6 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
       }
 #endif
     }
-
     /*
      * Verify that that the mapping matches the correct type of page
      * allowed to be mapped into this page table. Verify that the new
@@ -621,7 +630,7 @@ initDeclaredPage (unsigned long frameAddr) {
    * Get a pointer to the page table entry that maps the physical page into the
    * direct map.
    */
-  page_entry_t * page_entry = get_pgeVaddr (vaddr);
+  page_entry_t * page_entry = get_pgeVaddr (vaddr, NULL);
   if (page_entry) {
     /*
      * Make the direct map entry for the page read-only to ensure that the OS
@@ -706,10 +715,11 @@ __update_mapping (uintptr_t * pageEntryPtr, page_entry_t val) {
  *  address is returned.
  */
 page_entry_t * 
-get_pgeVaddr (uintptr_t vaddr) {
+get_pgeVaddr (uintptr_t vaddr, int *is_l1) {
   /* Pointer to the page table entry for the virtual address */
   page_entry_t *pge = 0;
-
+  if (is_l1)
+    *is_l1 = 0;
   /* Get the base of the pml4 to traverse */
   uintptr_t cr3 = (uintptr_t) get_pagetable();
   if ((cr3 & 0xfffffffffffff000u) == 0)
@@ -748,6 +758,8 @@ get_pgeVaddr (uintptr_t vaddr) {
             } else {
               pte_t *pte = get_pteVaddr (pmd, vaddr);
               pge = (page_entry_t*)&pte->pte;
+              if (is_l1)
+                *is_l1 = 1;
             }
           }
         }
@@ -1795,13 +1807,13 @@ sva_remove_page, uintptr_t paddr) {
   MMULock_Acquire();
 
   /* Get the entry controlling the permissions for this pte PTP */
-  page_entry_t *pte = get_pgeVaddr(getVirtual (paddr));
+  page_entry_t *pte = get_pgeVaddr(getVirtual (paddr), NULL);
 
   /* Get the page_desc for the page frame */
   page_desc_t *pgDesc = getPageDescPtr(paddr);
     if(!pgDesc) return;
 
-
+  set_page_protection((unsigned long)__va(paddr), 0);
   /*
    * Make sure that this is a page table page.  We don't want the system
    * software to trick us.

@@ -57,7 +57,7 @@ encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id, bool is_fut
 	 * anymore the system won't work anyway.
 	 */
     /* CMA allocator */
-	if (order > 0) {
+	if (1) {
         page = dma_alloc_from_contiguous(NULL, nr_pages, 1, false);
         if (page) {
             encos_mem->virt_kern = (unsigned long)page_to_virt(page);
@@ -97,7 +97,7 @@ succ:
     if (add_to_memlist)
         list_add_tail(&encos_mem->list, &encos_mem_chunks);
     /* clear content */
-    memset((void *)encos_mem->virt_kern, 0, length);
+    // memset((void *)encos_mem->virt_kern, 0, length);
 // #ifdef ENCOS_DEBUG
 //     // /* inspect the allocated memory */
 //     log_info("[enc_id=%d,pid=%d] Allocated memory chunk (order=%d, nr_page=%lu): \n", 

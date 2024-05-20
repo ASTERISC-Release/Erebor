@@ -1,6 +1,7 @@
 #include <sva/config.h>
 #include <sva/enc.h>
 #include <sva/mmu.h>
+#include <sva/pks.h>
 #include <sva/svamem.h>
 #include <sva/stack.h>
 
@@ -39,6 +40,11 @@ static encos_enclave_entry_t *current_enclave_entry(void) {
         panic("GGWP!");
     }
     return &encos_enclave_table[current->pid];
+}
+
+int current_encid(void) {
+    encos_enclave_entry_t *entry = current_enclave_entry();
+    return entry->enc_id;
 }
 
 /* Chuqi: Just an optimization. Ignore now.
@@ -111,11 +117,14 @@ SM_encos_enclave_claim_memory, unsigned long uva,
 unsigned long pa, unsigned long nr_pages,
 int is_internalmem)
 {
-    int enc_pid = current->pid;
-    encos_enclave_entry_t *entry = &encos_enclave_table[enc_pid];
+    int i;
+    page_desc_t *page_desc;
+    unsigned long kva;
+
+    encos_enclave_entry_t *entry = current_enclave_entry();
 
     log_info("[pid=%d,enc_id=%d] Start claiming memory.{uva=0x%lx -> pa=0x%lx, nr_pages=%lu} is_internal=%d.\n", 
-                enc_pid, entry->enc_id, uva, pa, nr_pages, is_internalmem);
+                current->pid, entry->enc_id, uva, pa, nr_pages, is_internalmem);
     /* Chuqi: 
      * for enclave internal memory, we should mark and
      * check their page table entries & page descriptors
@@ -127,13 +136,21 @@ int is_internalmem)
                      current->pid);
             panic("GGWP!");
         }
-        /* TODO:
+        /* 
          * mark those physical page descriptors 
          * as the enclave internal pages
          */
-        /* TODO:
-         * check their uva -> pa mapping in the page table
-         */
+        for (i = 0; i < nr_pages; i++) {
+            page_desc = getPageDescPtr(pa + i * pageSize);
+            if (page_desc->type != PG_UNUSED)
+                panic("GGWP! The page is already used by other processes.\n");
+            page_desc->type = PG_ENC;
+            page_desc->encID = entry->enc_id;
+
+            /* protect the kernel page */
+            kva = (unsigned long)__va(pa + i * pageSize);
+            // set_page_protection(kva, /*should_protect=*/1);
+        }
         /* Chuqi:
          * Add to the just claimed memory
          */
@@ -150,6 +167,19 @@ int is_internalmem)
     //         /* revoke the W permissions in page table entries */
     //     }
     // }
+}
+
+SECURE_WRAPPER(void,
+SM_encos_enclave_protect_memory, 
+unsigned long pa, unsigned long nr_pages)
+{
+    unsigned long kva;
+    int i;
+    for (i = 0; i < nr_pages; i++) {
+        /* protect the kernel page */
+        kva = (unsigned long)__va(pa + i * pageSize);
+        set_page_protection(kva, /*should_protect=*/1);
+    }
 }
 
 /* activate */
