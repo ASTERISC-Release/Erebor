@@ -228,12 +228,7 @@ enum page_type_t {
     PG_TUDATA,      /*  8: Defines a user data page */
     PG_CODE,        /*  9: Defines a code page */
     PG_SVA,         /* 10: Defines an SVA system page */
-    PG_GHOST,       /* 11: Defines a secure page */
-    PG_DML1,        /* 12: Defines a L1 PTP  for the direct map */
-    PG_DML2,        /* 13: Defines a L2 PTP  for the direct map */
-    PG_DML3,        /* 14: Defines a L3 PTP  for the direct map */
-    PG_DML4,        /* 15: Defines a L4 PTP  for the direct map */
-    PG_DML5,        /* 16: Defines a L5 PTP  for the direct map */
+    PG_ENC,         /* 11: Defines an Enclave page */
 };
 
 /* Mask to get the address bits out of a PTE, PDE, etc. */
@@ -257,9 +252,6 @@ typedef struct page_desc_t {
      */
     uintptr_t pgVaddr;
 
-    /* Flag to denote whether the page is a Ghost page table page */
-    unsigned ghostPTP : 1;
-
     /* Flag denoting whether or not this frame is a stack frame */
     unsigned stack : 1;
     
@@ -274,6 +266,9 @@ typedef struct page_desc_t {
 
     /* Is this page a user page? */
     unsigned user : 1;
+
+    /* The PID of the Enclave that owns this page */
+    unsigned encID;
 } page_desc_t;
 
 
