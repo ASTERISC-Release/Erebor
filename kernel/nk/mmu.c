@@ -1531,6 +1531,11 @@ sva_declare_l1_page, uintptr_t frameAddr) {
      */
     pgDesc->pgVaddr = 0;
 
+    /*
+     * Chuqi: check here
+     */
+    // set_page_protection((unsigned long)__va(frameAddr), /*should_protect=*/1);
+
     /* 
      * Initialize the page data and page entry. Note that we pass a general
      * page_entry_t to the function as it enables reuse of code for each of the
@@ -1932,6 +1937,11 @@ sva_update_l1_mapping, pte_t *pte, page_entry_t val) {
 
   #if DECLARE_STRATEGY == 2
     if(ptDesc->type != PG_L1 && ptDesc->type == PG_UNUSED) {
+      /*
+      * Chuqi: check here
+      */
+      // set_page_protection((unsigned long)pte, /*should_protect=*/1);
+
       declare_internal(__pa(pte), 1);
     }
   #endif

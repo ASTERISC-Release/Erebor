@@ -149,7 +149,7 @@ int is_internalmem)
 
             /* protect the kernel page */
             kva = (unsigned long)__va(pa + i * pageSize);
-            // set_page_protection(kva, /*should_protect=*/1);
+            set_page_protection(kva, /*should_protect=*/1);
         }
         /* Chuqi:
          * Add to the just claimed memory
