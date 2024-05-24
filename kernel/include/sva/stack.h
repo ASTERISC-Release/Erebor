@@ -172,58 +172,8 @@ extern const uintptr_t SecureStackBase;
   "pushf\n"                                                                    \
   /* Disable interrupts */                                                     \
   "cli\n"                                                                      \
-  /* Spill registers for temporary use */                                      \
-  "movq %rax, -8(%rsp)\n"                                                      \
-  "movq %rdx, -16(%rsp)\n"                                                     \
-  "movq %rcx, -24(%rsp)\n"                                                     \
-  /* Write the PKRS MSR ID in rcx */                                           \
-  "movq $0x6e1, %rcx\n"                                                        \
-  /* Get current PKRS value */                                                 \
-  "rdmsr\n"                                                                    \
-  /* Allow access for key 1 */                                                 \
-  "andq $0xFFFFFFFFFFFFFFF7, %rax\n"                                           \
-  /* Update the PKRS value */                                                  \
-  "wrmsr\n"                                                                    \
-  /* Disable interrupts */                                                     \
-  "cli\n"                                                                      \
-  /* Get the processor ID */                                                   \
-  "rdtscp\n"                                                                   \
-  /* Find the secure stack offset for the processor ID */                      \
-  "andq $0xFFF, %rcx\n"                                                        \
-  "movq %rcx, %rax\n"                                                          \
-  "movq $4096, %rcx\n"                                                         \
-  "mulq %rcx\n"                                                                \
-  "addq SecureStackBase, %rax\n"                                               \
-  /* Save initial stack pointer in rcx */                                      \
-  "movq %rsp, %rcx\n"                                                          \
-  /* Switch to secure stack! */                                                \
-  "movq %rax, %rsp\n"                                                          \
-  /* Save original stack pointer for later restoration */                      \
-  "pushq %rcx\n"                                                               \
-  /* Restore spilled registers from original stack (rcx) */                    \
-  "movq -8(%rcx), %rax\n"                                                      \
-  "movq -16(%rcx), %rdx\n"                                                     \
-  "movq -24(%rcx), %rcx\n"                                                     \
 
 #define SECURE_EXIT                                                            \
-  /* Switch back to original stack */                                          \
-  "movq 0(%rsp), %rsp\n"                                                       \
-  /* Save scratch register to stack */                                         \
-  "pushq %rax\n"                                                               \
-  "pushq %rcx\n"                                                               \
-  "pushq %rdx\n"                                                               \
-  /* Write the PKRS MSR ID in rcx */                                           \
-  "movq $0x6e1, %rcx\n"                                                        \
-  /* Get current PKRS value */                                                 \
-  "rdmsr\n"                                                                    \
-  /* Restrict all access for key 1 */                                          \
-  "orq $0x0000000000000008, %rax\n"                                            \
-  /* Update the PKRS value */                                                  \
-  "wrmsr\n"                                                                    \
-  /* Restore clobbered register */                                             \
-  "popq %rdx\n"                                                                \
-  "popq %rcx\n"                                                                \
-  "popq %rax\n"                                                                \
   /* Restore flags, enabling interrupts if they were before */                 \
   "popf\n"
 
