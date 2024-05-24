@@ -994,19 +994,20 @@ sva_mmu_test, void) {
 // }
 
 /*
- * Function: sva_load_cr0
+ * Function: sva_write_cr0
  *
  * Description:
- *  SVA Intrinsic to load a value in cr0. We need to make sure write protection
+ *  SVA Intrinsic to write a value in cr0. We need to make sure write protection
  *  is enabled. 
  */
 SECURE_WRAPPER(void,
-sva_load_cr0, unsigned long val) {
-    // No need to obtain MMU Lock
+sva_write_cr0, unsigned long val) {
+    // MMULock_Acquire();
     val |= CR0_WP;
     _load_cr0(val);
     NK_ASSERT_PERF ((val & CR0_WP), "SVA: attempt to clear the CR0.WP bit: %x.",
         val);
+    // MMULock_Release();
 }
 
 /*
@@ -1017,15 +1018,15 @@ sva_load_cr0, unsigned long val) {
  *  bits are enabled. 
  */
 void sva_write_cr4(unsigned long val) {
-  MMULock_Acquire();
-  if(mmuIsInitialized) {
-    val |= (1 << 24);
-    printk("[mmu_init = 1] sva_write_cr4 = %lx\n", val);
-  } else {
-    printk("[mmu_init = 0] sva_write_cr4 = %lx\n", val);
-  }
+  // MMULock_Acquire();
+  // if(mmuIsInitialized) {
+  val |= (1 << 24);
+  //   printk("[mmu_init = 1] sva_write_cr4 = %lx\n", val);
+  // } else {
+  //   printk("[mmu_init = 0] sva_write_cr4 = %lx\n", val);
+  // }
   _load_cr4(val);
-  MMULock_Release();
+  // MMULock_Release();
 }
 
 /*

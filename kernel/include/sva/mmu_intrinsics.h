@@ -67,8 +67,8 @@
  */
 extern void sva_mmu_test (void);
 extern void sva_mm_load_pgtable (void * pg);
-extern void sva_load_cr0 (unsigned long val);
-extern void sva_load_cr4 (unsigned long val);
+extern void sva_write_cr0 (unsigned long val);
+extern void sva_write_cr4 (unsigned long val);
 extern void sva_load_msr(u_int msr, uint64_t val);
 extern void sva_wrmsr(void);
 extern void sva_declare_l1_page (uintptr_t frame);

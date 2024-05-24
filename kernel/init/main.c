@@ -111,7 +111,7 @@
 
 #include <kunit/test.h>
 
-#if defined(CONFIG_ENCOS) && (defined(CONFIG_ENCOS_PKS) || defined(CONFIG_ENCOS_WP))
+#if defined(CONFIG_ENCOS)
 #include <sva/pks.h>
 #endif
 
@@ -1078,18 +1078,17 @@ void start_kernel(void)
 	kcsan_init();
 
 #ifdef CONFIG_ENCOS
+	check_protection_available();
+
 #ifdef CONFIG_ENCOS_PKS
-	if (!check_pks_available()) {
-		panic("PKS not available on the CPU.");
-	}
-	/* Enable the PKS bit in CR4 */
-	printk(KERN_INFO "Enabling PKS bit in CR4\n");
-	native_write_cr4(native_read_cr4()| (1 << 24));
+	/* already instrumented to 1 << 24 */
+	native_write_cr4(native_read_cr4());
 	/* Disable write access for key 1 */
 	wrmsrl(0x6e1, 0x8);
 #endif
 #ifdef CONFIG_ENCOS_WP
-	panic("TBD!");
+	/* already instrumented to set 1 << 16 */
+	native_write_cr0(native_read_cr0());
 #endif
 #ifdef CONFIG_ENCOS_MMU
 	// Initialize the SVA MMU

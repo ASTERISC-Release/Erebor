@@ -14,11 +14,12 @@
  * key=0 is reserved for the kernel (unprotected pages).
  */
 void set_page_protection(uintptr_t virtual_page, int should_protect)
-{
+{   
+#ifdef CONFIG_ENCOS_PKS
+    unsigned long long key;
     int is_l1 = 0;
     page_entry_t *page_entry = get_pgeVaddr(virtual_page, &is_l1);
-    unsigned long long key;
-#ifdef CONFIG_ENCOS_PKS
+    
     if (!is_l1) {
         return;
     }

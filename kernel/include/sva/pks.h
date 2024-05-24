@@ -2,6 +2,7 @@
 #define SVA_PKS_H
 
 #include <asm/cpufeature.h>
+#include <linux/kernel.h>
 
 /* Intel-defined CPU features, CPUID level 0x00000007:0 (ECX), word 16 */
 #ifndef X86_FEATURE_PKS
@@ -12,11 +13,20 @@
 #define MSR_IA32_PKRS			0x000006E1
 #endif
 
-static inline int check_pks_available(void)
+static inline void check_protection_available(void)
 {
+#ifdef CONFIG_ENCOS_PKS
     if (cpu_feature_enabled(X86_FEATURE_PKS))
-        return 1;
-    return 0;
+        return;
+    else
+        panic("PKS is not available.\n");
+#endif
+
+#ifdef CONFIG_ENCOS_WP
+    /* for write protection we assume its always available */
+    return;
+#endif
+    return;
 }
 
 extern void set_page_protection(uintptr_t virtual_page, int should_protect);

@@ -17,7 +17,7 @@ config ENCOS
 	  Enclave nested-OS monitor enabled.
 
 config ENCOS_PKS
-	def_bool y
+	def_bool n
 	help
 	  Enclave nested-OS (Protection Key, Supervisor).
 

@@ -68,6 +68,11 @@
 
 #include "cpu.h"
 
+#ifdef CONFIG_ENCOS
+#include <sva/pks.h>
+#include <sva/mmu_intrinsics.h>
+#endif
+
 u32 elf_hwcap2 __read_mostly;
 
 /* Number of siblings per CPU package */
@@ -411,8 +416,11 @@ void native_write_cr0(unsigned long val)
 	unsigned long bits_missing = 0;
 
 set_register:
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_WP)
+	sva_write_cr0(val);
+#else
 	asm volatile("mov %0,%%cr0": "+r" (val) : : "memory");
-
+#endif
 	if (static_branch_likely(&cr_pinning)) {
 		if (unlikely((val & X86_CR0_WP) != X86_CR0_WP)) {
 			bits_missing = X86_CR0_WP;
@@ -430,8 +438,12 @@ void __no_profile native_write_cr4(unsigned long val)
 	unsigned long bits_changed = 0;
 
 set_register:
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_PKS)
+	/* secure write cr4 */
+	sva_write_cr4(val);
+#else
 	asm volatile("mov %0,%%cr4": "+r" (val) : : "memory");
-
+#endif
 	if (static_branch_likely(&cr_pinning)) {
 		if (unlikely((val & cr4_pinned_mask) != cr4_pinned_bits)) {
 			bits_changed = (val & cr4_pinned_mask) ^ cr4_pinned_bits;
