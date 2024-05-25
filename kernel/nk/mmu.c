@@ -1567,9 +1567,13 @@ SECURE_WRAPPER(void,
 sva_declare_l2_page, uintptr_t frameAddr) {
   MMULock_Acquire();
 
+  printk("ENCOS-Internal: Declaring page internally.\n");
+
   /* Get the page_desc for the newly declared l2 page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);
   if(!pgDesc) return;
+
+  printk("ENCOS-Internal: Checking..\n");
 
   /*
    * Make sure that this is already an L2 page, an unused page, or a kernel
@@ -1598,6 +1602,8 @@ sva_declare_l2_page, uintptr_t frameAddr) {
      * Reset the virtual address which can point to this page table page.
      */
     pgDesc->pgVaddr = 0;
+
+    printk("ENCOS-Internal: Setting page to L2.\n");
 
     /* 
      * Initialize the page data and page entry. Note that we pass a general

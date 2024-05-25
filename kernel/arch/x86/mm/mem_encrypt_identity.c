@@ -163,6 +163,12 @@ static void __init sme_populate_pgd_large(struct sme_populate_pgd_data *ppd)
 	pmd = pmd_offset(pud, ppd->vaddr);
 	if (pmd_large(*pmd))
 		return;
+	
+	#ifdef CONFIG_ENCOS_MMU
+		printk("Populating large PGD\n");
+		sva_remove_page(__pa((uintptr_t)ppd->vaddr & PTE_PFN_MASK));
+		sva_declare_l2_page(__pa((uintptr_t)ppd->vaddr & PTE_PFN_MASK));
+	#endif
 
 	set_pmd(pmd, __pmd(ppd->paddr | ppd->pmd_flags));
 }
