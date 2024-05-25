@@ -173,7 +173,13 @@ static void MMULock_Release(void) {
  *  Pointer to the page_desc for this frame
  */
 page_desc_t * getPageDescPtr(unsigned long mapping) {
-  unsigned long frameIndex = (mapping & PG_FRAME) / pageSize;
+
+  /* Adil: Unset the c-bit (which is 51) */
+  unsigned long long mask = ~(1ULL << 51);
+  unsigned long long frameIndex = (mapping & mask);
+  // printk("Mapping (before = %px, after = %px)\n", mapping, frameIndex);
+
+  frameIndex = ((mapping & PG_FRAME) & mask) / pageSize;
 
   if(frameIndex  >= numPageDescEntries)
     return NULL;
@@ -1565,9 +1571,10 @@ sva_declare_l1_page, uintptr_t frameAddr) {
  */
 SECURE_WRAPPER(void, 
 sva_declare_l2_page, uintptr_t frameAddr) {
+  printk("ENCOS-Internal: Declaring page internally. (frameaddr = %px)\n", 
+    (void*) frameAddr);
   MMULock_Acquire();
-
-  printk("ENCOS-Internal: Declaring page internally.\n");
+  printk("ENCOS-Internal: Lock acquired"); 
 
   /* Get the page_desc for the newly declared l2 page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);
