@@ -48,4 +48,4 @@ pushd ../common
     } |& tee -a $CURDIR/build.kern.log
 popd
 
-./copy-source.sh |& tee -a $CURDIR/build.kern.log
+# ./copy-source.sh |& tee -a $CURDIR/build.kern.log

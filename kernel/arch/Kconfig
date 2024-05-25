@@ -27,7 +27,7 @@ config ENCOS_WP
 	  Enclave nested-OS (Write-Protection).
 	
 config ENCOS_MMU
-	def_bool y
+	def_bool n
 	help
 	  Enclave nested-OS (MMU interposition).
 

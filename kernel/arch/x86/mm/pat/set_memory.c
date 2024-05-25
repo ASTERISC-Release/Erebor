@@ -1138,7 +1138,8 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
 
 		// Hence, while splitting the large page, we have to remove it from the nested kernel metadata
 		// and redeclare it as an L2
-		#ifdef CONFIG_ENCOS
+		// Adil: changed this setting to ENCOS_MMU
+		#ifdef CONFIG_ENCOS_MMU
 			sva_remove_page(__pa((uintptr_t)kpte & PTE_PFN_MASK));
 			sva_declare_l2_page(__pa((uintptr_t)kpte & PTE_PFN_MASK));
 		#endif
