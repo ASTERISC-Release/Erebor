@@ -2,8 +2,9 @@
 
 - Install a QEMU/OVMF compatible with SEV
 ```
-cd <project-dir>/host-os
-./build.sh qemu ovmf
+cd <project-dir>/host-os/qemu
+./build.sh qemu
+./build.sh ovmf
 ```
 
 - Create an Ubuntu cloud image (native version)
