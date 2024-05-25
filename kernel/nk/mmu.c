@@ -1571,16 +1571,16 @@ sva_declare_l1_page, uintptr_t frameAddr) {
  */
 SECURE_WRAPPER(void, 
 sva_declare_l2_page, uintptr_t frameAddr) {
-  printk("ENCOS-Internal: Declaring page internally. (frameaddr = %px)\n", 
+  printk("ENCOS-Internal: Declaring L2 page internally. (frameaddr = %px)\n", 
     (void*) frameAddr);
   MMULock_Acquire();
-  printk("ENCOS-Internal: Lock acquired"); 
+  // printk("ENCOS-Internal: Lock acquired"); 
 
   /* Get the page_desc for the newly declared l2 page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);
   if(!pgDesc) return;
 
-  printk("ENCOS-Internal: Checking..\n");
+  // printk("ENCOS-Internal: Checking..\n");
 
   /*
    * Make sure that this is already an L2 page, an unused page, or a kernel
@@ -1643,6 +1643,9 @@ SECURE_WRAPPER(void,
 sva_declare_l3_page, uintptr_t frameAddr) {
   MMULock_Acquire();
 
+  printk("ENCOS-Internal: Declaring L3 page internally. (frameaddr = %px)\n", 
+    (void*) frameAddr);  
+
   /* Get the page_desc for the newly declared l4 page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);
   if(!pgDesc) return;
@@ -1703,6 +1706,10 @@ sva_declare_l3_page, uintptr_t frameAddr) {
 SECURE_WRAPPER(void,
 sva_declare_l4_page, uintptr_t frameAddr) {
   MMULock_Acquire();
+
+  printk("ENCOS-Internal: Declaring L4 page internally. (frameaddr = %px)\n", 
+    (void*) frameAddr);
+
   /* Get the page_desc for the newly declared l4 page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);
   if(!pgDesc) return;
@@ -1767,6 +1774,10 @@ sva_declare_l4_page, uintptr_t frameAddr) {
 SECURE_WRAPPER(void,
 sva_declare_l5_page, uintptr_t frameAddr) {
   MMULock_Acquire();
+
+  printk("ENCOS-Internal: Declaring L5 page internally. (frameaddr = %px)\n", 
+    (void*) frameAddr);  
+
   /* Get the page_desc for the newly declared l4 page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);
   if(!pgDesc) return;

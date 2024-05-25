@@ -1157,6 +1157,7 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
 		pud.pud = mk_pte(base, __pgprot(_KERNPG_TABLE)).pte;
 
 		// Adil: changed this setting to ENCOS_MMU
+		// I don't see this being executed.
 		#ifdef CONFIG_ENCOS_MMU
 			printk("ENCOS: Populating large PGD (1GB) \n");
 			sva_remove_page(__pa((uintptr_t)kpte & PTE_PFN_MASK));
