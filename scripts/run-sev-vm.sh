@@ -7,6 +7,5 @@ if [ "$1" == "snp" ]; then
     sudo ./sev-qemu.sh -hda $VMDISK -sev-snp -svsm ../monitor/svsm.bin -allow-debug
 else
     # Start the VM with normal SEV-ES (no SNP)
-    # sudo ./sev-qemu.sh -hda $VMDISK -sev
     sudo ./sev-qemu.sh -hda $VMDISK -sev
 fi
