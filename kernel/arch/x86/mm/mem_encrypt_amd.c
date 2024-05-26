@@ -451,18 +451,8 @@ static int __init early_set_memory_enc_dec(unsigned long vaddr,
 		 */
 		if (level == PG_LEVEL_2M) {
 			split_page_size_mask = 0;
-// #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
-// 			printk("ENCOS: Changing 2M pages to 4K\n");
-// 			sva_remove_page(__pa((uintptr_t)kpte & PTE_PFN_MASK));
-// 			sva_declare_l1_page(__pa((uintptr_t)kpte & PTE_PFN_MASK));
-// #endif
 		} else {
 			split_page_size_mask = 1 << PG_LEVEL_2M;
-// #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
-// 			printk("ENCOS: Changing 1G pages to 2M\n");
-// 			sva_remove_page(__pa((uintptr_t)kpte & PTE_PFN_MASK));
-// 			sva_declare_l2_page(__pa((uintptr_t)kpte & PTE_PFN_MASK));
-// #endif
 		}
 
 		/*

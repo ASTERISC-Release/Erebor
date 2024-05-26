@@ -1018,10 +1018,17 @@ sva_load_msr(u_int msr, uint64_t val) {
  *  pgType     - The nested kernel page type 
  */
 static void
-init_protected_pages (uintptr_t startVA, uintptr_t endVA) {
+init_protected_pages (uintptr_t startVA, uintptr_t endVA, enum page_type_t type) {
   uintptr_t page;
   for (page = startVA; page < endVA; page += pageSize) {
-      // Set the physical page descriptor with the pgType
+      /* Set the physical page descriptor with the pgType */
+      page_desc_t *pgDesc = getPageDescPtr(__pa(page));
+      if (!pgDesc) {
+        /* TODO: check more rigorously */
+        LOG_PRINTK("[WARNING] Page seems to be unmapped in the kernel.\n");
+        continue;
+      }
+      pgDesc->type = type;
 
       // Set the page protection for the virtual address
       // pks_update_mapping(page, 1);
@@ -1077,13 +1084,13 @@ sva_mmu_init, void) {
   extern char _stext[];
   extern char _etext[];
   printk("_stext: %lx, _etext: %lx\n", _stext, _etext);
-  init_protected_pages((uintptr_t) _stext, (uintptr_t)_etext);
+  init_protected_pages((uintptr_t) _stext, (uintptr_t)_etext, PG_CODE);
 
   /* Make all SuperSpace pages read-only */
   extern char _svastart[];
   extern char _svaend[];
   printk("_svastart: %lx, _svaend: %lx\n", _svastart, _svaend);
-  init_protected_pages((uintptr_t)_svastart, (uintptr_t)_svaend);
+  init_protected_pages((uintptr_t)_svastart, (uintptr_t)_svaend, PG_SVA);
   
   /* Now load the initial value of the cr3 to complete kernel init */
   // _load_cr3(kpgdMapping->pgd & PG_FRAME);
