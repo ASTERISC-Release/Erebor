@@ -1567,6 +1567,10 @@ sva_remove_mapping, page_entry_t *pteptr) {
 SECURE_WRAPPER(void,
 sva_update_l1_mapping, pte_t *pte, page_entry_t val) {
   MMULock_Acquire();
+
+  /* Debugging */
+  LOG_UPDATE("Updating L1 page (%px, %lx)", pte, val);
+
   /*
    * Ensure that the PTE pointer points to an L1 page table.  If it does not,
    * then report an error.
@@ -1575,28 +1579,25 @@ sva_update_l1_mapping, pte_t *pte, page_entry_t val) {
   page_desc_t * ptDesc = getPageDescPtr (__pa(pte));
     if(!ptDesc) return;
 
-  /* Check that this is not a sensitive page frame */
-  // if (isSensitiveFrame(__pa(pte)))
-
-  #if DECLARE_STRATEGY == 2
-    if(ptDesc->type != PG_ENC && ptDesc->type != PG_TKDATA &&  ptDesc->type != PG_SVA) {
-    // if(ptDesc->type != PG_L1 && ptDesc->type == PG_UNUSED) {
-      /*
-      * Chuqi: check here
-      */
-      // set_page_protection((unsigned long)pte, /*should_protect=*/1);
-      declare_internal(__pa(pte), 1);
-    }
-  #endif
-
+  /* 
+   * If the frame is not sensitive, allow the update to happen. This handles corner cases
+   * inside the Linux kernel. 
+   */
   if (ptDesc->type != PG_L1) {
-    panic ("SVA: MMU: update_l1 not an L1: %lx %lx: %lx\n", &pte->pte, val, ptDesc->type);
+    if(!isFramePg(ptDesc)) {
+      /* TODO: Shouldn't we set this protection bit? */
+      // set_page_protection((unsigned long)pte, /*should_protect=*/1);
+      sva_remove_mapping_secure(__pa(pte));
+      sva_declare_l1_mapping_secure(__pa(pte));
+    } else {
+      panic ("SVA: MMU: update_l1 on a sensitive frame: %lx %lx: %lx\n", &pte->pte, val, ptDesc->type);
+    }
   }
 
   /*
    * Update the page table with the new mapping.
    */
-  // if(getPageDescPtr((val & PTE_PFN_MASK)))
+  if(getPageDescPtr((val & PTE_PFN_MASK)))
     __update_mapping(&pte->pte, val);
 
   MMULock_Release();
@@ -1613,6 +1614,10 @@ sva_update_l1_mapping, pte_t *pte, page_entry_t val) {
 SECURE_WRAPPER(void,
 sva_update_l2_mapping, pmd_t *pmd, page_entry_t val) {
   MMULock_Acquire();
+
+  /* Debugging */
+  LOG_UPDATE("Updating L2 page (%px,%lx)", pmd, val);
+
   /*
    * Ensure that the PTE pointer points to an L2 page table.  If it does not,
    * then report an error.
@@ -1621,23 +1626,19 @@ sva_update_l2_mapping, pmd_t *pmd, page_entry_t val) {
   page_desc_t * ptDesc = getPageDescPtr (__pa(pmd));
     if(!ptDesc) return;
 
-  #if DECLARE_STRATEGY == 1
-    uintptr_t nextPagePaddr = (val >> 12) << 12;
-    page_desc_t * nextPagePtDesc = getPageDescPtr (nextPagePaddr);
-    if(nextPagePtDesc->type != PG_L1 && nextPagePtDesc->type == PG_UNUSED) {
-      declare_internal(nextPagePaddr, 1);
-    }
-  #endif
-
-  #if DECLARE_STRATEGY == 2
-    if(ptDesc->type != PG_ENC && ptDesc->type != PG_TKDATA &&  ptDesc->type != PG_SVA) {
-    // if(ptDesc->type != PG_L2 && ptDesc->type == PG_UNUSED) {
-      declare_internal(__pa(pmd), 2);
-    }
-  #endif
-
+  /* 
+   * If the frame is not sensitive, allow the update to happen. This handles corner cases
+   * inside the Linux kernel. 
+   */
   if (ptDesc->type != PG_L2) {
-    panic ("SVA: MMU: update_l2 not an L2: %lx %lx: type=%lx count=%lx\n", &pmd->pmd, val, ptDesc->type, ptDesc->count);
+    if(!isFramePg(ptDesc)) {
+      /* TODO: Shouldn't we set this protection bit? */
+      // set_page_protection((unsigned long)pmd, /*should_protect=*/1);
+      sva_remove_mapping_secure(__pa(pmd));
+      sva_declare_l2_mapping_secure(__pa(pmd));
+    } else {
+      panic ("SVA: MMU: update_l2 on a sensitive frame: %lx %lx: %lx\n", &pmd->pmd, val, ptDesc->type);
+    }
   }
 
   /*
@@ -1654,6 +1655,10 @@ sva_update_l2_mapping, pmd_t *pmd, page_entry_t val) {
  */
 SECURE_WRAPPER(void, sva_update_l3_mapping, pud_t * pud, page_entry_t val) {
   MMULock_Acquire();
+
+  /* Debugging */
+  LOG_UPDATE("Updating L3 page (%px, %lx)", pud, val);
+
   /*
    * Ensure that the PTE pointer points to an L3 page table.  If it does not,
    * then report an error.
@@ -1661,23 +1666,19 @@ SECURE_WRAPPER(void, sva_update_l3_mapping, pud_t * pud, page_entry_t val) {
   page_desc_t * ptDesc = getPageDescPtr (__pa(&pud->pud));
     if(!ptDesc) return;
 
-  #if DECLARE_STRATEGY == 1
-    uintptr_t nextPagePaddr = (val >> 12) << 12;
-    page_desc_t * nextPagePtDesc = getPageDescPtr (nextPagePaddr);
-    if(nextPagePtDesc->type != PG_L2 && nextPagePtDesc->type == PG_UNUSED) {
-      declare_internal(nextPagePaddr, 2);
-    }
-  #endif
-
-  #if DECLARE_STRATEGY == 2
-    if(ptDesc->type != PG_ENC && ptDesc->type != PG_TKDATA &&  ptDesc->type != PG_SVA) {
-    // if(ptDesc->type != PG_L3 && ptDesc->type == PG_UNUSED) {
-      declare_internal(__pa(pud), 3);
-    }
-  #endif
-
+  /* 
+   * If the frame is not sensitive, allow the update to happen. This handles corner cases
+   * inside the Linux kernel. 
+   */
   if (ptDesc->type != PG_L3) {
-    panic ("SVA: MMU: update_l3 not an L3: %lx %lx: %lx\n", &pud->pud, val, ptDesc->type);
+    if(!isFramePg(ptDesc)) {
+      /* TODO: Shouldn't we set this protection bit? */
+      // set_page_protection((unsigned long)pud, /*should_protect=*/1);
+      sva_remove_mapping_secure(__pa(pud));
+      sva_declare_l3_mapping_secure(__pa(pud));
+    } else {
+      panic ("SVA: MMU: update_l3 on a sensitive frame: %lx %lx: %lx\n", &pud->pud, val, ptDesc->type);
+    }
   }
 
   __update_mapping(&pud->pud, val);
@@ -1691,6 +1692,10 @@ SECURE_WRAPPER(void, sva_update_l3_mapping, pud_t * pud, page_entry_t val) {
  */
 SECURE_WRAPPER( void, sva_update_l4_mapping ,p4d_t * p4d, page_entry_t val) {
   MMULock_Acquire();
+
+  /* Debugging */
+  LOG_UPDATE("Updating L4 page (%px, %lx)", p4d, val);
+
   /*
    * Ensure that the PTE pointer points to an L4 page table.  If it does not,
    * then report an error.
@@ -1698,26 +1703,19 @@ SECURE_WRAPPER( void, sva_update_l4_mapping ,p4d_t * p4d, page_entry_t val) {
   page_desc_t * ptDesc = getPageDescPtr (__pa(&p4d->p4d));
     if(!ptDesc) return;
 
-  #if DECLARE_STRATEGY == 1
-    uintptr_t nextPagePaddr = (val >> 12) << 12;
-    page_desc_t * nextPagePtDesc = getPageDescPtr (nextPagePaddr);
-    if(nextPagePtDesc->type != PG_L3 && nextPagePtDesc->type == PG_UNUSED) {
-      declare_internal(nextPagePaddr, 3);
-    }
-  #endif
-
-  #if DECLARE_STRATEGY == 2
-    if(ptDesc->type != PG_ENC && ptDesc->type != PG_TKDATA &&  ptDesc->type != PG_SVA) {
-    // if(ptDesc->type != PG_L4 && ptDesc->type == PG_UNUSED) {
-      // unsigned long vaddr = &p4d->p4d;
-      // vaddr = (vaddr >> 12) << 12;
-      // pks_update_mapping(vaddr, 1);
-      declare_internal(__pa(p4d), 4);
-    }
-  #endif
-  
+  /* 
+   * If the frame is not sensitive, allow the update to happen. This handles corner cases
+   * inside the Linux kernel. 
+   */
   if (ptDesc->type != PG_L4) {
-    panic ("SVA: MMU: update_l4 not an L4: %lx %lx: %lx\n", &p4d->p4d, val, ptDesc->type);
+    if(!isFramePg(ptDesc)) {
+      /* TODO: Shouldn't we set this protection bit? */
+      // set_page_protection((unsigned long)pud, /*should_protect=*/1);
+      sva_remove_mapping_secure(__pa(p4d));
+      sva_declare_l4_mapping_secure(__pa(p4d));
+    } else {
+      panic ("SVA: MMU: update_l4 on a sensitive frame: %lx %lx: %lx\n", &p4d->p4d, val, ptDesc->type);
+    }
   }
 
   __update_mapping(&p4d->p4d, val);
@@ -1731,6 +1729,10 @@ SECURE_WRAPPER( void, sva_update_l4_mapping ,p4d_t * p4d, page_entry_t val) {
  */
 SECURE_WRAPPER( void, sva_update_l5_mapping, pgd_t * pgd, page_entry_t val) {
   MMULock_Acquire();
+
+  /* Debugging */
+  LOG_UPDATE("Updating L5 page (%px, %lx)", pgd, val);
+
   /*
    * Ensure that the PTE pointer points to an L5 page table.  If it does not,
    * then report an error.
@@ -1738,26 +1740,19 @@ SECURE_WRAPPER( void, sva_update_l5_mapping, pgd_t * pgd, page_entry_t val) {
   page_desc_t * ptDesc = getPageDescPtr (__pa(&pgd->pgd));
     if(!ptDesc) return;
 
-  #if DECLARE_STRATEGY == 1
-    uintptr_t nextPagePaddr = (val >> 12) << 12;
-    page_desc_t * nextPagePtDesc = getPageDescPtr (nextPagePaddr);  
-    if(nextPagePtDesc->type != PG_L4 && nextPagePtDesc->type == PG_UNUSED) {
-      declare_internal(nextPagePaddr, 4);
+  /* 
+   * If the frame is not sensitive, allow the update to happen. This handles corner cases
+   * inside the Linux kernel. 
+   */
+  if (ptDesc->type != PG_L4) {
+    if(!isFramePg(ptDesc)) {
+      /* TODO: Shouldn't we set this protection bit? */
+      // set_page_protection((unsigned long)pud, /*should_protect=*/1);
+      sva_remove_mapping_secure(__pa(pgd));
+      sva_declare_l5_mapping_secure(__pa(pgd));
+    } else {
+      panic ("SVA: MMU: update_l5 on a sensitive frame: %lx %lx: %lx\n", &pgd->pgd, val, ptDesc->type);
     }
-  #endif
-
-  #if DECLARE_STRATEGY == 2
-    if(ptDesc->type != PG_ENC && ptDesc->type != PG_TKDATA &&  ptDesc->type != PG_SVA) {
-    // if(ptDesc->type != PG_L5 && ptDesc->type == PG_UNUSED) {
-      // unsigned long vaddr = &pgd->pgd;
-      // vaddr = (vaddr >> 12) << 12;
-      // pks_update_mapping(vaddr, 1);
-      declare_internal(__pa(pgd), 5);
-    }
-  #endif
-
-  if (ptDesc->type != PG_L5) {
-    panic ("SVA: MMU: update_l5 not an L5: %lx %lx: %lx\n", &pgd->pgd, val, ptDesc->type);
   }
 
   __update_mapping(&pgd->pgd, val);
