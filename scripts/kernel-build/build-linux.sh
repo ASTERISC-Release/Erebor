@@ -40,14 +40,12 @@ pushd $LINUXFOLDER
     sed -i "s/CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP=y/CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP=n/g" .config
     sed -i "s/CONFIG_CGROUP_HUGETLB=y/CONFIG_CGROUP_HUGETLB=n/g" .config
 
-    {
-        cat .config | grep HUGE
-        cat .config | grep CONFIG_PREEMPT
-        cat .config | grep CONFIG_PREEMPT_RCU || true
+    cat .config | grep HUGE
+    cat .config | grep CONFIG_PREEMPT
+    cat .config | grep CONFIG_PREEMPT_RCU || true
 
-        # Start the build process
-        make -j`nproc` 
-    } |& tee $CURDIR/build.kern.log
+    # Start the build process
+    make -j`nproc`
 popd
 
 # Export required environment variables

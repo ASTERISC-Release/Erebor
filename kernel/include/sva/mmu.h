@@ -461,6 +461,13 @@ static inline int isFramePg (page_desc_t *page) {
          (page->type == PG_CODE);           /* Defines a code page */
 }
 
+static inline int isSensitivePg (page_desc_t *page) { 
+  return (page->type == PG_TKDATA)   ||      /* Defines a kernel data page */
+         (page->type == PG_TUDATA)   ||      /* Defines a user data page */
+         (page->type == PG_ENC)      ||      /* Defines an enclave page */
+         (page->type == PG_CODE);           /* Defines a code page */
+}
+
 /* Description: Return whether the page is active or not */
 static inline int pgIsActive (page_desc_t *page) 
     { return page->type != PG_UNUSED ; } 
