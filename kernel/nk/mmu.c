@@ -1958,16 +1958,16 @@ sva_update_l1_mapping, pte_t *pte, page_entry_t val) {
   page_desc_t * ptDesc = getPageDescPtr (__pa(pte));
     if(!ptDesc) return;
 
-  #if DECLARE_STRATEGY == 1
-  #endif
+  /* Check that this is not a sensitive page frame */
+  // if (isSensitiveFrame(__pa(pte)))
 
   #if DECLARE_STRATEGY == 2
-    if(ptDesc->type != PG_L1 && ptDesc->type == PG_UNUSED) {
+    if(ptDesc->type != PG_ENC && ptDesc->type != PG_TKDATA &&  ptDesc->type != PG_SVA) {
+    // if(ptDesc->type != PG_L1 && ptDesc->type == PG_UNUSED) {
       /*
       * Chuqi: check here
       */
       // set_page_protection((unsigned long)pte, /*should_protect=*/1);
-
       declare_internal(__pa(pte), 1);
     }
   #endif
@@ -2013,7 +2013,8 @@ sva_update_l2_mapping, pmd_t *pmd, page_entry_t val) {
   #endif
 
   #if DECLARE_STRATEGY == 2
-    if(ptDesc->type != PG_L2 && ptDesc->type == PG_UNUSED) {
+    if(ptDesc->type != PG_ENC && ptDesc->type != PG_TKDATA &&  ptDesc->type != PG_SVA) {
+    // if(ptDesc->type != PG_L2 && ptDesc->type == PG_UNUSED) {
       declare_internal(__pa(pmd), 2);
     }
   #endif
@@ -2052,7 +2053,8 @@ SECURE_WRAPPER(void, sva_update_l3_mapping, pud_t * pud, page_entry_t val) {
   #endif
 
   #if DECLARE_STRATEGY == 2
-    if(ptDesc->type != PG_L3 && ptDesc->type == PG_UNUSED) {
+    if(ptDesc->type != PG_ENC && ptDesc->type != PG_TKDATA &&  ptDesc->type != PG_SVA) {
+    // if(ptDesc->type != PG_L3 && ptDesc->type == PG_UNUSED) {
       declare_internal(__pa(pud), 3);
     }
   #endif
@@ -2088,7 +2090,8 @@ SECURE_WRAPPER( void, sva_update_l4_mapping ,p4d_t * p4d, page_entry_t val) {
   #endif
 
   #if DECLARE_STRATEGY == 2
-    if(ptDesc->type != PG_L4 && ptDesc->type == PG_UNUSED) {
+    if(ptDesc->type != PG_ENC && ptDesc->type != PG_TKDATA &&  ptDesc->type != PG_SVA) {
+    // if(ptDesc->type != PG_L4 && ptDesc->type == PG_UNUSED) {
       // unsigned long vaddr = &p4d->p4d;
       // vaddr = (vaddr >> 12) << 12;
       // pks_update_mapping(vaddr, 1);
@@ -2127,7 +2130,8 @@ SECURE_WRAPPER( void, sva_update_l5_mapping, pgd_t * pgd, page_entry_t val) {
   #endif
 
   #if DECLARE_STRATEGY == 2
-    if(ptDesc->type != PG_L5 && ptDesc->type == PG_UNUSED) {
+    if(ptDesc->type != PG_ENC && ptDesc->type != PG_TKDATA &&  ptDesc->type != PG_SVA) {
+    // if(ptDesc->type != PG_L5 && ptDesc->type == PG_UNUSED) {
       // unsigned long vaddr = &pgd->pgd;
       // vaddr = (vaddr >> 12) << 12;
       // pks_update_mapping(vaddr, 1);
