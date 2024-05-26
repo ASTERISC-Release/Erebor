@@ -1138,17 +1138,32 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
 
 		// Hence, while splitting the large page, we have to remove it from the nested kernel metadata
 		// and redeclare it as an L2
-		#ifdef CONFIG_ENCOS
+
+		// Adil: changed this setting to ENCOS_MMU
+		#ifdef CONFIG_ENCOS_MMU
+			printk("ENCOS: Populating large PGD (2M) \n");
 			sva_remove_page(__pa((uintptr_t)kpte & PTE_PFN_MASK));
+			printk("ENCOS: Remove complete \n");
 			sva_declare_l2_page(__pa((uintptr_t)kpte & PTE_PFN_MASK));
+			printk("ENCOS: Declaration complete \n");
 		#endif
 
 		set_pmd((pmd_t*)kpte, pmd);
+		printk("ENCOS: Set pmd complete \n");
 	} else if(level == PG_LEVEL_1G) {
 		// Rahul: Probably have to remove the L2 + declare the page as an L3 here too
 		// Skipping for now, since I haven't encountered any 1GB page being split during boot
 		pud_t pud;
 		pud.pud = mk_pte(base, __pgprot(_KERNPG_TABLE)).pte;
+
+		// Adil: changed this setting to ENCOS_MMU
+		// I don't see this being executed.
+		#ifdef CONFIG_ENCOS_MMU
+			printk("ENCOS: Populating large PGD (1GB) \n");
+			sva_remove_page(__pa((uintptr_t)kpte & PTE_PFN_MASK));
+			sva_declare_l3_page(__pa((uintptr_t)kpte & PTE_PFN_MASK));
+		#endif
+
 		set_pud((pud_t*)kpte, pud);
 	}
 #else
