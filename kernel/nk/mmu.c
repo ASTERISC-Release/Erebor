@@ -1118,8 +1118,8 @@ void declare_internal(uintptr_t frameAddr, int level) {
   pgDesc->type = level;
 
   /*
-    * Reset the virtual address which can point to this page table page.
-    */
+   * Reset the virtual address which can point to this page table page.
+   */
   pgDesc->pgVaddr = 0;
 
   return;

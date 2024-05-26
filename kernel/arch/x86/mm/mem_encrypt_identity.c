@@ -163,12 +163,6 @@ static void __init sme_populate_pgd_large(struct sme_populate_pgd_data *ppd)
 	pmd = pmd_offset(pud, ppd->vaddr);
 	if (pmd_large(*pmd))
 		return;
-	
-	#ifdef CONFIG_ENCOS_MMU
-		printk("ENCOS: Populating large PGD (SME) (WARNING) \n");
-		// sva_remove_page(__pa((uintptr_t)ppd->vaddr & PTE_PFN_MASK));
-		// sva_declare_l2_page(__pa((uintptr_t)ppd->vaddr & PTE_PFN_MASK));
-	#endif
 
 	set_pmd(pmd, __pmd(ppd->paddr | ppd->pmd_flags));
 }
@@ -201,10 +195,6 @@ static void __init sme_populate_pgd(struct sme_populate_pgd_data *ppd)
 
 static void __init __sme_map_range_pmd(struct sme_populate_pgd_data *ppd)
 {
-	#ifdef CONFIG_ENCOS_MMU
-		printk("ENCOS: Populating large PGD (SME) (WARNING) \n");
-	#endif
-
 	while (ppd->vaddr < ppd->vaddr_end) {
 		sme_populate_pgd_large(ppd);
 
@@ -308,10 +298,6 @@ void __init sme_encrypt_kernel(struct boot_params *bp)
 	struct sme_populate_pgd_data ppd;
 	unsigned long pgtable_area_len;
 	unsigned long decrypted_base;
-
-	// #ifdef CONFIG_ENCOS_MMU
-	// 	printk("ENCOS: SME encrypting kernel\n");
-	// #endif
 
 	/*
 	 * This is early code, use an open coded check for SME instead of
@@ -536,10 +522,6 @@ void __init sme_enable(struct boot_params *bp)
 	if (eax < 0x8000001f)
 		return;
 
-	// #ifdef CONFIG_ENCOS_MMU
-	// 	printk("ENCOS: Enabling SME (SEV)\n");
-	// #endif
-
 #define AMD_SME_BIT	BIT(0)
 #define AMD_SEV_BIT	BIT(1)
 
@@ -627,9 +609,6 @@ void __init sme_enable(struct boot_params *bp)
 		sme_me_mask = 0;
 	else
 		sme_me_mask = active_by_default ? me_mask : 0;
-
-	// Adil
-	printk("ENCOS: memory encryption complete?\n");
 
 out:
 	if (sme_me_mask) {
