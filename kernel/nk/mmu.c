@@ -1924,6 +1924,7 @@ sva_remove_mapping, page_entry_t *pteptr) {
   // page_desc_t *pgDesc = getPageDescPtr(*pteptr); // Rahul: What's happening here ?
 
   /* Update the page table mapping to zero */
+  // printk("ENCOS-Internal: remove mapping (%px)\n", pteptr);
   __update_mapping (pteptr, ZERO_MAPPING);
 
   MMULock_Release();

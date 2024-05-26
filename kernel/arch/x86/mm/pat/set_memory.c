@@ -1165,6 +1165,7 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
 		#endif
 
 		set_pud((pud_t*)kpte, pud);
+		printk("ENCOS: Set pud complete \n");
 	}
 #else
 	__set_pmd_pte(kpte, address, mk_pte(base, __pgprot(_KERNPG_TABLE)));

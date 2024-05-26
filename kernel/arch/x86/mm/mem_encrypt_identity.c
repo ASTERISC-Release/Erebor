@@ -165,9 +165,9 @@ static void __init sme_populate_pgd_large(struct sme_populate_pgd_data *ppd)
 		return;
 	
 	#ifdef CONFIG_ENCOS_MMU
-		printk("ENCOS: Populating large PGD (SME)\n");
-		sva_remove_page(__pa((uintptr_t)ppd->vaddr & PTE_PFN_MASK));
-		sva_declare_l2_page(__pa((uintptr_t)ppd->vaddr & PTE_PFN_MASK));
+		printk("ENCOS: Populating large PGD (SME) (WARNING) \n");
+		// sva_remove_page(__pa((uintptr_t)ppd->vaddr & PTE_PFN_MASK));
+		// sva_declare_l2_page(__pa((uintptr_t)ppd->vaddr & PTE_PFN_MASK));
 	#endif
 
 	set_pmd(pmd, __pmd(ppd->paddr | ppd->pmd_flags));
@@ -201,6 +201,10 @@ static void __init sme_populate_pgd(struct sme_populate_pgd_data *ppd)
 
 static void __init __sme_map_range_pmd(struct sme_populate_pgd_data *ppd)
 {
+	#ifdef CONFIG_ENCOS_MMU
+		printk("ENCOS: Populating large PGD (SME) (WARNING) \n");
+	#endif
+
 	while (ppd->vaddr < ppd->vaddr_end) {
 		sme_populate_pgd_large(ppd);
 
