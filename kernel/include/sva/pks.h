@@ -1,6 +1,7 @@
 #ifndef SVA_PKS_H
 #define SVA_PKS_H
 
+#include <sva/config.h>
 #include <asm/cpufeature.h>
 #include <linux/kernel.h>
 
@@ -16,14 +17,17 @@
 static inline void check_protection_available(void)
 {
 #ifdef CONFIG_ENCOS_PKS
-    if (cpu_feature_enabled(X86_FEATURE_PKS))
+    if (cpu_feature_enabled(X86_FEATURE_PKS)) {
+        log_info("Protection Key, Supervisor (PKS) feature check: passed.\n");
         return;
+    }
     else
         panic("PKS is not available.\n");
 #endif
 
 #ifdef CONFIG_ENCOS_WP
     /* for write protection we assume its always available */
+    log_info("Write Protection (WP) feature check: passed.\n");
     return;
 #endif
     return;

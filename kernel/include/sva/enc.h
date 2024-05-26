@@ -8,8 +8,11 @@
  * The following interfaces are exposed to entry_64.S
  * to interpose the system call table.
  */
+.extern SM_printvalues(void *rdi, void *rsi, void *rdx);
+
 .extern SM_encos_syscall_enter(struct pt_regs *regs, int nr);
 .extern SM_encos_syscall_return(struct pt_regs *regs, int nr);
+.extern SM_prepares_pt_regs(struct pt_regs *regs, void *os_stack, unsigned int size);
 
 .macro SM_ENCOS_SYSCALL_ENTER
 	pushq	%rdi

@@ -42,6 +42,11 @@ static const unsigned MAX_THREADS = 1024;
 #undef pr_fmt
 #define pr_fmt(fmt) "encos.SM: " fmt
 
+
+/* Chuqi:
+ * In principle, we cannot use a kernel printk function which is unsafe.
+ * Anyways, we use those log functions only for debugging purpose. 
+ */
 #define log_info(fmt, arg...) \
     printk(KERN_INFO "[%s][%d] "pr_fmt(fmt)"", __func__, __LINE__, ##arg)
 #define log_err(fmt, arg...) \

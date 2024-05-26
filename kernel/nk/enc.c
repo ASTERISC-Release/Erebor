@@ -282,7 +282,6 @@ static inline int SM_mmap_return(unsigned long uva, unsigned long len,
         return 0;
     }
     if (fd == -1) {
-        /* ignore the stupid userspace FUTEX claim for now */
         panic("WTF who allowed you to use anonymous mappings?????");
     }
         
@@ -299,6 +298,29 @@ static inline int SM_mmap_return(unsigned long uva, unsigned long len,
     return 0;
 }
 
+SECURE_WRAPPER(void, SM_printvalues,
+void *rdi, void *rsi, void *rdx)
+{
+    // return;
+    printk("rdi=0x%lx, rsi=0x%lx, rdx=0x%lx.\n", 
+                (unsigned long)rdi, (unsigned long)rsi, (unsigned long)rdx);
+    return;
+}
+
+SECURE_WRAPPER(void, SM_prepares_pt_regs,
+struct pt_regs *regs,
+void *os_stack,
+unsigned int size)
+{
+    printk("hello. pt_regs=0x%lx. orig_ax=0x%lx, copy_to os_stack=0x%lx, cpy_size=%u.\n", 
+                (unsigned long)regs, regs->orig_ax, 
+                (unsigned long)os_stack, (unsigned int)sizeof(struct pt_regs));
+    /* Chuqi todo: mask sensitive information */
+    memcpy(os_stack, regs, sizeof(struct pt_regs));
+    log_info("done.\n");
+    return;
+}
+
 SECURE_WRAPPER(void, SM_encos_syscall_enter, 
 struct pt_regs* regs, int nr) {
     /*
@@ -309,9 +331,9 @@ struct pt_regs* regs, int nr) {
     unsigned long arg0, arg1, arg2, arg3, arg4, arg5;
 
     entry = current_enclave_entry();
-    if (!entry || !entry->activate) {
-        return;
-    }
+    // if (!entry || !entry->activate) {
+    //     return;
+    // }
 
     save_restore_pt_regs(&entry->pt_regs, regs);
 
@@ -346,9 +368,9 @@ struct pt_regs* regs, int nr) {
     unsigned long ret;
     
     entry = current_enclave_entry();
-    if (!entry || !entry->activate) {
-        return;
-    }
+    // if (!entry || !entry->activate) {
+    //     return;
+    // }
 
     ret = regs->ax;
     arg0 = regs->di;
@@ -365,7 +387,7 @@ struct pt_regs* regs, int nr) {
     switch (nr)
     {
         case __NR_mmap:
-            SM_mmap_return(ret, arg1, (int)arg4, arg5);
+            // SM_mmap_return(ret, arg1, (int)arg4, arg5);
             break;
         
         default:

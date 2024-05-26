@@ -17,7 +17,7 @@ config ENCOS
 	  Enclave nested-OS monitor enabled.
 
 config ENCOS_PKS
-	def_bool n
+	def_bool y
 	help
 	  Enclave nested-OS (Protection Key, Supervisor).
 
@@ -35,6 +35,11 @@ config ENCOS_STACK
 	def_bool y
 	help
 	  Enclave nested-OS (Secure nested stack).
+
+config ENCOS_SYSCALL_STACK
+	def_bool y
+	help
+	  Enclave nested-OS (Secure nested stack for syscalls).
 
 config ENCOS_INTR
 	def_bool y

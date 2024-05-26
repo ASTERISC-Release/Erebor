@@ -94,9 +94,46 @@ SYM_CODE_START(entry_SYSCALL_64)
 
 	swapgs
 	/* tss.sp2 is scratch space. */
+	/* Chuqi:
+	 * It's fine to preserve user stack's %rsp into tss.sp2,
+	 * because the user stack is protected.
+	 */
 	movq	%rsp, PER_CPU_VAR(cpu_tss_rw + TSS_sp2)
 	SWITCH_TO_KERNEL_CR3 scratch_reg=%rsp
 	movq	PER_CPU_VAR(pcpu_hot + X86_top_of_stack), %rsp
+
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_SYSCALL_STACK)
+	/* Chuqi:
+	 * Request SM to disable the protection key of the syscall stack
+	 */
+	
+	/* Chuqi: 
+	 * Now we are able to switch to the secure syscall stack
+	 */
+	/* save the scratch registers */
+	movq 	%rax, -8(%rsp)
+	movq	%rdx, -16(%rsp)
+	movq	%rcx, -24(%rsp)
+  	/* Get the processor ID */
+	rdtscp
+  	/* Find the secure stack offset for the processor ID */
+	andq	$0xFFF, %rcx
+	movq	%rcx, %rax
+	movq	$4096, %rcx
+	mulq	%rcx
+	addq 	SyscallSecureStackBase, %rax
+	/* Store the original rsp */
+	movq	%rsp, %rcx
+	/* Switch to the syscall secure stack */
+	movq	%rax, %rsp
+	/* Restore the spilled registers */
+	movq	-8(%rcx), %rax
+	movq	-16(%rcx), %rdx
+	movq	-24(%rcx), %rcx
+	
+	/* Now user pt_regs will be saved to the secure syscall stack */
+	/* Now GPRs will be saved to the secure syscall stack */
+#endif
 
 SYM_INNER_LABEL(entry_SYSCALL_64_safe_stack, SYM_L_GLOBAL)
 	ANNOTATE_NOENDBR
@@ -121,15 +158,54 @@ SYM_INNER_LABEL(entry_SYSCALL_64_after_hwframe, SYM_L_GLOBAL)
 	IBRS_ENTER
 	UNTRAIN_RET
 
-#ifdef CONFIG_ENCOS
-	SM_ENCOS_SYSCALL_ENTER
-#endif
+//#ifdef CONFIG_ENCOS
+//	SM_ENCOS_SYSCALL_ENTER
+//#endif
 
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_SYSCALL_STACK)
+	pushq	%rdi 
+	pushq	%rsi
+	pushq	%rdx
+	pushq	%rcx
+	pushq	%r8
+	pushq	%r9
+	pushq	%r10
+	pushq	%rax
+	
+	/* now construct the following parameters: */
+	/* rdi= *pt_regs (top of the syscall secure stack) */
+	/* rsi= orig-stack - (size) */
+	/* rdx= junk */
+	movq	PER_CPU_VAR(pcpu_hot + X86_top_of_stack), %rsi
+	subq	$PTREGS_SIZE, %rsi
+	
+	/* SM call to mask and copy pt_regs */
+	call	SM_prepares_pt_regs
+	
+	popq	%rax
+	popq	%r10
+	popq	%r9
+	popq	%r8
+	popq	%rcx
+	popq	%rdx
+	popq	%rsi
+	popq	%rdi
+	
+	/* switch back to the normal OS's stack */
+	movq	PER_CPU_VAR(pcpu_hot + X86_top_of_stack), %rsp
+	subq	$PTREGS_SIZE, %rsp
+	/* reset rdi */
+	movq	%rsp, %rdi
+
+	/* Chuqi todo:
+	 * enforce (PKS) protection on the syscall secure stack 
+	 */
+#endif
 	call	do_syscall_64		/* returns with IRQs disabled */
 
-#ifdef CONFIG_ENCOS
-	SM_ENCOS_SYSCALL_RETURN
-#endif
+//#ifdef CONFIG_ENCOS
+//	SM_ENCOS_SYSCALL_RETURN
+//#endif
 
 	/*
 	 * Try to use SYSRET instead of IRET if we're returning to

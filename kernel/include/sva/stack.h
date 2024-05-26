@@ -43,9 +43,18 @@
 
 //===-- Secure Stack Switching --------------------------------------------===//
 
+#ifdef __ASSEMBLY__
+
+// Points to top of secure stack
+// XXX: Whoever defines this should ensure the region is write-protected!
+.extern SyscallSecureStackBase;
+
+#else
+
 // Points to top of secure stack
 // XXX: Whoever defines this should ensure the region is write-protected!
 extern const uintptr_t SecureStackBase;
+
 
 // TODO: Manage stack per-cpu, do lookup here
 // Use only RAX/RCX registers to accomplish this.
@@ -159,6 +168,44 @@ extern const uintptr_t SecureStackBase;
 
 #endif  /* CONFIG_ENCOS && CONFIG_ENCOS_PKS */
 
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_WP)
+
+#define ENABLE_WP                                                              \
+  /* Save scratch register to stack */                                         \
+  "pushq %rax\n"                                                               \
+  /* Get current cr0 value */                                                  \
+  "movq %cr0, %rax\n"                                                          \
+  /* Set WP bit in copy */                                                     \
+  "orq $0x10000, %rax\n"                                                       \
+  /* Replace cr0 with updated value */                                         \
+  "movq %rax, %cr0\n"                                                          \
+  /* Restore clobbered register */                                             \
+  "popq %rax\n"
+
+#define DISABLE_WP                                                             \
+  /* Save scratch register to stack */                                         \
+  "pushq %rax\n"                                                               \
+  /* Get current cr0 value */                                                  \
+  "movq %cr0, %rax\n"                                                          \
+  /* Clear WP bit in copy */                                                   \
+  "andq $0xfffffffffffeffff, %rax\n"                                           \
+  /* Replace cr0 with updated value */                                         \
+  "movq %rax, %cr0\n"                                                          \
+  /* Restore clobbered register */                                             \
+  "popq %rax\n"
+
+#define WR_RAX_CR0                                                             \
+  "movq %rax, %cr0\n"                                                          \
+
+#else
+
+#define ENABLE_WP                                                              \
+
+#define DISABLE_WP                                                             \
+
+#define WR_RAX_CR0                                                             \
+
+#endif  /* CONFIG_ENCOS && CONFIG_ENCOS_WP */
 
 //===-- Entry/Exit High-Level Descriptions --------------------------------===//
 
@@ -177,8 +224,6 @@ extern const uintptr_t SecureStackBase;
 #else
 // More optimized variants
 
-
-
 #define SECURE_ENTRY                                                           \
   /* Save current flags */                                                     \
   "pushf\n"                                                                    \
@@ -188,6 +233,7 @@ extern const uintptr_t SecureStackBase;
   "movq %rax, -8(%rsp)\n"                                                      \
   "movq %rdx, -16(%rsp)\n"                                                     \
   "movq %rcx, -24(%rsp)\n"                                                     \
+  /* CONFIG_ENCOS_PKS */                                                       \
   /* Write the PKRS MSR ID in rcx */                                           \
   "movq $0x6e1, %rcx\n"                                                        \
   /* Get current PKRS value */                                                 \
@@ -196,6 +242,13 @@ extern const uintptr_t SecureStackBase;
   "andq $0xFFFFFFFFFFFFFFF7, %rax\n"                                           \
   /* Update the PKRS value */                                                  \
   WR_PKSMSR                                                                    \
+  /* CONFIG_ENCOS_WP */                                                        \
+  /* Get current cr0 value */                                                  \
+  "movq %cr0, %rax\n"                                                          \
+  /* Clear WP bit in copy */                                                   \
+  "andq $0xfffffffffffeffff, %rax\n"                                           \
+  /* Replace cr0 with updated value */                                         \
+  WR_RAX_CR0                                                                   \
   /* Disable interrupts */                                                     \
   "cli\n"                                                                      \
   /* Get the processor ID */                                                   \
@@ -224,6 +277,7 @@ extern const uintptr_t SecureStackBase;
   "pushq %rax\n"                                                               \
   "pushq %rcx\n"                                                               \
   "pushq %rdx\n"                                                               \
+  /* CONFIG_ENCOS_PKS */                                                       \
   /* Write the PKRS MSR ID in rcx */                                           \
   "movq $0x6e1, %rcx\n"                                                        \
   /* Get current PKRS value */                                                 \
@@ -232,6 +286,13 @@ extern const uintptr_t SecureStackBase;
   "orq $0x0000000000000008, %rax\n"                                            \
   /* Update the PKRS value */                                                  \
   WR_PKSMSR                                                                    \
+  /* CONFIG_ENCOS_WP */                                                        \
+  /* Get current cr0 value */                                                  \
+  "movq %cr0, %rax\n"                                                          \
+  /* Set WP bit in copy */                                                     \
+  "orq $0x10000, %rax\n"                                                       \
+  /* Replace cr0 with updated value */                                         \
+  WR_RAX_CR0                                                                   \
   /* Restore clobbered register */                                             \
   "popq %rdx\n"                                                                \
   "popq %rcx\n"                                                                \
@@ -244,6 +305,7 @@ extern const uintptr_t SecureStackBase;
 #define SECURE_INTERRUPT_REDIRECT                                              \
   DISABLE_INTERRUPTS                                                           \
   ENABLE_PKS_PROTECTION                                                        \
+  ENABLE_WP                                                                    \
   ENABLE_INTERRUPTS                                                            \
 
 
@@ -316,4 +378,5 @@ static inline uintptr_t get_insecure_context_return_addr(void) {
   return ptr[1];
 }
 
+#endif // __ASSEMBLY__
 #endif // _STACK_SWITCH_
