@@ -1213,23 +1213,25 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
   unsigned long numSubLevelPgEntries;
   page_desc_t *thisPg;
   page_entry_t pageMapping; 
+  page_entry_t pageMapping_masked; 
   page_entry_t *pagePtr;
   unsigned int nx_mask    = ~(1 << PG_NX);
   unsigned int cbit_mask  = ~(1 << 51);
 
   /* Store the pte value for the page being traversed */
-  pageMapping = ((pageEntryPA & PG_FRAME) & nx_mask) & cbit_mask;
-  if (pageMapping > memSize) {
+  pageMapping = (pageEntryPA);
+  pageMapping_masked = (((pageEntryPA & PG_FRAME) & nx_mask) & cbit_mask);
+  if (pageMapping_masked > memSize) {
     LOG_PRINTK("Returning (mapping ==> %px, entries ==> %lx\n)", 
-      pageMapping, numPageDescEntries);
+      pageMapping_masked, numPageDescEntries);
     return;
   }
 
   /* Set the page pointer for the given page */
-  pagePtr = (page_entry_t*) getVirtual((uintptr_t)(pageMapping));
+  pagePtr = (page_entry_t*) getVirtual((uintptr_t)(pageMapping_masked));
 
   /* Get the page_desc for this page */
-  thisPg = getPageDescPtr(pageMapping);
+  thisPg = getPageDescPtr(pageMapping_masked);
   if (!thisPg) return;
 
   /* Mark if we have seen this traversal already */
@@ -1295,6 +1297,18 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
       break;
 
     case PG_L3:
+
+      if ((pageMapping & PG_PS) != 0) {
+        #if DEBUG_INIT >= 0
+          printk("\tIdentified 1GB page...\n");
+        #endif
+        unsigned long index = (pageMapping_masked & ~PUDMASK) / pageSize;
+        page_desc[index].type = PG_TKDATA;
+        page_desc[index].user = 0;           /* Set the priv flag to kernel */
+        ++(page_desc[index].count);
+        return;
+      }
+
       /* TODO: Determine why we want to reassign an L4 to an L3 */
       if (thisPg->type != PG_L4)
         thisPg->type = PG_L3;       /* Set the page type to L3 */
@@ -1312,10 +1326,11 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
        * Then return as we don't need to traverse frame pages.
        */
       if ((pageMapping & PG_PS) != 0) {
-#if DEBUG_INIT >= 1
-        printk("\tIdentified 1GB page...\n");
+#if DEBUG_INIT >= 0
+        printk("\tIdentified 2MB page...\n");
 #endif
-        unsigned long index = (pageMapping & ~PUDMASK) / pageSize;
+        // unsigned long index = (pageMapping & ~PUDMASK) / pageSize;
+        unsigned long index = (pageMapping_masked & ~PMDMASK) / pageSize;
         page_desc[index].type = PG_TKDATA;
         page_desc[index].user = 0;           /* Set the priv flag to kernel */
         ++(page_desc[index].count);
@@ -1337,11 +1352,11 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
        * Then return as we don't need to traverse frame pages.
        */
       if ((pageMapping & PG_PS) != 0){
-#if DEBUG_INIT >= 1
+#if DEBUG_INIT >= 0
         printk("\tIdentified 2MB page...\n");
 #endif
         /* The frame address referencing the page obtained */
-        unsigned long index = (pageMapping & ~PMDMASK) / pageSize;
+        unsigned long index = (pageMapping_masked & ~PMDMASK) / pageSize;
         page_desc[index].type = PG_TKDATA;
         page_desc[index].user = 0;           /* Set the priv flag to kernel */
         ++(page_desc[index].count);
