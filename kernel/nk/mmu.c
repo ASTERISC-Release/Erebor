@@ -71,10 +71,6 @@ static inline void print_insecure_stack(void) {
   printk("-----------------------------------------------"); \
   panic(args)
 
-  // printk("-----------------------------------------------"); \
-  // printk(args); \
-  // printk("-----------------------------------------------");
-
 /* 
  * Description: 
  *   This is a pointer to the PerspicuOS SuperSpace stack, which is used on
@@ -279,13 +275,17 @@ init_mmu () {
  *
  */
 static  void
-page_entry_store (unsigned long *page_entry, page_entry_t newVal) {
-  /* Write the new value to the page_entry */
-  // *page_entry = newVal;
+page_entry_store (unsigned long *page_entry, page_entry_t newVal) {  
+  /* 
+   * ENCOS: Using Linux primitive. No need to flush ( __flush_tlb_all();), since 
+   * the kernel should automatically handle flushing after return.
+   */
   WRITE_ONCE(*page_entry, newVal);
 
-  // __flush_tlb_all();
-  /* TODO: Add a check here to make sure the value matches the one passed in */
+  /* 
+   * TODO: Add a check here to make sure the value matches the one passed in. 
+   * ENCOS: not sure this is required, but leaving for now.
+   */
 }
 
 /*
@@ -327,20 +327,25 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
   unsigned long newPA = newVal & PG_FRAME;
   unsigned long newFrame = newPA >> PAGESHIFT;
   uintptr_t newVA = (uintptr_t) getVirtual(newPA);
-  page_desc_t *newPG = getPageDescPtr(newPA);
 
-  if(!newPG) return 0;
+  page_desc_t *newPG = getPageDescPtr(newPA);
+  if(!newPG) {
+    /* 
+     * ENCOS: This may be possible since Linux adds junk mappings. 
+     * For simplicity, we allow these cases to go ahead.
+     */
+    return 0;
+  }
 
   /* Get the page table page descriptor. The page_entry is the viratu */
   uintptr_t ptePAddr = __pa (page_entry);
   page_desc_t *ptePG = getPageDescPtr(ptePAddr);
 
-
   /* Return value */
   unsigned char retValue = 2;
 
-  /*
-   * Deal with the enclave page
+  /* 
+   * Deal with the enclave page(s). TODO: fix and test this case rigorously.
    */
   if (newPG->type == PG_ENC) {
     if (current_encid() != newPG->encID) {
@@ -353,7 +358,7 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
    * some cases we must, otherwise, the checks will fail. For example if this
    * is a mapping in a page table page then we allow a zero mapping. 
    */
-  // if (newVal & PG_V) {
+  if (newVal & PG_V) {
     /* If the mapping is to an SVA page then fail */
     SVA_ASSERT (!isSVAPg(newPG), "Kernel attempted to map an SVA page");
 
@@ -383,7 +388,6 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
        * Otherwise, this is the first mapping of the page, and we should record
        * in what virtual address it is being placed.
        */
-#if 0
       if (pgRefCount(newPG) > 1) {
         if (newPG->pgVaddr != page_entry) {
           panic ("SVA: PG: %lx %lx: type=%x\n", newPG->pgVaddr, page_entry, newPG->type);
@@ -392,7 +396,6 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
       } else {
         newPG->pgVaddr = page_entry;
       }
-#endif
     }
     /*
      * Verify that that the mapping matches the correct type of page
@@ -415,14 +418,18 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
           if ((newPG->type >= PG_L1) && (newPG->type <= PG_L5)) {
             retValue = 2;
           } else {
-            /* Another compromise? */
+            /* 
+             * ENCOS: Another compromise made here. Basically, this is the case
+             * where the kernel will split hugepages for SVA regions (and others?).
+             * In such cases, we allow split mappings, but enable protection on 
+             * child entries.
+             */
             if (newPG->type >= PG_SVA) {
-              /* Kernel may remap the SVA to 2MB pages. 
-               * TODO: Let's add the read-only bit. */
+              /* TODO: Let's add the read-only bit. */
               retValue = 2;
             } else {
-              PANIC_WRONG_MAPPING ("SVA: MMU: Map bad page type into L1: (VAs: %px, %px, PAs: %px, %px, PTE: %px), %x\n", 
-                origVA, newVA, origPA, newPA, ptePAddr, newPG->type);
+              PANIC_WRONG_MAPPING ("SVA: Map bad page type into L1: (virt: %px, phys: %px, pte: %px, pgtype: %x)\n", 
+                newVA, newPA, ptePAddr, newPG->type);
             }
           }
         }
@@ -444,14 +451,18 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
             if ((newPG->type >= PG_L1) && (newPG->type <= PG_L5)) {
               retValue = 2;
             } else {
-              /* Another compromise? */
+            /* 
+             * ENCOS: Another compromise made here. Basically, this is the case
+             * where the kernel will split hugepages for SVA regions (and others?).
+             * In such cases, we allow split mappings, but enable protection on 
+             * child entries.
+             */
               if (newPG->type >= PG_SVA) {
-                /* Kernel may remap the SVA to 2MB pages. 
-                 * TODO: Let's add the read-only bit. */
+                /* TODO: Let's add the read-only bit. */
                 retValue = 2;
               } else {
-                PANIC_WRONG_MAPPING ("SVA: MMU: Map bad page type into L2: (VAs: %px, %px, PAs: %px, %px, PTE: %px), %x\n", 
-                  origVA, newVA, origPA, newPA, ptePAddr, newPG->type);
+                PANIC_WRONG_MAPPING ("SVA: Map bad page type into L2: (virt: %px, phys: %px, pte: %px, pgtype: %x)\n", 
+                newVA, newPA, ptePAddr, newPG->type);
               }
             }
           }
@@ -496,7 +507,7 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
       default:
         break;
     }
-  // }
+  }
 
   /*
    * If the new mapping is set for user access, but the VA being used is to
@@ -740,28 +751,29 @@ __update_mapping (uintptr_t * pageEntryPtr, page_entry_t val) {
    */
   switch (pt_update_is_valid((page_entry_t *) pageEntryPtr, val)) {
     case 1:
-      // Kernel thinks these should be RW, since it wants to write to them.
-      // Convert to read-only and carry on.
-      // CLEANUP: Need to set to read-only anymore, since we use PKS now
+      /* Kernel thinks these should be RW, since it wants to write to them.
+       * Convert to read-only and carry on. 
+       * 
+       * Note: all writes to such objects should be made inside the SVA code.   
+       */
+      
+      /* TODO: enable this read-only later. */
       // val = setMappingReadOnly (val);
       __do_mmu_update ((page_entry_t *) pageEntryPtr, val);
       break;
 
     case 2:
-      __do_mmu_update ((page_entry_t *) pageEntryPtr, val);
-      break;
 
-    case 3:
-      val = setMappingReadOnly (val);
+      /* This updates are valid and we should allow them */
       __do_mmu_update ((page_entry_t *) pageEntryPtr, val);
       break;
 
     case 0:
       /* Silently ignore the request */
       __do_mmu_update ((page_entry_t *) pageEntryPtr, val);
+
       // panic("Invalid mmu update requested!\n");
       return;
-
     default:
       panic("##### SVA invalid page update!!!\n");
   }
