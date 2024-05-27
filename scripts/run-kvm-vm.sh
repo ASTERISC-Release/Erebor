@@ -21,6 +21,7 @@ stty intr ^]
 
 # memory (32GB)
 VMMEM=24576M
+#VMMEM=1024M
 
 # debug
 GDB=""

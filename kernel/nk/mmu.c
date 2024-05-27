@@ -225,9 +225,9 @@ page_desc_t * getPageDescPtr(unsigned long mapping) {
 
   /* Sanity check */
   if(frameIndex  >= numPageDescEntries) {
-    // Adil: changed to warning for testing
-    LOG_PRINTK("[PANIC]: SVA: getPageDescPtr: %lx %lx %lx\n", mapping, frameIndex, numPageDescEntries);
-    return;
+    /* Basically, this is to deal with the kernel's junk mappings */
+    // LOG_PRINTK("[PANIC]: SVA: getPageDescPtr: %lx %lx %lx\n", mapping, frameIndex, numPageDescEntries);
+    return NULL;
   }
 
   return page_desc + frameIndex;
@@ -1201,6 +1201,7 @@ sva_load_msr(u_int msr, uint64_t val) {
  *
  */
 #define DEBUG_INIT 1
+
 void 
 declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
         numPgEntries, enum page_type_t pageLevel ) 
@@ -1212,20 +1213,29 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
   page_desc_t *thisPg;
   page_entry_t pageMapping; 
   page_entry_t *pagePtr;
+  unsigned int nx_mask    = ~(1 << PG_NX);
+  unsigned int cbit_mask  = ~(1 << 51);
 
   /* Store the pte value for the page being traversed */
-  pageMapping = pageEntryPA & PG_FRAME;
+  pageMapping = (pageEntryPA & PG_FRAME) & nx_mask;
+  if (pageMapping > memSize) {
+    LOG_PRINTK("Returning (mapping ==> %px, entries ==> %lx\n)", 
+      pageMapping, numPageDescEntries);
+    return;
+  }
 
   /* Set the page pointer for the given page */
 #if USE_VIRT
   uintptr_t pagePhysAddr = pageMapping & PG_FRAME;
   pagePtr = (page_entry_t *) getVirtual(pagePhysAddr);
 #else
-  pagePtr = (page_entry_t*) getVirtual((uintptr_t)(pageMapping & PG_FRAME));
+  // TODO: Change for SEV (remove bit 51)
+  pagePtr = (page_entry_t*) getVirtual((uintptr_t)((pageMapping & PG_FRAME) & nx_mask));
 #endif
 
   /* Get the page_desc for this page */
   thisPg = getPageDescPtr(pageMapping);
+  if (!thisPg) return;
 
   /* Mark if we have seen this traversal already */
   traversedPTEAlready = (thisPg->type != PG_UNUSED);
@@ -1242,23 +1252,23 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
   switch (pageLevel){
     case PG_L5:
         indent = l5s;
-        printk("%sSetting L5 Page: mapping:0x%lx\n", indent, pageMapping);
+        LOG_PRINTK("%sSetting L5 Page: mapping:0x%lx\n", indent, pageMapping);
         break;
     case PG_L4:
         indent = l4s;
-        printk("%sSetting L4 Page: mapping:0x%lx\n", indent, pageMapping);
+        LOG_PRINTK("%sSetting L4 Page: mapping:0x%lx\n", indent, pageMapping);
         break;
     case PG_L3:
         indent = l3s;
-        printk("%sSetting L3 Page: mapping:0x%lx\n", indent, pageMapping);
+        LOG_PRINTK("%sSetting L3 Page: mapping:0x%lx\n", indent, pageMapping);
         break;
     case PG_L2:
         indent = l2s;
-        printk("%sSetting L2 Page: mapping:0x%lx\n", indent, pageMapping);
+        LOG_PRINTK("%sSetting L2 Page: mapping:0x%lx\n", indent, pageMapping);
         break;
     case PG_L1:
         indent = l1s;
-        printk("%sSetting L1 Page: mapping:0x%lx\n", indent, pageMapping);
+        LOG_PRINTK("%sSetting L1 Page: mapping:0x%lx\n", indent, pageMapping);
         break;
     default:
         break;
@@ -1392,7 +1402,7 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
     page_entry_t * nextEntry = & pagePtr[i];
 
 #if DEBUG_INIT >= 5
-    printk("%sPagePtr in loop: %p, val: 0x%lx\n", indent, nextEntry, *nextEntry);
+    printk("%sPagePtr in loop: %px, val: 0x%lx\n", indent, nextEntry, *nextEntry);
 #endif
 
     /* 
@@ -1411,12 +1421,12 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
        */
       if (pageLevel == PG_L1){
 #if DEBUG_INIT >= 2
-          printk("%sInitializing leaf entry: pteaddr: %p, mapping: 0x%lx\n",
+          printk("%sInitializing leaf entry: pteaddr: %px, mapping: 0x%lx\n",
                   indent, nextEntry, *nextEntry);
 #endif
       } else {
 #if DEBUG_INIT >= 2
-      printk("%sProcessing:pte addr: %p, newPgAddr: %p, mapping: 0x%lx\n",
+      printk("%sProcessing:pte addr: %px, newPgAddr: %p, mapping: 0x%lx\n",
               indent, nextEntry, (*nextEntry & PG_FRAME), *nextEntry ); 
 #endif
           // printk("[Next - %d]: %lx %lx", i, nextEntry, *nextEntry);
@@ -1507,11 +1517,6 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
   /* Zero out the page descriptor array */
   memset (page_desc, 0, numPageDescEntries * sizeof(page_desc_t));
 
-  /* Walk the kernel page tables and initialize the sva page_desc */
-  // declare_ptp_and_walk_pt_entries(__pa(kpgdVA), nkpgde, PG_L5);
-  unsigned long kpgdPA = sva_get_current_pgd();
-  // declare_ptp_and_walk_pt_entries(kpgdPA, 512, PG_L5);
-
   /* Protect the kernel text region */
   LOG_PRINTK("_stext: %lx, _etext: %lx\n", _stext, _etext);
   init_protected_pages((uintptr_t) PFN_ALIGN(_stext), (uintptr_t) PFN_ALIGN(_etext), 
@@ -1520,6 +1525,13 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
   /* Protect the SVA pages */
   LOG_PRINTK("_svastart: %lx, _svaend: %lx\n", __pa(_svastart), __pa(_svaend));
   init_protected_pages((uintptr_t) _svastart, (uintptr_t) _svaend, PG_SVA);
+
+  /* Walk the kernel page tables and initialize the sva page_desc */
+  // declare_ptp_and_walk_pt_entries(__pa(kpgdVA), nkpgde, PG_L5);
+  unsigned long kpgdPA = (sva_get_current_pgd() << 12);
+  // declare_ptp_and_walk_pt_entries(kpgdPA, 1, PG_L5);
+
+  // PANIC("for fun\n");
 
   /* TODO: Protect the SVA-related page table frames */
   
