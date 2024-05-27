@@ -395,7 +395,8 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
           if ((newPG->type >= PG_L1) && (newPG->type <= PG_L5)) {
             retValue = 2;
           } else {
-            PANIC ("SVA: MMU: Map bad page type into L1: %x\n", newPG->type);
+            PANIC ("SVA: MMU: Map bad page type into L1: (VAs: %px, %px), %x\n", 
+              origVA, newVA, newPG->type);
           }
         }
 

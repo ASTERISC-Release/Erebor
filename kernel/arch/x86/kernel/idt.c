@@ -333,10 +333,10 @@ void __init idt_setup_apic_and_irq_gates(void)
 	sva_load_idt();
 #else
 	load_idt(&idt_descr);
-#endif
 
 	/* Make the IDT table read only */
 	set_memory_ro((unsigned long)&idt_table, 1);
+#endif
 
 	idt_setup_done = true;
 }
