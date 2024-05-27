@@ -1226,13 +1226,7 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
   }
 
   /* Set the page pointer for the given page */
-#if USE_VIRT
-  uintptr_t pagePhysAddr = pageMapping & PG_FRAME;
-  pagePtr = (page_entry_t *) getVirtual(pagePhysAddr);
-#else
-  // TODO: Change for SEV (remove bit 51)
-  pagePtr = (page_entry_t*) getVirtual((uintptr_t)((pageMapping & PG_FRAME) & nx_mask));
-#endif
+  pagePtr = (page_entry_t*) getVirtual((uintptr_t)(pageMapping));
 
   /* Get the page_desc for this page */
   thisPg = getPageDescPtr(pageMapping);
