@@ -2177,5 +2177,63 @@ SECURE_WRAPPER( void, sva_update_l5_mapping, pgd_t * pgd, page_entry_t val) {
   return;
 }
 
-/* Secure text poking */
-// TODO
+/* 
+ * Secure text poking (for kernel relocations)
+ */
+typedef void text_poke_f(void *dst, const void *src, size_t len);
+struct sva_secure_poke_t {
+  page_entry_t pte;
+  page_entry_t ptetwo;
+  pte_t *ptep;
+  bool cross_page_boundary;
+  // struct mm* poking_mm;
+  // struct page *pages[2];
+  // pgprot_t pgprot;
+};
+
+SECURE_WRAPPER(void, sva_secure_poke, 
+  text_poke_f func, void *addr, const void *src, size_t len,
+  struct sva_secure_poke_t* spt) 
+{
+
+  // LOG_PRINTK("sva_secure_poke (%px, %px, %px, %lx, %px)\n",
+  //   func, addr, src, len, spt);
+
+  // Print SPT
+  // LOG_PRINTK("  spt (%lx, %lx, %px, %d)\n", spt->pte, 
+  //   spt->ptetwo, spt->ptep, spt->cross_page_boundary);
+
+	// set_pte_at(poking_mm, poking_addr, ptep, pte);
+	// set_pte_at(spt->poking_mm, poking_addr + PAGE_SIZE, spt->ptep + 1, spt->ptetwo);
+  __do_mmu_update(spt->ptep, spt->pte);
+	if (spt->cross_page_boundary) {
+		__do_mmu_update(spt->ptep + 1, spt->ptetwo);
+	}
+  // LOG_PRINTK("Mappings added.");
+
+	/*
+	 * Loading the temporary mm behaves as a compiler barrier, which
+	 * guarantees that the PTE will be set at the time memcpy() is done.
+	 */
+  barrier();
+
+	kasan_disable_current();
+	func((u8 *)poking_addr + offset_in_page(addr), src, len);
+	kasan_enable_current();
+
+  // LOG_PRINTK("func executed.");
+
+	/*
+	 * Ensure that the PTE is only cleared after the instructions of memcpy
+	 * were issued by using a compiler barrier.
+	 */
+	barrier();
+
+	// pte_clear(poking_mm, poking_addr, ptep);
+  // 	pte_clear(poking_mm, poking_addr + PAGE_SIZE, ptep + 1);
+  __do_mmu_update(spt->ptep, 0);
+	if (spt->cross_page_boundary)
+    __do_mmu_update(spt->ptep + 1, 0);
+	
+  return;
+}
