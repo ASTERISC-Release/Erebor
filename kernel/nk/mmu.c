@@ -1462,15 +1462,14 @@ init_protected_pages (uintptr_t startVA, uintptr_t endVA, enum page_type_t type)
  *  - btext         : The first virtual address of the text segment.
  *  - etext         : The last virtual address of the text segment.
  */
-SECURE_WRAPPER(void,
-sva_mmu_init, void) {
+SECURE_WRAPPER(void, sva_mmu_init, void) {
   
   init_MMULock();
 
   MMULock_Acquire();
 
   /* Zero out the page descriptor array */
-  // memset (page_desc, 0, numPageDescEntries * sizeof(page_desc_t));
+  memset (page_desc, 0, numPageDescEntries * sizeof(page_desc_t));
 
   /* Walk the kernel page tables and initialize the sva page_desc */
   // declare_ptp_and_walk_pt_entries(__pa(kpgdVA), nkpgde, PG_L5);
@@ -1478,19 +1477,18 @@ sva_mmu_init, void) {
   /* Protect the kernel text region */
   extern char _stext[];
   extern char _etext[];
-
-  /* TODO: Fix this. Initially the kernel code will be writable (for relocations) */
-  // printk("_stext: %lx, _etext: %lx\n", _stext, _etext);
-  // init_protected_pages((uintptr_t) _stext, (uintptr_t)_etext, PG_CODE);
-  printk("_stext: %lx, _etext: %lx\n", _text, _etext);
-  init_protected_pages((uintptr_t) PFN_ALIGN(_text), 
-    (uintptr_t) PFN_ALIGN(_etext), PG_CODE);
-
-  /* Make all SuperSpace pages read-only */
+  printk("_stext: %lx, _etext: %lx\n", _stext, _etext);
+  init_protected_pages((uintptr_t) PFN_ALIGN(_stext), (uintptr_t) PFN_ALIGN(_etext), 
+    PG_CODE);
+  
+  /* Protect the SVA pages */
   extern char _svastart[];
   extern char _svaend[];
   printk("_svastart: %lx, _svaend: %lx\n", _svastart, _svaend);
-  // init_protected_pages((uintptr_t)_svastart, (uintptr_t)_svaend, PG_SVA);
+  init_protected_pages((uintptr_t) PFN_ALIGN(_svastart), (uintptr_t) PFN_ALIGN(_svaend), 
+    PG_SVA);
+
+  /* Protect the SVA-related page tables */
   
   /* Now load the initial value of the cr3 to complete kernel init */
   // _load_cr3(kpgdMapping->pgd & PG_FRAME);
