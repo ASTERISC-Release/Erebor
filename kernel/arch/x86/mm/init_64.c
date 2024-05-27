@@ -1414,6 +1414,11 @@ void mark_rodata_ro(void)
 				(void *)rodata_end, (void *)_sdata);
 
 	debug_checkwx();
+
+	/* enclave-cross-arch Call SVA to ensure kernel regions are protected now */
+	#ifdef ENCOS_MMU
+		sva_mmu_init();
+	#endif
 }
 
 /*

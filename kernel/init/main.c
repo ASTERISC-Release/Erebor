@@ -1090,10 +1090,12 @@ void start_kernel(void)
 	/* already instrumented to set 1 << 16 */
 	native_write_cr0(native_read_cr0());
 #endif
+
 #ifdef CONFIG_ENCOS_MMU
 	// Initialize the SVA MMU
-	sva_mmu_init();
+	// sva_mmu_init();
 #endif
+
 	// Test that the secure call works
 	uintptr_t sp;
     asm volatile ("movq %%rsp, %0\n\t": "=r" (sp) :: "memory");

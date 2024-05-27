@@ -2058,6 +2058,9 @@ static int __init init_hw_perf_events(void)
 
 	pr_info("Performance Events: ");
 
+	// Adil: disabling performance events
+	// return -ENOTSUPP;
+
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_INTEL:
 		err = intel_pmu_init();

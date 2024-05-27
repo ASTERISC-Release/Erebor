@@ -46,6 +46,15 @@ enum log_type_t {
     printk("SVA: " args); \
   } else {} }
 
+/* Special panic(..) that also prints the outer kernel's stack */
+static inline void print_insecure_stack(void) {
+  show_stack(current, get_insecure_context_rsp(), KERN_DEFAULT);
+}
+
+#define PANIC(args ...) \
+  print_insecure_stack(); \
+  panic(args)
+
 /* 
  * Description: 
  *   This is a pointer to the PerspicuOS SuperSpace stack, which is used on
@@ -334,7 +343,7 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
      */
     if (isCodePg (newPG)) {
       if ((newVal & (PG_RW | PG_U)) == (PG_RW)) {
-        panic ("SVA: Making kernel code writeable: %lx %lx\n", newVA, newVal);
+        PANIC ("SVA: Making kernel code writeable: %lx %lx\n", newVA, newVal);
       }
     }
 
@@ -1469,9 +1478,13 @@ sva_mmu_init, void) {
   /* Protect the kernel text region */
   extern char _stext[];
   extern char _etext[];
-  printk("_stext: %lx, _etext: %lx\n", _stext, _etext);
+
   /* TODO: Fix this. Initially the kernel code will be writable (for relocations) */
+  // printk("_stext: %lx, _etext: %lx\n", _stext, _etext);
   // init_protected_pages((uintptr_t) _stext, (uintptr_t)_etext, PG_CODE);
+  printk("_stext: %lx, _etext: %lx\n", _text, _etext);
+  init_protected_pages((uintptr_t) PFN_ALIGN(_text), 
+    (uintptr_t) PFN_ALIGN(_etext), PG_CODE);
 
   /* Make all SuperSpace pages read-only */
   extern char _svastart[];
@@ -1487,6 +1500,10 @@ sva_mmu_init, void) {
   
   /* Make existing page table pages read-only */
   // makePTReadOnly();
+
+  /* Testing kernel stack dumping */
+  printk("printing the stack trace .. \n");
+  // dump_stack();
 
   /*
    * Note that the MMU is now initialized.
@@ -1835,7 +1852,6 @@ sva_declare_l5_page, uintptr_t frameAddr) {
   }
   MMULock_Release();
 }
-
 
 /*
  * Function: sva_remove_page()
