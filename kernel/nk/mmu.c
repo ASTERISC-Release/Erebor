@@ -1482,8 +1482,8 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
   extern char _svastart[];
   extern char _svaend[];
   LOG_PRINTK("_svastart: %lx, _svaend: %lx\n", _svastart, _svaend);
-  // init_protected_pages((uintptr_t) PFN_ALIGN(_svastart), (uintptr_t) PFN_ALIGN(_svaend), 
-  //   PG_SVA);
+  init_protected_pages((uintptr_t) PFN_ALIGN(_svastart), (uintptr_t) PFN_ALIGN(_svaend), 
+    PG_SVA);
 
   /* TODO: Protect the SVA-related page table frames */
   
@@ -2186,22 +2186,15 @@ struct sva_secure_poke_t {
   page_entry_t ptetwo;
   pte_t *ptep;
   bool cross_page_boundary;
-  // struct mm* poking_mm;
-  // struct page *pages[2];
-  // pgprot_t pgprot;
 };
 
 SECURE_WRAPPER(void, sva_secure_poke, 
   text_poke_f func, void *addr, const void *src, size_t len,
   struct sva_secure_poke_t* spt) 
 {
-
+  /* Debugging */
   // LOG_PRINTK("sva_secure_poke (%px, %px, %px, %lx, %px)\n",
   //   func, addr, src, len, spt);
-
-  // Print SPT
-  // LOG_PRINTK("  spt (%lx, %lx, %px, %d)\n", spt->pte, 
-  //   spt->ptetwo, spt->ptep, spt->cross_page_boundary);
 
 	// set_pte_at(poking_mm, poking_addr, ptep, pte);
 	// set_pte_at(spt->poking_mm, poking_addr + PAGE_SIZE, spt->ptep + 1, spt->ptetwo);
@@ -2209,7 +2202,6 @@ SECURE_WRAPPER(void, sva_secure_poke,
 	if (spt->cross_page_boundary) {
 		__do_mmu_update(spt->ptep + 1, spt->ptetwo);
 	}
-  // LOG_PRINTK("Mappings added.");
 
 	/*
 	 * Loading the temporary mm behaves as a compiler barrier, which
@@ -2220,8 +2212,6 @@ SECURE_WRAPPER(void, sva_secure_poke,
 	kasan_disable_current();
 	func((u8 *)poking_addr + offset_in_page(addr), src, len);
 	kasan_enable_current();
-
-  // LOG_PRINTK("func executed.");
 
 	/*
 	 * Ensure that the PTE is only cleared after the instructions of memcpy

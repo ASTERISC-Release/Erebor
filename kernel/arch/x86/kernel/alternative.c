@@ -1791,9 +1791,6 @@ struct sva_secure_poke_t {
   page_entry_t ptetwo;
   pte_t *ptep;
   bool cross_page_boundary;
-//   struct mm* poking_mm;
-//   struct page *pages[2];
-//   pgprot_t pgprot;
 };
 extern void sva_secure_poke(text_poke_f func, void *addr, const void *src, size_t len,
   struct sva_secure_poke_t* spt);
@@ -1861,10 +1858,6 @@ static void *__text_poke(text_poke_f func, void *addr, const void *src, size_t l
 	if (cross_page_boundary) {
 		spt.ptetwo = (mk_pte(pages[1], pgprot)).pte;
 	}
-	// printk("sva_secure_poke (%px, %px, %px, %lx, %px)\n",
-    // 	func, addr, src, len, &spt);
-	// printk("  spt (%lx, %lx, %px, %d)\n", spt.pte, 
-    // 	spt.ptetwo, spt.ptep, spt.cross_page_boundary);
 
 	/*
 	 * Loading the temporary mm behaves as a compiler barrier, which
@@ -1888,8 +1881,6 @@ static void *__text_poke(text_poke_f func, void *addr, const void *src, size_t l
 	 * guarantees that the PTE will be set at the time memcpy() is done.
 	 */
 	prev = use_temporary_mm(poking_mm);
-
-	/* ENCOS: we should basically intercept this entire operation in the SM. */
 
 	kasan_disable_current();
 	func((u8 *)poking_addr + offset_in_page(addr), src, len);
