@@ -342,8 +342,7 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
      * for user-space pages or do not permit write access.
      */
     if (isCodePg (newPG)) {
-      // if ((newVal & (PG_RW | PG_U)) == (PG_RW)) {
-      if ((newVal & (PG_RW | PG_U | PG_NX)) == (PG_RW)) {
+      if ((newVal & (PG_RW | PG_U)) == (PG_RW)) {
         PANIC ("SVA: Making kernel code writeable: %lx %lx\n", newVA, newVal);
       }
     }
@@ -2177,3 +2176,6 @@ SECURE_WRAPPER( void, sva_update_l5_mapping, pgd_t * pgd, page_entry_t val) {
   MMULock_Release();
   return;
 }
+
+/* Secure text poking */
+// TODO

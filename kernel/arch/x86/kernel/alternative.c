@@ -1835,6 +1835,7 @@ static void *__text_poke(text_poke_f func, void *addr, const void *src, size_t l
 	local_irq_save(flags);
 
 	pte = mk_pte(pages[0], pgprot);
+
 	set_pte_at(poking_mm, poking_addr, ptep, pte);
 
 	if (cross_page_boundary) {
@@ -1847,6 +1848,8 @@ static void *__text_poke(text_poke_f func, void *addr, const void *src, size_t l
 	 * guarantees that the PTE will be set at the time memcpy() is done.
 	 */
 	prev = use_temporary_mm(poking_mm);
+
+	/* ENCOS: we should basically intercept this entire operation in the SM. */
 
 	kasan_disable_current();
 	func((u8 *)poking_addr + offset_in_page(addr), src, len);
