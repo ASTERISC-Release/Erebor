@@ -794,7 +794,8 @@ phys_addr_t slow_virt_to_phys(void *__virt_addr)
 }
 EXPORT_SYMBOL_GPL(slow_virt_to_phys);
 
-#if !defined(CONFIG_ENCOS) || !defined(CONFIG_ENCOS_MMU)
+
+#if !defined(CONFIG_ENCOS) && !defined(CONFIG_ENCOS_MMU)
 /*
  * Set the new pmd in all the pgds we know about:
  */
@@ -1690,10 +1691,6 @@ repeat:
 	 * and just change the pte:
 	 */
 	do_split = should_split_large_page(kpte, address, cpa);
-
-#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
-	printk ("SVA-Untrusted: Should split large page ==> %d\n", do_split);
-#endif
 
 	/*
 	 * When the range fits into the existing large page,

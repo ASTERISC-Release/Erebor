@@ -71,6 +71,10 @@ static inline void print_insecure_stack(void) {
   printk("-----------------------------------------------"); \
   panic(args)
 
+  // printk("-----------------------------------------------"); \
+  // printk(args); \
+  // printk("-----------------------------------------------");
+
 /* 
  * Description: 
  *   This is a pointer to the PerspicuOS SuperSpace stack, which is used on
@@ -411,8 +415,15 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
           if ((newPG->type >= PG_L1) && (newPG->type <= PG_L5)) {
             retValue = 2;
           } else {
-            PANIC_WRONG_MAPPING ("SVA: MMU: Map bad page type into L1: (VAs: %px, %px, PAs: %px, %px, PTE: %px), %x\n", 
-              origVA, newVA, origPA, newPA, ptePAddr, newPG->type);
+            /* Another compromise? */
+            if (newPG->type >= PG_SVA) {
+              /* Kernel may remap the SVA to 2MB pages. 
+               * TODO: Let's add the read-only bit. */
+              retValue = 2;
+            } else {
+              PANIC_WRONG_MAPPING ("SVA: MMU: Map bad page type into L1: (VAs: %px, %px, PAs: %px, %px, PTE: %px), %x\n", 
+                origVA, newVA, origPA, newPA, ptePAddr, newPG->type);
+            }
           }
         }
 
@@ -433,9 +444,15 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
             if ((newPG->type >= PG_L1) && (newPG->type <= PG_L5)) {
               retValue = 2;
             } else {
-              // PANIC_WRONG_MAPPING ("SVA: MMU: Map bad page type into L2: %x\n", newPG->type);
-              PANIC_WRONG_MAPPING ("SVA: MMU: Map bad page type into L2: (VAs: %px, %px, PAs: %px, %px, PTE: %px), %x\n", 
-              origVA, newVA, origPA, newPA, ptePAddr, newPG->type);
+              /* Another compromise? */
+              if (newPG->type >= PG_SVA) {
+                /* Kernel may remap the SVA to 2MB pages. 
+                 * TODO: Let's add the read-only bit. */
+                retValue = 2;
+              } else {
+                PANIC_WRONG_MAPPING ("SVA: MMU: Map bad page type into L2: (VAs: %px, %px, PAs: %px, %px, PTE: %px), %x\n", 
+                  origVA, newVA, origPA, newPA, ptePAddr, newPG->type);
+              }
             }
           }
         } else {
@@ -731,6 +748,11 @@ __update_mapping (uintptr_t * pageEntryPtr, page_entry_t val) {
       break;
 
     case 2:
+      __do_mmu_update ((page_entry_t *) pageEntryPtr, val);
+      break;
+
+    case 3:
+      val = setMappingReadOnly (val);
       __do_mmu_update ((page_entry_t *) pageEntryPtr, val);
       break;
 
@@ -1497,7 +1519,7 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
   
   /* Protect the SVA pages */
   LOG_PRINTK("_svastart: %lx, _svaend: %lx\n", __pa(_svastart), __pa(_svaend));
-  // init_protected_pages((uintptr_t) _svastart, (uintptr_t) _svaend, PG_SVA);
+  init_protected_pages((uintptr_t) _svastart, (uintptr_t) _svaend, PG_SVA);
 
   /* TODO: Protect the SVA-related page table frames */
   
