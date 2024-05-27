@@ -1352,6 +1352,11 @@ void __init mem_init(void)
 		kclist_add(&kcore_vsyscall, (void *)VSYSCALL_ADDR, PAGE_SIZE, KCORE_USER);
 
 	preallocate_vmalloc_pages();
+
+	/* enclave-cross-arch Call SVA to ensure kernel regions are protected now */
+	#ifdef CONFIG_ENCOS_MMU
+		sva_mmu_init();
+	#endif
 }
 
 #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
@@ -1414,11 +1419,6 @@ void mark_rodata_ro(void)
 				(void *)rodata_end, (void *)_sdata);
 
 	debug_checkwx();
-
-	/* enclave-cross-arch Call SVA to ensure kernel regions are protected now */
-	#ifdef ENCOS_MMU
-		sva_mmu_init();
-	#endif
 }
 
 /*

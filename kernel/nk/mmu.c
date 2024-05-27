@@ -395,7 +395,7 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
           if ((newPG->type >= PG_L1) && (newPG->type <= PG_L5)) {
             retValue = 2;
           } else {
-            panic ("SVA: MMU: Map bad page type into L1: %x\n", newPG->type);
+            PANIC ("SVA: MMU: Map bad page type into L1: %x\n", newPG->type);
           }
         }
 
@@ -416,7 +416,7 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
             if ((newPG->type >= PG_L1) && (newPG->type <= PG_L5)) {
               retValue = 2;
             } else {
-              panic ("SVA: MMU: Map bad page type into L2: %x\n", newPG->type);
+              PANIC ("SVA: MMU: Map bad page type into L2: %x\n", newPG->type);
             }
           }
         } else {
@@ -1159,7 +1159,7 @@ sva_load_msr(u_int msr, uint64_t val) {
  *    modifying them.
  *
  */
-#define DEBUG_INIT 0
+#define DEBUG_INIT 1
 void 
 declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
         numPgEntries, enum page_type_t pageLevel ) 
@@ -1233,7 +1233,6 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
   switch(pageLevel){
 
     case PG_L5:
-
       thisPg->type = PG_L5;       /* Set the page type to L4 */
       thisPg->user = 0;           /* Set the priv flag to kernel */
       ++(thisPg->count);
@@ -1242,7 +1241,6 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
       break;
 
     case PG_L4:
-
       thisPg->type = PG_L4;       /* Set the page type to L4 */
       thisPg->user = 0;           /* Set the priv flag to kernel */
       ++(thisPg->count);
@@ -1251,18 +1249,16 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
       break;
 
     case PG_L3:
-      
       /* TODO: Determine why we want to reassign an L4 to an L3 */
       if (thisPg->type != PG_L4)
         thisPg->type = PG_L3;       /* Set the page type to L3 */
-      thisPg->user = 0;           /* Set the priv flag to kernel */
+      thisPg->user = 0;             /* Set the priv flag to kernel */
       ++(thisPg->count);
       subLevelPgType = PG_L2;
       numSubLevelPgEntries = NPUDEPG; //numPgEntries;
       break;
 
     case PG_L2:
-      
       /* 
        * If my L2 page mapping signifies that this mapping references a 1GB
        * page frame, then get the frame address using the correct page mask
@@ -1309,7 +1305,7 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
         thisPg->user = 0;           /* Set the priv flag to kernel */
         ++(thisPg->count);
         subLevelPgType = PG_TKDATA;
-        numSubLevelPgEntries = NPTEPG;//      numPgEntries;
+        numSubLevelPgEntries = NPTEPG;    // numPgEntries;
       }
       break;
 
@@ -1323,7 +1319,6 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
    * Notice though that we keep the last assignment to the page as the page
    * type information. 
    */
-   // Rahul: Check how this translates to Linux
   if(traversedPTEAlready) {
 #if DEBUG_INIT >= 1
     printk("%sRecursed on already initialized page_desc\n", indent);
@@ -1331,76 +1326,76 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
     return;
   }
 
-// #if DEBUG_INIT >= 1
-//   u_long nNonValPgs=0;
-//   u_long nValPgs=0;
-// #endif
-//   /* 
-//    * Iterate through all the entries of this page, recursively calling the
-//    * walk on all sub entries.
-//    */
-//   for (i = 0; i < numSubLevelPgEntries; i++){
-// #if 0
-//     /*
-//      * Do not process any entries that implement the direct map.  This prevents
-//      * us from marking physical pages in the direct map as kernel data pages.
-//      */
-//     if ((pageLevel == PG_L4) && (i == (0xfffffe0000000000 / 0x1000))) {
-//       continue;
-//     }
-// #endif
-// #if OBSOLETE
-//     //pagePtr += (sizeof(page_entry_t) * i);
-//     //page_entry_t *nextEntry = pagePtr;
-// #endif
-//     page_entry_t * nextEntry = & pagePtr[i];
+#if DEBUG_INIT >= 1
+  u_long nNonValPgs=0;
+  u_long nValPgs=0;
+#endif
+  /* 
+   * Iterate through all the entries of this page, recursively calling the
+   * walk on all sub entries.
+   */
+  for (i = 0; i < numSubLevelPgEntries; i++){
+#if 0
+    /*
+     * Do not process any entries that implement the direct map.  This prevents
+     * us from marking physical pages in the direct map as kernel data pages.
+     */
+    if ((pageLevel == PG_L4) && (i == (0xfffffe0000000000 / 0x1000))) {
+      continue;
+    }
+#endif
+#if OBSOLETE
+    //pagePtr += (sizeof(page_entry_t) * i);
+    //page_entry_t *nextEntry = pagePtr;
+#endif
+    page_entry_t * nextEntry = & pagePtr[i];
 
-// #if DEBUG_INIT >= 5
-//     printk("%sPagePtr in loop: %p, val: 0x%lx\n", indent, nextEntry, *nextEntry);
-// #endif
+#if DEBUG_INIT >= 5
+    printk("%sPagePtr in loop: %p, val: 0x%lx\n", indent, nextEntry, *nextEntry);
+#endif
 
-//     /* 
-//      * If this entry is valid then recurse the page pointed to by this page
-//      * table entry.
-//      */
-//     if (*nextEntry & PG_V) {
-// #if DEBUG_INIT >= 1
-//       nValPgs++;
-// #endif 
+    /* 
+     * If this entry is valid then recurse the page pointed to by this page
+     * table entry.
+     */
+    if (*nextEntry & PG_V) {
+#if DEBUG_INIT >= 1
+      nValPgs++;
+#endif 
 
-//       /* 
-//        * If we hit the level 1 pages we have hit our boundary condition for
-//        * the recursive page table traversals. Now we just mark the leaf page
-//        * descriptors.
-//        */
-//       if (pageLevel == PG_L1){
-// #if DEBUG_INIT >= 2
-//           printk("%sInitializing leaf entry: pteaddr: %p, mapping: 0x%lx\n",
-//                   indent, nextEntry, *nextEntry);
-// #endif
-//       } else {
-// #if DEBUG_INIT >= 2
-//       printk("%sProcessing:pte addr: %p, newPgAddr: %p, mapping: 0x%lx\n",
-//               indent, nextEntry, (*nextEntry & PG_FRAME), *nextEntry ); 
-// #endif
-//           // printk("[Next - %d]: %lx %lx", i, nextEntry, *nextEntry);
-//           declare_ptp_and_walk_pt_entries((uintptr_t)*nextEntry,
-//                   numSubLevelPgEntries, subLevelPgType); 
-//       }
-//     } 
-// #if DEBUG_INIT >= 1
-//     else {
-//       nNonValPgs++;
-//     }
-// #endif
-//   }
+      /* 
+       * If we hit the level 1 pages we have hit our boundary condition for
+       * the recursive page table traversals. Now we just mark the leaf page
+       * descriptors.
+       */
+      if (pageLevel == PG_L1){
+#if DEBUG_INIT >= 2
+          printk("%sInitializing leaf entry: pteaddr: %p, mapping: 0x%lx\n",
+                  indent, nextEntry, *nextEntry);
+#endif
+      } else {
+#if DEBUG_INIT >= 2
+      printk("%sProcessing:pte addr: %p, newPgAddr: %p, mapping: 0x%lx\n",
+              indent, nextEntry, (*nextEntry & PG_FRAME), *nextEntry ); 
+#endif
+          // printk("[Next - %d]: %lx %lx", i, nextEntry, *nextEntry);
+          declare_ptp_and_walk_pt_entries((uintptr_t)*nextEntry,
+                  numSubLevelPgEntries, subLevelPgType); 
+      }
+    } 
+#if DEBUG_INIT >= 1
+    else {
+      nNonValPgs++;
+    }
+#endif
+  }
 
-// #if DEBUG_INIT >= 1
-//   SVA_ASSERT((nNonValPgs + nValPgs) == 512, "Wrong number of entries traversed");
+#if DEBUG_INIT >= 1
+  SVA_ASSERT((nNonValPgs + nValPgs) == 512, "Wrong number of entries traversed");
 
-//   printk("%sThe number of || non valid pages: %lu || valid pages: %lu\n",
-//           indent, nNonValPgs, nValPgs);
-// #endif
+  printk("%sThe number of || non valid pages: %lu || valid pages: %lu\n",
+          indent, nNonValPgs, nValPgs);
+#endif
 
 }
 
@@ -1465,27 +1460,30 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
   init_MMULock();
   MMULock_Acquire();
 
+  /* Hello World! */
+  LOG_PRINTK("Initializing the SECURE memory management unit ..\n");
+
   /* Zero out the page descriptor array */
   memset (page_desc, 0, numPageDescEntries * sizeof(page_desc_t));
 
   /* Walk the kernel page tables and initialize the sva page_desc */
   // declare_ptp_and_walk_pt_entries(__pa(kpgdVA), nkpgde, PG_L5);
   unsigned long kpgdPA = sva_get_current_pgd();
-  declare_ptp_and_walk_pt_entries(kpgdPA, 512, PG_L5);
+  // declare_ptp_and_walk_pt_entries(kpgdPA, 512, PG_L5);
 
   /* Protect the kernel text region */
   extern char _stext[];
   extern char _etext[];
-  printk("_stext: %lx, _etext: %lx\n", _stext, _etext);
+  LOG_PRINTK("_stext: %lx, _etext: %lx\n", _stext, _etext);
   init_protected_pages((uintptr_t) PFN_ALIGN(_stext), (uintptr_t) PFN_ALIGN(_etext), 
     PG_CODE);
   
   /* Protect the SVA pages */
   extern char _svastart[];
   extern char _svaend[];
-  printk("_svastart: %lx, _svaend: %lx\n", _svastart, _svaend);
-  init_protected_pages((uintptr_t) PFN_ALIGN(_svastart), (uintptr_t) PFN_ALIGN(_svaend), 
-    PG_SVA);
+  LOG_PRINTK("_svastart: %lx, _svaend: %lx\n", _svastart, _svaend);
+  // init_protected_pages((uintptr_t) PFN_ALIGN(_svastart), (uintptr_t) PFN_ALIGN(_svaend), 
+  //   PG_SVA);
 
   /* TODO: Protect the SVA-related page table frames */
   
