@@ -55,6 +55,7 @@
 // XXX: Whoever defines this should ensure the region is write-protected!
 extern const uintptr_t SecureStackBase;
 
+extern const uintptr_t SyscallSecureStackBase;
 
 // TODO: Manage stack per-cpu, do lookup here
 // Use only RAX/RCX registers to accomplish this.
@@ -282,7 +283,7 @@ extern const uintptr_t SecureStackBase;
   "movq $0x6e1, %rcx\n"                                                        \
   /* Get current PKRS value */                                                 \
   RD_PKSMSR                                                                    \
-  /* Restrict all access for key 1 */                                          \
+  /* Restrict write access for key 1 */                                        \
   "orq $0x0000000000000008, %rax\n"                                            \
   /* Update the PKRS value */                                                  \
   WR_PKSMSR                                                                    \

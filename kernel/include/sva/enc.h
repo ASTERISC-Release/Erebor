@@ -12,7 +12,7 @@
 
 .extern SM_encos_syscall_enter(struct pt_regs *regs, int nr);
 .extern SM_encos_syscall_return(struct pt_regs *regs, int nr);
-.extern SM_prepares_pt_regs(struct pt_regs *regs, void *os_stack, unsigned int size);
+.extern SM_save_restore_pt_regs(struct pt_regs *regs, void *target_stack, unsigned int size);
 
 .macro SM_ENCOS_SYSCALL_ENTER
 	pushq	%rdi
@@ -80,10 +80,14 @@ typedef struct encos_enclave_entry {
 /* internal */
 extern int current_encid(void);
 
+
+
+extern void SM_setup_pcpu_syscall_stack(void);
+
 /* empty */
 extern void SM_encos_empty(void);
 
-extern void SM_sched_in_userspace(struct pt_regs* regs);
+extern void SM_sched_in_userspace_prepare(struct pt_regs* regs);
 
 extern int SM_encos_enclave_assign(void);
 extern void SM_encos_enclave_claim_memory(unsigned long uva, 

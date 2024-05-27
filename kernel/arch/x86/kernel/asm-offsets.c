@@ -115,6 +115,9 @@ static void __used common(void)
 	OFFSET(TSS_sp1, tss_struct, x86_tss.sp1);
 	OFFSET(TSS_sp2, tss_struct, x86_tss.sp2);
 	OFFSET(X86_top_of_stack, pcpu_hot, top_of_stack);
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_SYSCALL_STACK)
+	OFFSET(X86_top_of_secure_sys_stack, pcpu_hot, top_of_secure_sys_stack);
+#endif
 	OFFSET(X86_current_task, pcpu_hot, current_task);
 #ifdef CONFIG_CALL_DEPTH_TRACKING
 	OFFSET(X86_call_depth, pcpu_hot, call_depth);

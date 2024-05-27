@@ -113,6 +113,7 @@
 
 #if defined(CONFIG_ENCOS)
 #include <sva/pks.h>
+#include <sva/enc.h>
 #endif
 
 static int kernel_init(void *);
@@ -1085,25 +1086,32 @@ void start_kernel(void)
 	native_write_cr4(native_read_cr4());
 	/* Disable write access for key 1 */
 	wrmsrl(0x6e1, 0x8);
-#endif
+#endif	/* CONFIG_ENCOS_PKS */
+
 #ifdef CONFIG_ENCOS_WP
 	/* already instrumented to set 1 << 16 */
 	native_write_cr0(native_read_cr0());
-#endif
+#endif	/* CONFIG_ENCOS_WP */
+
 #ifdef CONFIG_ENCOS_MMU
 	// Initialize the SVA MMU
 	sva_mmu_init();
-#endif
+#endif	/* CONFIG_ENCOS_MMU */
+
 	// Test that the secure call works
 	uintptr_t sp;
     asm volatile ("movq %%rsp, %0\n\t": "=r" (sp) :: "memory");
 	printk(KERN_INFO "NORM_stack pointer: %lx\n", sp);
 	sva_mmu_test();
-#endif
+	/* Chuqi:
+	 * For per-cpu variable initialization, we need to do it 
+	 * within kernel_init_freeable(), after smp_init() is done.
+	 * Check the comments inside `kernel_init_freeable`.
+	 */
+#endif	/* CONFIG_ENCOS */
 
 	/* Do the rest non-__init'ed, we're now alive */
 	arch_call_rest_init();
-
 	/*
 	 * Avoid stack canaries in callers of boot_init_stack_canary for gcc-10
 	 * and older.
@@ -1575,6 +1583,14 @@ static noinline void __init kernel_init_freeable(void)
 	lockup_detector_init();
 
 	smp_init();
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_SYSCALL_STACK)
+	/* 
+	 * per-cpu setup should be called after smp_init().
+	 * Ensure `smpboot:` is finished and all (v)CPUs are
+	 * activated and brought online.
+	 */
+	SM_setup_pcpu_syscall_stack();
+#endif	/* CONFIG_ENCOS_SYSCALL_STACK */
 	sched_init_smp();
 
 	workqueue_init_topology();

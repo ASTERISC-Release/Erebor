@@ -46,8 +46,8 @@ const uintptr_t SecureStackBase = (uintptr_t) SecureStack + 4096;
 /*
  * Chuqi: TODO: protect its memory
  */
-char SyscallSecureStack[4096*NCPU] __attribute__((aligned(0x1000)));
-
+// char SyscallSecureStack[4096*NCPU] __attribute__((aligned(0x1000)));
+char SyscallSecureStack[4096*NCPU] SVAMEM;
 const uintptr_t SyscallSecureStackBase = (uintptr_t) SyscallSecureStack + 4096;
 
 
@@ -1412,7 +1412,7 @@ init_protected_pages (uintptr_t startVA, uintptr_t endVA) {
       set_page_protection(page, /*should_protect=*/1);
 
       // Flush the TLB for this virtual address
-      // sva_mm_flush_tlb(page);
+      sva_mm_flush_tlb(page);
   }
 }
 
@@ -1582,8 +1582,8 @@ sva_declare_l1_page, uintptr_t frameAddr) {
  */
 SECURE_WRAPPER(void, 
 sva_declare_l2_page, uintptr_t frameAddr) {
-  printk("ENCOS-Internal: Declaring L2 page internally. (frameaddr = %px)\n", 
-    (void*) frameAddr);
+  // printk("ENCOS-Internal: Declaring L2 page internally. (frameaddr = %px)\n", 
+    // (void*) frameAddr);
   MMULock_Acquire();
   // printk("ENCOS-Internal: Lock acquired"); 
 
@@ -1621,7 +1621,7 @@ sva_declare_l2_page, uintptr_t frameAddr) {
      */
     pgDesc->pgVaddr = 0;
 
-    printk("ENCOS-Internal: Setting page to L2.\n");
+    // printk("ENCOS-Internal: Setting page to L2.\n");
 
     /* 
      * Initialize the page data and page entry. Note that we pass a general
@@ -1654,8 +1654,8 @@ SECURE_WRAPPER(void,
 sva_declare_l3_page, uintptr_t frameAddr) {
   MMULock_Acquire();
 
-  printk("ENCOS-Internal: Declaring L3 page internally. (frameaddr = %px)\n", 
-    (void*) frameAddr);  
+  // printk("ENCOS-Internal: Declaring L3 page internally. (frameaddr = %px)\n", 
+  //   (void*) frameAddr);  
 
   /* Get the page_desc for the newly declared l4 page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);
@@ -1718,8 +1718,8 @@ SECURE_WRAPPER(void,
 sva_declare_l4_page, uintptr_t frameAddr) {
   MMULock_Acquire();
 
-  printk("ENCOS-Internal: Declaring L4 page internally. (frameaddr = %px)\n", 
-    (void*) frameAddr);
+  // printk("ENCOS-Internal: Declaring L4 page internally. (frameaddr = %px)\n", 
+  //   (void*) frameAddr);
 
   /* Get the page_desc for the newly declared l4 page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);
@@ -1786,8 +1786,8 @@ SECURE_WRAPPER(void,
 sva_declare_l5_page, uintptr_t frameAddr) {
   MMULock_Acquire();
 
-  printk("ENCOS-Internal: Declaring L5 page internally. (frameaddr = %px)\n", 
-    (void*) frameAddr);  
+  // printk("ENCOS-Internal: Declaring L5 page internally. (frameaddr = %px)\n", 
+  //   (void*) frameAddr);  
 
   /* Get the page_desc for the newly declared l4 page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);

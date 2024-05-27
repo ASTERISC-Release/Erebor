@@ -21,6 +21,9 @@ struct pcpu_hot {
 			u64			call_depth;
 #endif
 			unsigned long		top_of_stack;
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_SYSCALL_STACK)
+			unsigned long		top_of_secure_sys_stack;
+#endif
 			void			*hardirq_stack_ptr;
 			u16			softirq_pending;
 #ifdef CONFIG_X86_64

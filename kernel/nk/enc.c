@@ -15,6 +15,9 @@
 #include <asm/msr-index.h>
 #include <asm/unistd.h>
 
+#include <linux/smp.h>      /* smp_processor_id() */
+#include <asm/current.h>    /* pcpu_hot */
+
 #ifndef PAGE_SIZE
 #define PAGE_SIZE   4096
 #endif
@@ -47,42 +50,87 @@ int current_encid(void) {
     return entry->enc_id;
 }
 
-/* Chuqi: Just an optimization. Ignore now.
+/* Chuqi:
  * Enclave user to kernel (u2k) interface.
  * It should use an interposed syscall handler
  */
-// static void prepare_u2k_interface(int is_enclave)
-// {  
-//     /* enclave */
-//     if (is_enclave) {
-//         _wrmsr(MSR_LSTAR, (unsigned long)SM_entry_SYSCALL_64);
-//     }
-//     /* normal */
-//     else {
-//         _wrmsr(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
-//     }
-// }
+static void prepare_u2k_interface(int is_enclave)
+{  
+    /* enclave */
+    if (is_enclave) {
+        _wrmsr(MSR_LSTAR, (unsigned long)entry_SYSCALL_64_enclave);
+    }
+    /* normal */
+    else {
+        _wrmsr(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
+    }
+}
+
+/* ==============================================================
+ * PCPU stuff
+ * ============================================================== */
+#define SYS_STACK_SIZE  (0x1000)
+
+static void __this_pcpu_setup_syscall_stack(void *junk)
+{
+    unsigned long sys_stack_top;
+    int cpu_id = smp_processor_id();
+
+    sys_stack_top = (unsigned long)(SyscallSecureStackBase +
+                                        SYS_STACK_SIZE * cpu_id);
+    this_cpu_write(pcpu_hot.top_of_secure_sys_stack, sys_stack_top);
+    /* Chuqi: remove debug */
+    log_info("SyscallSecureStack setup for cpu=%d. top=0x%lx.\n", 
+                cpu_id, sys_stack_top);
+    return;
+}
+
+SECURE_WRAPPER(void,
+SM_setup_pcpu_syscall_stack, void)
+{
+    int cpu;
+    for_each_online_cpu(cpu) {
+        printk(KERN_INFO "CPU %d is online\n", cpu);
+    }
+
+    on_each_cpu(__this_pcpu_setup_syscall_stack, 
+                /*info=*/NULL, /*wait=*/1);
+    return;
+}
+
+/* This should be called after switching to the secure syscall stack */
+SECURE_WRAPPER(void,
+SM_validate_syscall_stack, unsigned long sys_rsp)
+{
+    unsigned long sys_stack_top;
+    int cpu_id = smp_processor_id();
+
+    sys_stack_top = (unsigned long)(SyscallSecureStackBase +
+                                        SYS_STACK_SIZE * cpu_id);
+    /* Chuqi: remove debug */
+    SVA_ASSERT(sys_rsp == sys_stack_top, "Secure syscall stack validation failed.\n");
+    return;
+}
 
 /*
  * SM controls the kernel to user path (e.g., exception returns).
  * Whenever switching into an activate enclave, SM should
- * 1) restore the enclave context (e.g., pt_regs)
- * 2) prepare the enclave u2k interface (e.g., syscall handler)
+ * 1) prepare the enclave u2k interface (e.g., syscall handler)
  */
 SECURE_WRAPPER(void, 
-SM_sched_in_userspace, struct pt_regs* regs)
+SM_sched_in_userspace_prepare, struct pt_regs* regs)
 {
-    // encos_enclave_entry_t *entry = current_enclave_entry();
-    // if (entry->activate) {
-    //     prepare_u2k_interface(/*is_enclave=*/1);
-    // }
-    // /* normal process */
-    // else {
-    //     prepare_u2k_interface(/*is_enclave=*/0);
-    // }
+    encos_enclave_entry_t *entry = current_enclave_entry();
+    if (entry->activate) {
+        prepare_u2k_interface(/*is_enclave=*/1);
+    }
+    /* normal process */
+    else {
+        prepare_u2k_interface(/*is_enclave=*/0);
+    }
     return;
 }
-EXPORT_SYMBOL(SM_sched_in_userspace);
+EXPORT_SYMBOL(SM_sched_in_userspace_prepare);
 
 /* empty security monitor call */
 SECURE_WRAPPER(void, 
@@ -307,17 +355,18 @@ void *rdi, void *rsi, void *rdx)
     return;
 }
 
-SECURE_WRAPPER(void, SM_prepares_pt_regs,
+SECURE_WRAPPER(void, SM_save_restore_pt_regs,
 struct pt_regs *regs,
-void *os_stack,
+void *target_stack,
 unsigned int size)
 {
-    printk("hello. pt_regs=0x%lx. orig_ax=0x%lx, copy_to os_stack=0x%lx, cpy_size=%u.\n", 
+    /* TODO: we don't obfuscate anything right now */
+    printk("[pid=%d] pt_regs=0x%lx. orig_ax=0x%lx, copy_to_stack=0x%lx, cpy_size=%u.\n", 
+                current->pid,
                 (unsigned long)regs, regs->orig_ax, 
-                (unsigned long)os_stack, (unsigned int)sizeof(struct pt_regs));
-    /* Chuqi todo: mask sensitive information */
-    memcpy(os_stack, regs, sizeof(struct pt_regs));
-    log_info("done.\n");
+                (unsigned long)target_stack, (unsigned int)sizeof(struct pt_regs));
+    /* Chuqi todo: mask and restore sensitive information */
+    memcpy(target_stack, regs, sizeof(struct pt_regs));
     return;
 }
 

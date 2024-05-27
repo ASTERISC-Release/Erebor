@@ -201,8 +201,10 @@ SVA_NOOP_ASSERT (int res, char * str) {
  */
 static inline void
 SVA_ASSERT (unsigned char passed, char * str) {
-  if (!passed)
-    // panic ("%s", str);
+  if (!passed) {
+  //  printk("SVA_ASSERT FAILED. %s.\n", str);
+   // panic ("%s", str); 
+  }
   return;
 }
 

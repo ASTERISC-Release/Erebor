@@ -91,9 +91,7 @@ __visible noinstr void do_syscall_64(struct pt_regs *regs, int nr)
 	nr = syscall_enter_from_user_mode(regs, nr);
 
 	instrumentation_begin();
-	// debug
-	printk("do_syscall_64: reg.origax=0x%lx, rdi=0x%lx, rsi=0x%lx, nr=%d\n", 
-		regs->orig_ax, regs->di, regs->si, nr);
+
 	if (!do_syscall_x64(regs, nr) && !do_syscall_x32(regs, nr) && nr != -1) {
 		/* Invalid system call, but still a system call. */
 		regs->ax = __x64_sys_ni_syscall(regs);

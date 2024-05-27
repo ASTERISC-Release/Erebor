@@ -102,39 +102,6 @@ SYM_CODE_START(entry_SYSCALL_64)
 	SWITCH_TO_KERNEL_CR3 scratch_reg=%rsp
 	movq	PER_CPU_VAR(pcpu_hot + X86_top_of_stack), %rsp
 
-#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_SYSCALL_STACK)
-	/* Chuqi:
-	 * Request SM to disable the protection key of the syscall stack
-	 */
-	
-	/* Chuqi: 
-	 * Now we are able to switch to the secure syscall stack
-	 */
-	/* save the scratch registers */
-	movq 	%rax, -8(%rsp)
-	movq	%rdx, -16(%rsp)
-	movq	%rcx, -24(%rsp)
-  	/* Get the processor ID */
-	rdtscp
-  	/* Find the secure stack offset for the processor ID */
-	andq	$0xFFF, %rcx
-	movq	%rcx, %rax
-	movq	$4096, %rcx
-	mulq	%rcx
-	addq 	SyscallSecureStackBase, %rax
-	/* Store the original rsp */
-	movq	%rsp, %rcx
-	/* Switch to the syscall secure stack */
-	movq	%rax, %rsp
-	/* Restore the spilled registers */
-	movq	-8(%rcx), %rax
-	movq	-16(%rcx), %rdx
-	movq	-24(%rcx), %rcx
-	
-	/* Now user pt_regs will be saved to the secure syscall stack */
-	/* Now GPRs will be saved to the secure syscall stack */
-#endif
-
 SYM_INNER_LABEL(entry_SYSCALL_64_safe_stack, SYM_L_GLOBAL)
 	ANNOTATE_NOENDBR
 
@@ -158,54 +125,28 @@ SYM_INNER_LABEL(entry_SYSCALL_64_after_hwframe, SYM_L_GLOBAL)
 	IBRS_ENTER
 	UNTRAIN_RET
 
-//#ifdef CONFIG_ENCOS
-//	SM_ENCOS_SYSCALL_ENTER
-//#endif
-
-#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_SYSCALL_STACK)
-	pushq	%rdi 
-	pushq	%rsi
-	pushq	%rdx
-	pushq	%rcx
-	pushq	%r8
-	pushq	%r9
-	pushq	%r10
-	pushq	%rax
-	
-	/* now construct the following parameters: */
-	/* rdi= *pt_regs (top of the syscall secure stack) */
-	/* rsi= orig-stack - (size) */
-	/* rdx= junk */
-	movq	PER_CPU_VAR(pcpu_hot + X86_top_of_stack), %rsi
-	subq	$PTREGS_SIZE, %rsi
-	
-	/* SM call to mask and copy pt_regs */
-	call	SM_prepares_pt_regs
-	
-	popq	%rax
-	popq	%r10
-	popq	%r9
-	popq	%r8
-	popq	%rcx
-	popq	%rdx
-	popq	%rsi
-	popq	%rdi
-	
-	/* switch back to the normal OS's stack */
-	movq	PER_CPU_VAR(pcpu_hot + X86_top_of_stack), %rsp
-	subq	$PTREGS_SIZE, %rsp
-	/* reset rdi */
-	movq	%rsp, %rdi
-
-	/* Chuqi todo:
-	 * enforce (PKS) protection on the syscall secure stack 
-	 */
-#endif
 	call	do_syscall_64		/* returns with IRQs disabled */
 
-//#ifdef CONFIG_ENCOS
-//	SM_ENCOS_SYSCALL_RETURN
-//#endif
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_SYSCALL_STACK)
+	/*
+	 * Chuqi: to unify the implementation. We also give the secure stack
+	 * permission at the normal syscall exit gate.
+	 */
+	/* give back the write access permission to the secure stack */
+	movq	%rax, -8(%rsp)
+	movq	%rdx, -16(%rsp)
+	movq	%rcx, -24(%rsp)
+#ifdef CONFIG_ENCOS_PKS
+	movq	$0x6e1, %rcx
+	rdmsr
+	andq	$0xFFFFFFFFFFFFFFF7, %rax  /* allow write access to Key 1 */
+	wrmsr
+#endif	/* CONFIG_ENCOS_PKS */
+	movq	-8(%rsp), %rax
+	movq	-16(%rsp), %rdx
+	movq	-24(%rsp), %rcx
+	/* return to the user */
+#endif	/* CONFIG_ENCOS && CONFIG_ENCOS_SYSCALL_STACK */
 
 	/*
 	 * Try to use SYSRET instead of IRET if we're returning to
@@ -316,6 +257,265 @@ SYM_INNER_LABEL(entry_SYSRETQ_end, SYM_L_GLOBAL)
 	ANNOTATE_NOENDBR
 	int3
 SYM_CODE_END(entry_SYSCALL_64)
+
+
+/* 
+ * Secure system call gate for the enclave programs
+ * entry_SYSCALL_64_enclave workflow:
+ * <entry gate (on the secure syscall stack)>: 
+ *  0. switch to secure syscall stack; and push pt_regs
+ *  1. copy pt_regs to the OS stack 
+ *  2. revoke PKS key=1's permission
+ *  3. switch to the OS stack
+ *
+ * <do_syscall (on the OS stack)>: 
+ *  4. performs syscall
+ *
+ * <exit gate (on the secure syscall stack)>: 
+ *  5. copy back pt_regs (on OS stack) to the secure stack  
+ *     and give PKS key=1's permission
+ *  
+ *  6. switch to the secure stack
+ *  7. return to the user
+ */
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_SYSCALL_STACK)
+
+/* Chuqi: 
+ * Please note that `entry_SYSCALL_64_enclave` is a secure code page,
+ * and we use the secure syscall stack during this code page.
+ */
+SYM_CODE_START(entry_SYSCALL_64_enclave)
+	UNWIND_HINT_ENTRY
+	ENDBR
+
+	swapgs
+	/* tss.sp2 is scratch space. */
+	/* Chuqi:
+	 * It's fine to preserve user stack's %rsp into tss.sp2,
+	 * because the user stack is protected.
+	 */
+	movq	%rsp, PER_CPU_VAR(cpu_tss_rw + TSS_sp2)
+	SWITCH_TO_KERNEL_CR3 scratch_reg=%rsp
+	
+	/* 0. switch to the secure syscall stack */
+	movq	PER_CPU_VAR(pcpu_hot + X86_top_of_secure_sys_stack), %rsp
+	
+	/* validate the secure syscall stack */
+	pushq	%rdi
+	movq	%rsp, %rdi
+	call	SM_validate_syscall_stack
+	popq	%rdi
+
+SYM_INNER_LABEL(entry_SYSCALL_64_safe_stack_enclave, SYM_L_GLOBAL)
+	ANNOTATE_NOENDBR
+
+	/* Construct struct pt_regs on stack */
+	pushq	$__USER_DS				/* pt_regs->ss */
+	pushq	PER_CPU_VAR(cpu_tss_rw + TSS_sp2)	/* pt_regs->sp */
+	pushq	%r11					/* pt_regs->flags */
+	pushq	$__USER_CS				/* pt_regs->cs */
+	pushq	%rcx					/* pt_regs->ip */
+SYM_INNER_LABEL(entry_SYSCALL_64_after_hwframe_enclave, SYM_L_GLOBAL)
+	pushq	%rax					/* pt_regs->orig_ax */
+
+	PUSH_AND_CLEAR_REGS rax=$-ENOSYS
+
+	/* IRQs are off. */
+	movq	%rsp, %rdi
+	/* Sign extend the lower 32bit as syscall numbers are treated as int */
+	movslq	%eax, %rsi
+
+	/* clobbers %rax, make sure it is after saving the syscall nr */
+	IBRS_ENTER
+	UNTRAIN_RET
+
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_SYSCALL_STACK)
+	/* at here, %rdi now is the top of the syscall secure stack 
+	 * we then construct the following parameters:
+	 * 
+	 * %rdi = *pt_regs (top of the syscall secure stack) (remains the same)
+	 * %rsi = original_syscall_stack_top - (sizeof(pt_regs)).
+	 *
+	 * i.e., we allocate the same pt_regs to the origin stack
+	 */
+	movq	%rdi, %r12	/* save to callee-preserved regs */
+	movq	%rsi, %r13
+	
+	/* now construct the following parameters: */
+	/* rdi= *pt_regs (top of the syscall secure stack) */
+	/* rsi= orig-stack - (size) */
+	/* rdx= junk */
+	movq	PER_CPU_VAR(pcpu_hot + X86_top_of_stack), %rsi
+	subq	$PTREGS_SIZE, %rsi
+	
+	/* 1. SM call to mask and copy pt_regs */
+	/* Chuqi: NOTE:
+	 * 2. After ths SMC (security monitor call), the syscall secure stack
+	 * will be no longer accessible to the OS, given that the exit gate
+	 * will enforce the protection regions (e.g, restrict PKS key permission).
+	 */
+	call	SM_save_restore_pt_regs
+	/* ===============================================================
+	 * Syscall secure stack is protected by the exit gate now.
+	 * =============================================================== */
+
+	movq	%r12, %rdi	/* restore rdi */
+	movq	%r13, %rsi	/* restore rsi */
+	
+	/* 3. switch back to the normal OS's stack */
+	movq	PER_CPU_VAR(pcpu_hot + X86_top_of_stack), %rsp
+	subq	$PTREGS_SIZE, %rsp
+	/* reset rdi */
+	movq	%rsp, %rdi
+	/* 4. perform syscall based on the OS stack */
+#endif
+	call	do_syscall_64		/* returns with IRQs disabled */
+
+	/* 5. SM call to copy pt_regs back to the secure stack */
+	movq	%rdi, %r12	/* save to callee-preserved regs */
+	movq	%rsi, %r13
+
+	movq	%rsp, %rdi /* pt_regs are at the top of the OS stack */
+	movq	PER_CPU_VAR(pcpu_hot + X86_top_of_secure_sys_stack), %rsi
+	subq	$PTREGS_SIZE, %rsi
+
+	call	SM_save_restore_pt_regs
+
+	movq	%r12, %rdi	/* restore from callee-preserved regs */
+	movq	%r13, %rsi
+
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_SYSCALL_STACK)
+	/* 5. give back the write access permission to the secure stack */
+	movq	%rax, -8(%rsp)
+	movq	%rdx, -16(%rsp)
+	movq	%rcx, -24(%rsp)
+#ifdef CONFIG_ENCOS_PKS
+	movq	$0x6e1, %rcx
+	rdmsr
+	andq	$0xFFFFFFFFFFFFFFF7, %rax  /* allow write access to Key 1 */
+	wrmsr
+#endif	/* CONFIG_ENCOS_PKS */
+	movq	-8(%rsp), %rax
+	movq	-16(%rsp), %rdx
+	movq	-24(%rsp), %rcx
+	
+	/* 6. switch the OS stack to hte syscall secure stack */
+	movq	PER_CPU_VAR(pcpu_hot + X86_top_of_secure_sys_stack), %rsp
+	subq	$PTREGS_SIZE, %rsp
+
+	/* 7. return to the user */
+#endif	/* CONFIG_ENCOS && CONFIG_ENCOS_SYSCALL_STACK */
+	/*
+	 * Try to use SYSRET instead of IRET if we're returning to
+	 * a completely clean 64-bit userspace context.  If we're not,
+	 * go to the slow exit path.
+	 * In the Xen PV case we must use iret anyway.
+	 */
+
+	ALTERNATIVE "", "jmp	swapgs_restore_regs_and_return_to_usermode", \
+		X86_FEATURE_XENPV
+
+	movq	RCX(%rsp), %rcx
+	movq	RIP(%rsp), %r11
+
+	cmpq	%rcx, %r11	/* SYSRET requires RCX == RIP */
+	jne	swapgs_restore_regs_and_return_to_usermode
+
+	/*
+	 * On Intel CPUs, SYSRET with non-canonical RCX/RIP will #GP
+	 * in kernel space.  This essentially lets the user take over
+	 * the kernel, since userspace controls RSP.
+	 *
+	 * If width of "canonical tail" ever becomes variable, this will need
+	 * to be updated to remain correct on both old and new CPUs.
+	 *
+	 * Change top bits to match most significant bit (47th or 56th bit
+	 * depending on paging mode) in the address.
+	 */
+#ifdef CONFIG_X86_5LEVEL
+	ALTERNATIVE "shl $(64 - 48), %rcx; sar $(64 - 48), %rcx", \
+		"shl $(64 - 57), %rcx; sar $(64 - 57), %rcx", X86_FEATURE_LA57
+#else
+	shl	$(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
+	sar	$(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
+#endif
+
+	/* If this changed %rcx, it was not canonical */
+	cmpq	%rcx, %r11
+	jne	swapgs_restore_regs_and_return_to_usermode
+
+	cmpq	$__USER_CS, CS(%rsp)		/* CS must match SYSRET */
+	jne	swapgs_restore_regs_and_return_to_usermode
+
+	movq	R11(%rsp), %r11
+	cmpq	%r11, EFLAGS(%rsp)		/* R11 == RFLAGS */
+	jne	swapgs_restore_regs_and_return_to_usermode
+
+	/*
+	 * SYSCALL clears RF when it saves RFLAGS in R11 and SYSRET cannot
+	 * restore RF properly. If the slowpath sets it for whatever reason, we
+	 * need to restore it correctly.
+	 *
+	 * SYSRET can restore TF, but unlike IRET, restoring TF results in a
+	 * trap from userspace immediately after SYSRET.  This would cause an
+	 * infinite loop whenever #DB happens with register state that satisfies
+	 * the opportunistic SYSRET conditions.  For example, single-stepping
+	 * this user code:
+	 *
+	 *           movq	$stuck_here, %rcx
+	 *           pushfq
+	 *           popq %r11
+	 *   stuck_here:
+	 *
+	 * would never get past 'stuck_here'.
+	 */
+	testq	$(X86_EFLAGS_RF|X86_EFLAGS_TF), %r11
+	jnz	swapgs_restore_regs_and_return_to_usermode
+
+	/* nothing to check for RSP */
+
+	cmpq	$__USER_DS, SS(%rsp)		/* SS must match SYSRET */
+	jne	swapgs_restore_regs_and_return_to_usermode
+
+	/*
+	 * We win! This label is here just for ease of understanding
+	 * perf profiles. Nothing jumps here.
+	 */
+syscall_return_via_sysret_enclave:
+	IBRS_EXIT
+	POP_REGS pop_rdi=0
+
+	/*
+	 * Now all regs are restored except RSP and RDI.
+	 * Save old stack pointer and switch to trampoline stack.
+	 */
+	movq	%rsp, %rdi
+	movq	PER_CPU_VAR(cpu_tss_rw + TSS_sp0), %rsp
+	UNWIND_HINT_END_OF_STACK
+
+	pushq	RSP-RDI(%rdi)	/* RSP */
+	pushq	(%rdi)		/* RDI */
+
+	/*
+	 * We are on the trampoline stack.  All regs except RDI are live.
+	 * We can do future final exit work right here.
+	 */
+	STACKLEAK_ERASE_NOCLOBBER
+
+	SWITCH_TO_USER_CR3_STACK scratch_reg=%rdi
+
+	popq	%rdi
+	popq	%rsp
+SYM_INNER_LABEL(entry_SYSRETQ_unsafe_stack_enclave, SYM_L_GLOBAL)
+	ANNOTATE_NOENDBR
+	swapgs
+	sysretq
+SYM_INNER_LABEL(entry_SYSRETQ_end_enclave, SYM_L_GLOBAL)
+	ANNOTATE_NOENDBR
+	int3
+SYM_CODE_END(entry_SYSCALL_64_enclave)
+
+#endif /* CONFIG_ENCOS && CONFIG_ENCOS_SYSCALL_STACK */
 
 /*
  * %rdi: prev task
@@ -709,6 +909,29 @@ __irqentry_text_end:
 SYM_CODE_START_LOCAL(common_interrupt_return)
 SYM_INNER_LABEL(swapgs_restore_regs_and_return_to_usermode, SYM_L_GLOBAL)
 	IBRS_EXIT
+
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_SYSCALL_STACK)
+	/* 
+	 * Chuqi: 
+	 * Here at all interrupt exit gates to the user, we give the secure 
+	 * syscall stack permission
+	 */
+	/* give back the write access permission to the secure stack */
+	movq	%rax, -8(%rsp)
+	movq	%rdx, -16(%rsp)
+	movq	%rcx, -24(%rsp)
+#ifdef CONFIG_ENCOS_PKS
+	movq	$0x6e1, %rcx
+	rdmsr
+	andq	$0xFFFFFFFFFFFFFFF7, %rax  /* allow write access to Key 1 */
+	wrmsr
+#endif	/* CONFIG_ENCOS_PKS */
+	movq	-8(%rsp), %rax
+	movq	-16(%rsp), %rdx
+	movq	-24(%rsp), %rcx
+	/* return to the user */
+#endif	/* CONFIG_ENCOS && CONFIG_ENCOS_SYSCALL_STACK */
+
 #ifdef CONFIG_DEBUG_ENTRY
 	/* Assert that pt_regs indicates user mode. */
 	testb	$3, CS(%rsp)

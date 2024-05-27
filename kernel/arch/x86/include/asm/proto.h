@@ -12,9 +12,9 @@ void syscall_init(void);
 
 #ifdef CONFIG_X86_64
 void entry_SYSCALL_64(void);
-// #ifdef CONFIG_ENCOS
-// void SM_entry_SYSCALL_64(void);
-// #endif
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_SYSCALL_STACK)
+void entry_SYSCALL_64_enclave(void);
+#endif
 void entry_SYSCALL_64_safe_stack(void);
 void entry_SYSRETQ_unsafe_stack(void);
 void entry_SYSRETQ_end(void);

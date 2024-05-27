@@ -200,8 +200,8 @@ static void exit_to_user_mode_prepare(struct pt_regs *regs)
 
 	lockdep_assert_irqs_disabled();
 
-#ifdef CONFIG_ENCOS
-	SM_sched_in_userspace(regs);
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_SYSCALL_STACK)
+	SM_sched_in_userspace_prepare(regs);
 #endif
 
 	/* Flush pending rcuog wakeup before the last need_resched() check */
