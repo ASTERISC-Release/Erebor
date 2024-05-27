@@ -1200,7 +1200,8 @@ sva_load_msr(u_int msr, uint64_t val) {
  *    modifying them.
  *
  */
-#define DEBUG_INIT 1
+// #define DEBUG_INIT 1
+#define DEBUG_INIT 0
 
 void 
 declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
@@ -1217,7 +1218,7 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
   unsigned int cbit_mask  = ~(1 << 51);
 
   /* Store the pte value for the page being traversed */
-  pageMapping = (pageEntryPA & PG_FRAME) & nx_mask;
+  pageMapping = ((pageEntryPA & PG_FRAME) & nx_mask) & cbit_mask;
   if (pageMapping > memSize) {
     LOG_PRINTK("Returning (mapping ==> %px, entries ==> %lx\n)", 
       pageMapping, numPageDescEntries);

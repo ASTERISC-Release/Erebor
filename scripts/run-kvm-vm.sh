@@ -21,7 +21,7 @@ stty intr ^]
 
 # memory (32GB)
 #VMMEM=24576M
-VMMEM=1024M
+VMMEM=4096M
 
 # debug
 GDB=""
@@ -33,7 +33,7 @@ fi
 # launch the QEMU VM
 # the 'max' version of the emulation provides all 
 # CPU features (including our needed PKS)
-sudo qemu-system-x86_64 -enable-kvm -cpu host,-pdpe1gb -smp 8,maxcpus=8\
+sudo qemu-system-x86_64 -enable-kvm -cpu host -smp 8,maxcpus=8\
     $GDB\
     -m $VMMEM -no-reboot -netdev user,id=vmnic,hostfwd=tcp::8001-:22\
     -device e1000,netdev=vmnic,romfile= -drive file=$VMDISK,if=none,id=disk0,format=qcow2\
