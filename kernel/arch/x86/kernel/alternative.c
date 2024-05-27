@@ -1320,6 +1320,14 @@ void __init_or_module alternatives_smp_module_add(struct module *mod,
 	if (!uniproc_patched)
 		goto unlock;
 
+	/* ENCOS */
+#ifdef CONFIG_ENCOS_MMU
+	printk("SVA-Untrusted: adding a kernel module .. \n");
+	printk("locks %px -> %px, text %px -> %px, name %s\n",
+		locks, locks_end,
+		text, text_end, name);
+#endif
+
 	if (num_possible_cpus() == 1)
 		/* Don't bother remembering, we'll never have to undo it. */
 		goto smp_unlock;
