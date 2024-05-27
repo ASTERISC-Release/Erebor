@@ -48,6 +48,7 @@ const uintptr_t SecureStackBase = (uintptr_t) SecureStack + 4096;
  */
 // char SyscallSecureStack[4096*NCPU] __attribute__((aligned(0x1000)));
 char SyscallSecureStack[4096*NCPU] SVAMEM;
+
 const uintptr_t SyscallSecureStackBase = (uintptr_t) SyscallSecureStack + 4096;
 
 

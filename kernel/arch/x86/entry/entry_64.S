@@ -300,7 +300,11 @@ SYM_CODE_START(entry_SYSCALL_64_enclave)
 	/* 0. switch to the secure syscall stack */
 	movq	PER_CPU_VAR(pcpu_hot + X86_top_of_secure_sys_stack), %rsp
 	
-	/* validate the secure syscall stack */
+	/* Chuqi:
+	 * here we don't trust the pcpu_hot varible which is controlled by 
+	 * the OS, so we need to validate the secure syscall stack by asking
+	 * the security monitor.
+	 */
 	pushq	%rdi
 	movq	%rsp, %rdi
 	call	SM_validate_syscall_stack
