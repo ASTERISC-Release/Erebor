@@ -804,7 +804,11 @@ get_pgeVaddr (uintptr_t vaddr, int *is_l1) {
   if (pgd->pgd & PG_V) {
     p4d_t *p4d = get_p4dVaddr(pgd, vaddr);
 
+  #if defined(CONFIG_X86_5LEVEL)
     if(p4d->p4d & PG_V) {
+  #else
+    if ((p4d->pgd.pgd & PG_V) > 0) {
+  #endif
       /* Get the VA of the pdpte for this vaddr */
       pud_t *pud = get_pudVaddr (p4d, vaddr);
 
@@ -862,7 +866,11 @@ get_p4dVaddr (pgd_t * pgd, uintptr_t vaddr) {
 
 pud_t *
 get_pudVaddr (p4d_t * p4d, uintptr_t vaddr) {
-  uintptr_t base   = (uintptr_t)(p4d->p4d) & addrmask;
+  #if defined(CONFIG_X86_5LEVEL)
+    uintptr_t base   = (uintptr_t) (p4d->p4d) & addrmask;
+  #else
+    uintptr_t base   = (uintptr_t) (p4d->pgd.pgd) & addrmask;
+  #endif
   uintptr_t offset = (vaddr >> (30 - 3)) & vmask;
   return (pud_t *) getVirtual (base | offset);
 }
@@ -901,7 +909,11 @@ get_p4dPaddr (pgd_t * pgd, uintptr_t vaddr) {
 static  uintptr_t
 get_pudPaddr (p4d_t * p4d, uintptr_t vaddr) {
   uintptr_t offset = ((vaddr  >> 30) << 3) & vmask;
+#if defined (CONFIG_X86_5LEVEL)
   return (((uintptr_t)p4d->p4d & 0x000ffffffffff000u) | offset);
+#else
+  return (((uintptr_t)p4d->pgd.pgd & 0x000ffffffffff000u) | offset);
+#endif
 }
 
 static  uintptr_t
@@ -2172,28 +2184,38 @@ SECURE_WRAPPER( void, sva_update_l4_mapping ,p4d_t * p4d, page_entry_t val) {
    * Ensure that the PTE pointer points to an L4 page table.  If it does not,
    * then report an error.
    */
-  page_desc_t * ptDesc = getPageDescPtr (__pa(&p4d->p4d));
+  #if defined(CONFIG_X86_5LEVEL)
+    page_desc_t * ptDesc = getPageDescPtr (__pa(&p4d->p4d));
+  #else
+    page_desc_t * ptDesc = getPageDescPtr (__pa(&p4d->pgd.pgd));
+  #endif
     if(!ptDesc) return;
 
   /* 
    * If the frame is not sensitive, allow the update to happen. This handles corner cases
    * inside the Linux kernel. 
    */
-  // if (ptDesc->type != PG_L4) {
-    if(!isFramePg(ptDesc)) {
-      /* TODO: Shouldn't we set this protection bit? */
-      // set_page_protection((unsigned long)pud, /*should_protect=*/1);
-      // sva_remove_mapping_secure(__pa(p4d));
-      // sva_declare_l4_mapping_secure(__pa(p4d));
+  if(!isFramePg(ptDesc)) {
+    /* TODO: Shouldn't we set this protection bit? */
+    // set_page_protection((unsigned long)pud, /*should_protect=*/1);
+    // sva_remove_mapping_secure(__pa(p4d));
+    // sva_declare_l4_mapping_secure(__pa(p4d));
 
-      /* FIX*/
-      declare_internal(__pa(p4d), 4);
-    } else {
+    /* FIX*/
+    declare_internal(__pa(p4d), 4);
+  } else {
+    #if defined(CONFIG_X86_5LEVEL)
       panic ("SVA: MMU: update_l4 on a sensitive frame: %lx %lx: %lx\n", &p4d->p4d, val, ptDesc->type);
-    }
-  // }
+    #else
+      panic ("SVA: MMU: update_l4 on a sensitive frame: %lx %lx: %lx\n", &p4d->pgd.pgd, val, ptDesc->type);
+    #endif
+  }
 
-  __update_mapping(&p4d->p4d, val);
+  #if defined(CONFIG_X86_5LEVEL)
+    __update_mapping(&p4d->p4d, val);
+  #else
+    __update_mapping(&p4d->pgd.pgd, val);
+  #endif
 
   MMULock_Release();
   return;

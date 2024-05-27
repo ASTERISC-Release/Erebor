@@ -171,10 +171,15 @@ static inline pud_t native_pudp_get_and_clear(pud_t *xp)
 static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
 {
 	pgd_t pgd;
+	pgd = native_make_pgd(native_p4d_val(p4d));
 
 	if (pgtable_l5_enabled() || !IS_ENABLED(CONFIG_PAGE_TABLE_ISOLATION)) {
 #if !defined(__EARLY_BOOT) && defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
-		sva_update_l4_mapping(p4dp, (page_entry_t)p4d.p4d);
+	#if defined(CONFIG_X86_5LEVEL)
+		sva_update_l4_mapping(p4dp, (page_entry_t) p4d.p4d);
+	#else 
+		sva_update_l4_mapping(p4dp, (page_entry_t) pgd.pgd);
+	#endif
 #else
 		WRITE_ONCE(*p4dp, p4d);
 #endif
@@ -185,7 +190,6 @@ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
 		// printk("[P4D DEBUG]");
 	// #endif
 	// Rahul: Skipping for now, since 5-level pagin is enabled
-	pgd = native_make_pgd(native_p4d_val(p4d));
 	pgd = pti_set_user_pgtbl((pgd_t *)p4dp, pgd);
 	WRITE_ONCE(*p4dp, native_make_p4d(native_pgd_val(pgd)));
 }
@@ -193,7 +197,11 @@ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
 static inline void native_p4d_clear(p4d_t *p4d)
 {
 #if !defined(__EARLY_BOOT) && defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
-	sva_remove_mapping((page_entry_t*)&p4d->p4d);
+	#if defined(CONFIG_X86_5LEVEL)
+		sva_remove_mapping((page_entry_t*)&p4d->p4d);
+	#else 
+		sva_remove_mapping((page_entry_t*)&p4d->pgd);
+	#endif
 #else
 	native_set_p4d(p4d, native_make_p4d(0));
 #endif
