@@ -1382,8 +1382,8 @@ void mark_rodata_ro(void)
 	unsigned long rodata_end = PFN_ALIGN(__end_rodata);
 	unsigned long all_end;
 
-	printk(KERN_INFO "Write protecting the kernel read-only data: %luk\n",
-	       (end - start) >> 10);
+	printk(KERN_INFO "Write protecting the kernel read-only data: %px, %luk\n",
+	       (void*) start, (end - start) >> 10);
 	set_memory_ro(start, (end - start) >> PAGE_SHIFT);
 
 	kernel_set_to_readonly = 1;

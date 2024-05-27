@@ -980,6 +980,7 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
 	/* All checks passed. Update the large page mapping. */
 	new_pte = pfn_pte(old_pfn, new_prot);
 #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+	printk("SVA-Untrusted: executing this code. (WARNING).\n");
 	if(level == PG_LEVEL_2M) {
 		pmd_t pmd;
 		pmd.pmd = new_pte.pte;
@@ -1660,7 +1661,6 @@ repeat:
 		new_prot = verify_rwx(old_prot, new_prot, address, pfn, 1);
 
 		new_prot = pgprot_clear_protnone_bits(new_prot);
-
 		/*
 		 * We need to keep the pfn from the existing PTE,
 		 * after all we're only going to change it's attributes
@@ -1674,6 +1674,7 @@ repeat:
 #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
 		// Rahul: Check what's happening here, and find a better way to handle this
 		if (pte_val(old_pte) != pte_val(new_pte) && (new_prot.pgprot & _PAGE_PRESENT) == 1) {
+		// if (pte_val(old_pte) != pte_val(new_pte)) {
 #else
 		if (pte_val(old_pte) != pte_val(new_pte)) {
 #endif
@@ -1689,6 +1690,11 @@ repeat:
 	 * and just change the pte:
 	 */
 	do_split = should_split_large_page(kpte, address, cpa);
+
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+	printk ("SVA-Untrusted: Should split large page ==> %d\n", do_split);
+#endif
+
 	/*
 	 * When the range fits into the existing large page,
 	 * return. cp->numpages and cpa->tlbflush have been updated in
@@ -1809,6 +1815,7 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int primary)
 
 		if (!debug_pagealloc_enabled())
 			spin_lock(&cpa_lock);
+
 		ret = __change_page_attr(cpa, primary);
 		if (!debug_pagealloc_enabled())
 			spin_unlock(&cpa_lock);

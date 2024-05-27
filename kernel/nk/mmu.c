@@ -47,12 +47,28 @@ enum log_type_t {
   } else {} }
 
 /* Special panic(..) that also prints the outer kernel's stack */
+extern char _svastart[];
+extern char _svaend[];
+extern char _stext[];
+extern char _etext[];
+
 static inline void print_insecure_stack(void) {
   show_stack(current, get_insecure_context_rsp(), KERN_DEFAULT);
 }
 
 #define PANIC(args ...) \
+  printk("-----------------------------------------------"); \
   print_insecure_stack(); \
+  printk("-----------------------------------------------"); \
+  panic(args)
+
+#define PANIC_WRONG_MAPPING(args ...) \
+  printk("-----------------------------------------------"); \
+  print_insecure_stack(); \
+  printk("-----------------------------------------------"); \
+  LOG_PRINTK("_stext: %lx, _etext: %lx\n", __pa(_stext), __pa(_etext)); \
+  LOG_PRINTK("_svastart: %lx, _svaend: %lx\n", __pa(_svastart), __pa(_svaend)); \
+  printk("-----------------------------------------------"); \
   panic(args)
 
 /* 
@@ -324,7 +340,7 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
    */
   if (newPG->type == PG_ENC) {
     if (current_encid() != newPG->encID) {
-      panic ("SVA: MMU: Mapping enclave page to wrong enclave container.");
+      PANIC ("SVA: MMU: Mapping enclave page to wrong enclave container.");
     }
   }
 
@@ -395,8 +411,8 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
           if ((newPG->type >= PG_L1) && (newPG->type <= PG_L5)) {
             retValue = 2;
           } else {
-            PANIC ("SVA: MMU: Map bad page type into L1: (VAs: %px, %px), %x\n", 
-              origVA, newVA, newPG->type);
+            PANIC_WRONG_MAPPING ("SVA: MMU: Map bad page type into L1: (VAs: %px, %px, PAs: %px, %px, PTE: %px), %x\n", 
+              origVA, newVA, origPA, newPA, ptePAddr, newPG->type);
           }
         }
 
@@ -417,7 +433,9 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
             if ((newPG->type >= PG_L1) && (newPG->type <= PG_L5)) {
               retValue = 2;
             } else {
-              PANIC ("SVA: MMU: Map bad page type into L2: %x\n", newPG->type);
+              // PANIC_WRONG_MAPPING ("SVA: MMU: Map bad page type into L2: %x\n", newPG->type);
+              PANIC_WRONG_MAPPING ("SVA: MMU: Map bad page type into L2: (VAs: %px, %px, PAs: %px, %px, PTE: %px), %x\n", 
+              origVA, newVA, origPA, newPA, ptePAddr, newPG->type);
             }
           }
         } else {
@@ -1473,18 +1491,13 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
   // declare_ptp_and_walk_pt_entries(kpgdPA, 512, PG_L5);
 
   /* Protect the kernel text region */
-  extern char _stext[];
-  extern char _etext[];
   LOG_PRINTK("_stext: %lx, _etext: %lx\n", _stext, _etext);
   init_protected_pages((uintptr_t) PFN_ALIGN(_stext), (uintptr_t) PFN_ALIGN(_etext), 
     PG_CODE);
   
   /* Protect the SVA pages */
-  extern char _svastart[];
-  extern char _svaend[];
-  LOG_PRINTK("_svastart: %lx, _svaend: %lx\n", _svastart, _svaend);
-  init_protected_pages((uintptr_t) PFN_ALIGN(_svastart), (uintptr_t) PFN_ALIGN(_svaend), 
-    PG_SVA);
+  LOG_PRINTK("_svastart: %lx, _svaend: %lx\n", __pa(_svastart), __pa(_svaend));
+  // init_protected_pages((uintptr_t) _svastart, (uintptr_t) _svaend, PG_SVA);
 
   /* TODO: Protect the SVA-related page table frames */
   

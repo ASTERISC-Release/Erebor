@@ -21,7 +21,7 @@ CURBRANCH=`git status | head -1 | cut -d ' ' -f3`
 # Build the kernel executable
 pushd $LINUXFOLDER
     # copy the saved config
-    cp $CURDIR/.config.saved.nokvm-perf-nolivepatch-nospec-noloadmod .config
+    cp $CURDIR/.config.saved.nokvm-perf-nolivepatch-nospec-noloadmod-nohp .config
 
     # Huge page
     sed -i "s/CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD=y/CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD=n/g" .config

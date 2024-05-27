@@ -41,6 +41,8 @@ sva_idt_setup_from_table, const struct idt_data *t, int size, bool sys)
 {
 	gate_desc desc;
 
+	printk("SVA: Setting up IDT (%px, %lx)\n", sva_idt_table, IDT_TABLE_SIZE -1);
+
 	for (; size > 0; t++, size--) {
 		sva_idt_init_desc(&desc, t);
 

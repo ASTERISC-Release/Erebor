@@ -399,15 +399,6 @@ SECTIONS
 	}
 #endif
 
-#ifdef CONFIG_ENCOS
-	/* Create the SVA data section */
-	_svastart = ALIGN(0x1000);
-	.svamem ALIGN(0x1000) : {
-		*(svamem)
-		_svaend = .;
-	}
-#endif
-
 	/* BSS */
 	. = ALIGN(PAGE_SIZE);
 	.bss : AT(ADDR(.bss) - LOAD_OFFSET) {
@@ -419,6 +410,22 @@ SECTIONS
 		. = ALIGN(PAGE_SIZE);
 		__bss_stop = .;
 	}
+
+#ifdef CONFIG_ENCOS
+	/* Buffer zone */
+	. += 0x1000;
+
+	/* Create the SVA data section (before the init free region!) */
+	. = ALIGN(PAGE_SIZE);
+	.svamem : AT(ADDR(.svamem) - LOAD_OFFSET) {
+		_svastart = .;
+		*(svamem)
+		_svaend = .;
+	}
+
+	/* Buffer zone */
+	. += 0x1000;
+#endif
 
 	/*
 	 * The memory occupied from _text to here, __end_of_kernel_reserve, is
