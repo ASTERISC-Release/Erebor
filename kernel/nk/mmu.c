@@ -1409,31 +1409,35 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
      * If this entry is valid then recurse the page pointed to by this page
      * table entry.
      */
-    if (*nextEntry & PG_V) {
-#if DEBUG_INIT >= 1
-      nValPgs++;
-#endif 
 
-      /* 
-       * If we hit the level 1 pages we have hit our boundary condition for
-       * the recursive page table traversals. Now we just mark the leaf page
-       * descriptors.
-       */
-      if (pageLevel == PG_L1){
-#if DEBUG_INIT >= 2
-          printk("%sInitializing leaf entry: pteaddr: %px, mapping: 0x%lx\n",
-                  indent, nextEntry, *nextEntry);
-#endif
-      } else {
-#if DEBUG_INIT >= 2
-      printk("%sProcessing:pte addr: %px, newPgAddr: %p, mapping: 0x%lx\n",
-              indent, nextEntry, (*nextEntry & PG_FRAME), *nextEntry ); 
-#endif
-          // printk("[Next - %d]: %lx %lx", i, nextEntry, *nextEntry);
-          declare_ptp_and_walk_pt_entries((uintptr_t)*nextEntry,
-                  numSubLevelPgEntries, subLevelPgType); 
-      }
-    } 
+    if (pageLevel != PG_L1) {
+      if (*nextEntry & PG_V) {
+  #if DEBUG_INIT >= 1
+        nValPgs++;
+  #endif 
+
+        /* 
+        * If we hit the level 1 pages we have hit our boundary condition for
+        * the recursive page table traversals. Now we just mark the leaf page
+        * descriptors.
+        */
+        if (pageLevel == PG_L1){
+  #if DEBUG_INIT >= 2
+            printk("%sInitializing leaf entry: pteaddr: %px, mapping: 0x%lx\n",
+                    indent, nextEntry, *nextEntry);
+  #endif
+        } else {
+  #if DEBUG_INIT >= 2
+        printk("%sProcessing:pte addr: %px, newPgAddr: %p, mapping: 0x%lx\n",
+                indent, nextEntry, (*nextEntry & PG_FRAME), *nextEntry ); 
+  #endif
+            // printk("[Next - %d]: %lx %lx", i, nextEntry, *nextEntry);
+            declare_ptp_and_walk_pt_entries((uintptr_t)*nextEntry,
+                    numSubLevelPgEntries, subLevelPgType); 
+        }
+
+      } 
+    }
 #if DEBUG_INIT >= 1
     else {
       nNonValPgs++;
@@ -1529,7 +1533,7 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
   /* Walk the kernel page tables and initialize the sva page_desc */
   // declare_ptp_and_walk_pt_entries(__pa(kpgdVA), nkpgde, PG_L5);
   unsigned long kpgdPA = (sva_get_current_pgd() << 12);
-  // declare_ptp_and_walk_pt_entries(kpgdPA, 1, PG_L5);
+  declare_ptp_and_walk_pt_entries(kpgdPA, 1, PG_L5);
 
   // PANIC("for fun\n");
 
