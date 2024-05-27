@@ -217,11 +217,6 @@ static inline void native_pgd_clear(pgd_t *pgd)
 #endif
 }
 
-
-// Adil: added for testing
-// #undef CONFIG_ENCOS
-// #undef CONFIG_ENCOS_MMU
-
 /*
  * Conversion functions: convert a page and protection to a page entry,
  * and a page entry and page directory to the page they refer to.
