@@ -394,13 +394,14 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
        */
       if (pgRefCount(newPG) > 1) {
         if (newPG->pgVaddr != page_entry) {
-          panic ("SVA: PG: %lx %lx: type=%x\n", newPG->pgVaddr, page_entry, newPG->type);
+          PANIC("Map PTP to 2nd VA (oldVA: %lx newVA:%lx, PA:%px, type=%x\n", 
+              newPG->pgVaddr, page_entry, ptePAddr, newPG->type);
         }
-        SVA_ASSERT (newPG->pgVaddr == page_entry, "MMU: Map PTP to second VA");
       } else {
         newPG->pgVaddr = page_entry;
       }
     }
+
     /*
      * Verify that that the mapping matches the correct type of page
      * allowed to be mapped into this page table. Verify that the new
@@ -1497,6 +1498,10 @@ makePTReadOnly (void) {
       page_entry_t * pageEntry = getPageDescPtr(paddr)->pgVaddr;
       LOG_PRINTK("Page Entry ==> %px\n", pageEntry);
 
+      /* 
+       * ENCOS: These are reserved mappings and they crash the system if you access.
+       * Figure out a better trick later.
+       */
       if ((pageEntry >= 0xffff8880fec00000) && (pageEntry <= 0xffff8880fee00000))
         continue;
 
@@ -1511,7 +1516,7 @@ makePTReadOnly (void) {
            * IMPORTANT FIX. 
            */
           // page_entry_store (pageEntry, setMappingReadOnly(*pageEntry));
-          // page_entry_store (pageEntry, *pageEntry);
+          page_entry_store (pageEntry, *pageEntry);
       }
     }
 
@@ -1591,6 +1596,9 @@ void declare_internal(unsigned long frameAddr, int level) {
   /* Get the page_desc for the page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);
   if(!pgDesc) return;
+
+  /* Reset the whole page */
+  memset((void*) pgDesc, 0, sizeof(page_desc_t));
 
   /* Setup metadata tracking for this new page */
   pgDesc->type = level;
