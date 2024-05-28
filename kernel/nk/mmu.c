@@ -1196,7 +1196,6 @@ sva_load_msr(u_int msr, uint64_t val) {
  *    modifying them.
  *
  */
-
 void 
 declare_ptp_and_walk_pt_entries(unsigned long pageEntryPA, unsigned long
         numPgEntries, enum page_type_t pageLevel ) 
@@ -1214,8 +1213,7 @@ declare_ptp_and_walk_pt_entries(unsigned long pageEntryPA, unsigned long
 
   /* Store the pte value for the page being traversed */
   pageMapping = (pageEntryPA);
-  pageMapping_masked = (((pageEntryPA & PG_FRAME) & nx_mask));
-  // pageMapping_masked = (((pageEntryPA & PG_FRAME)));
+  pageMapping_masked = (((pageEntryPA & PG_FRAME) & nx_mask) & cbit_mask);
   if (pageMapping_masked > memSize) {
     LOG_WALK(1, "  \tJUNK (phys ==> %px\n)", pageMapping_masked);
     return;
@@ -1376,17 +1374,9 @@ declare_ptp_and_walk_pt_entries(unsigned long pageEntryPA, unsigned long
    * Iterate through all the entries of this page, recursively calling the
    * walk on all sub entries.
    */
-  if (pageLevel == PG_L1) {
-    nValPgs = 512;
-    goto out;
-  }
-
+  bool skipAssert = false;
   for (i = 0; i < numSubLevelPgEntries; i++){
-
-    /* 
-     * ENCOS: I believe this should not be a problem anyways. Since, we are skipping 
-     * recursion on PG_L1, any leaf page should not be marked as PG_TKDATA.
-     */
+    /* ENCOS: Left this here from the NK implementation. I don't think this is required. */
 #if 0
     /*
      * Do not process any entries that implement the direct map.  This prevents
@@ -1398,6 +1388,15 @@ declare_ptp_and_walk_pt_entries(unsigned long pageEntryPA, unsigned long
 #endif
 
     page_entry_t * nextEntry = & pagePtr[i];
+    /* 
+     * ENCOS: These are reserved mappings and they crash the system if you access.
+     * TODO: Figure out a better trick (e.g., kernel notifies of these regions).
+     */
+    if ((nextEntry >= 0xffff8880fec00000) && (nextEntry <= 0xffff8880fef00000)) {
+      skipAssert = true;
+      continue;
+    }
+
     LOG_WALK(3, "%sPagePtr in loop: %px, val: 0x%lx\n", indent, nextEntry, *nextEntry);
 
     /* 
@@ -1429,7 +1428,8 @@ declare_ptp_and_walk_pt_entries(unsigned long pageEntryPA, unsigned long
 out:
   LOG_WALK(2, "%sThe number of || non valid pages: %lu || valid pages: %lu\n",
               indent, nNonValPgs, nValPgs);
-  SVA_ASSERT((nNonValPgs + nValPgs) == 512, "Wrong number of entries traversed");
+  if (!skipAssert)
+    SVA_ASSERT((nNonValPgs + nValPgs) == 512, "Wrong number of entries traversed");
 }
 
 /*
@@ -1456,8 +1456,7 @@ init_protected_pages (unsigned long startVA, unsigned long endVA, enum page_type
       }
       pgDesc->type = type;
 
-      // Set the page protection for the virtual address
-      // pks_update_mapping(page, 1);
+      /* ENCOS: Set WP/PKS for the virtual address. TODO: complete */
       set_page_protection(page, /*should_protect=*/1);
 
       /* ENCOS: I think we should flush here after setting PKS/CR0.WP */
@@ -1502,7 +1501,7 @@ makePTReadOnly (void) {
        * ENCOS: These are reserved mappings and they crash the system if you access.
        * Figure out a better trick later.
        */
-      if ((pageEntry >= 0xffff8880fec00000) && (pageEntry <= 0xffff8880fee00000))
+      if ((pageEntry >= 0xffff8880fec00000) && (pageEntry <= 0xffff8880fef00000))
         continue;
 
       // Don't make direct map entries of larger sizes read-only,
@@ -1574,11 +1573,9 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
   declare_ptp_and_walk_pt_entries(kpgdPA, NP4DEPG, PG_L5);
   
   /* Now load the initial value of the cr3 to complete kernel init */
+  /* ENCOS: Complete. */
   // _load_cr3(kpgdMapping->pgd & PG_FRAME);
 
-  /* Make existing page table pages read-only */
-  makePTReadOnly();
-  
   /* Make existing page table pages read-only */
   makePTReadOnly();
 
@@ -1662,8 +1659,10 @@ sva_declare_l1_page, unsigned long frameAddr) {
 
     /*
      * Chuqi: check here
+     * ENCOS: Added the page protection function here. I believe it's doing nothing
+     * at the moment. Please fix.
      */
-    // set_page_protection((unsigned long)__va(frameAddr), /*should_protect=*/1);
+    set_page_protection((unsigned long)__va(frameAddr), /*should_protect=*/1);
 
     /* 
      * Initialize the page data and page entry. Note that we pass a general
@@ -1851,12 +1850,6 @@ sva_declare_l4_page, unsigned long frameAddr) {
     /* Mark this page frame as an L4 page frame */
     pgDesc->type = PG_L4;
 
-    // unsigned long vaddr = __va(frameAddr);
-    // vaddr = (vaddr >> 12) << 12;
-    // printk("SVA_declare_L4 %lx %lx\n", frameAddr, vaddr);
-    // pks_update_mapping(vaddr, 1);
-    // sva_mm_flush_tlb(vaddr);
-
     /*
      * Reset the virtual address which can point to this page table page.
      */
@@ -1949,14 +1942,12 @@ SECURE_WRAPPER(void,
 sva_remove_page, unsigned long paddr) {
   MMULock_Acquire();
 
-  /* Get the entry controlling the permissions for this pte PTP */
-  page_entry_t *pte = get_pgeVaddr(getVirtual (paddr), NULL);
-
   /* Get the page_desc for the page frame */
   page_desc_t *pgDesc = getPageDescPtr(paddr);
     if(!pgDesc) return;
 
   set_page_protection((unsigned long)__va(paddr), 0);
+
   /*
    * Make sure that this is a page table page.  We don't want the system
    * software to trick us.
@@ -1971,11 +1962,14 @@ sva_remove_page, unsigned long paddr) {
 
     default:
       /* Restore interrupts */
-      // Rahul: 
-      // The Linux kernel does not seem to use a specific PTP free fucntion to free a page tbale page
-      // Hence we call an sva_remove page on all memory frees. For now, just ignoring this panic.
-      // TODO: Check if this leads to a significant performance overhead.
-      // panic ("SVA: undeclare bad page type: %lx %lx\n", paddr, pgDesc->type);
+      /* 
+       * ENCOS: (IMPORTANT) Please check this case out. Why are we getting undeclared pages and
+       * we get many of them if I uncomment these lines.
+       */
+      
+      // if (mmuIsInitialized) {
+      //   LOG_PRINTK (" (warning) undeclare bad page type: %lx %lx\n", paddr, pgDesc->type);
+      // }
       MMULock_Release();
       return;
       break;
@@ -1990,26 +1984,27 @@ sva_remove_page, unsigned long paddr) {
    * Note that we check for a reference count of 1 because the page is always
    * mapped into the direct map.
    */
-  // if ((pgDesc->count == 1) || (pgDesc->count == 0)) {
+  if ((pgDesc->count == 1) || (pgDesc->count == 0)) {
     /*
      * Mark the page frame as an unused page.
      */
     pgDesc->type = PG_UNUSED;
 
-    // unsigned long vaddr = __va(paddr);
-    // vaddr = (vaddr >> 12) << 12;
-    // printk("SVA_declare_L4 %lx %lx\n", frameAddr, vaddr);
-    // pks_update_mapping(vaddr, 0);
-
     /*
      * Make the page writeable again.  Be sure to flush the TLBs to make the
      * change take effect right away.
      */
-    // page_entry_store ((page_entry_t *) pte, setMappingReadWrite (*pte));
-    // sva_mm_flush_tlb (getVirtual (paddr));
-  // } else {
-    // panic ("SVA: remove_page: type=%x count %x\n", pgDesc->type, pgDesc->count);
-  // }
+    if (pgDesc->pgVaddr) {
+      page_entry_store ((page_entry_t *) pgDesc->pgVaddr, 
+        setMappingReadWrite (*((page_entry_t*) pgDesc->pgVaddr)));
+      sva_mm_flush_tlb (getVirtual (paddr));
+    }
+
+    /* Reset the page descriptor entry */
+    memset(pgDesc, 0, sizeof(page_desc_t));
+  } else {
+    panic ("SVA: remove_page: type=%x count %x\n", pgDesc->type, pgDesc->count);
+  }
  
   MMULock_Release();
   return;
@@ -2032,14 +2027,7 @@ sva_remove_page, unsigned long paddr) {
 SECURE_WRAPPER(void,
 sva_remove_mapping, page_entry_t *pteptr) {
   MMULock_Acquire();
-
-  /* Get the page_desc for the newly declared l4 page frame */
-  // page_desc_t *pgDesc = getPageDescPtr(*pteptr); // Rahul: What's happening here ?
-
-  /* Update the page table mapping to zero */
-  // printk("ENCOS-Internal: remove mapping (%px)\n", pteptr);
   __update_mapping (pteptr, ZERO_MAPPING);
-
   MMULock_Release();
 }
 
@@ -2076,8 +2064,11 @@ sva_update_l1_mapping, pte_t *pte, page_entry_t val) {
     if(!ptDesc) return;
 
   /* 
-   * If the frame is not sensitive, allow the update to happen. This handles corner cases
+   * ENCOS: If the frame is not sensitive, allow the update to happen. This handles corner cases
    * inside the Linux kernel. 
+   *
+   * IMPORTANT: This current implementation is not correct. Specifically, we should make sure that
+   * the page table was not referencing the SVA/Enclave Pages. (TODO; same for all PT levels)
    */
   if(!isSensitivePg(ptDesc)) {
       /* TODO: Shouldn't we set this protection bit? */
@@ -2125,8 +2116,11 @@ sva_update_l2_mapping, pmd_t *pmd, page_entry_t val) {
     if(!ptDesc) return;
 
   /* 
-   * If the frame is not sensitive, allow the update to happen. This handles corner cases
+   * ENCOS: If the frame is not sensitive, allow the update to happen. This handles corner cases
    * inside the Linux kernel. 
+   *
+   * IMPORTANT: This current implementation is not correct. Specifically, we should make sure that
+   * the page table was not referencing the SVA/Enclave Pages. (TODO; same for all PT levels)
    */
   if(!isSensitivePg(ptDesc)) {
     /* TODO: Shouldn't we set this protection bit? */
@@ -2166,22 +2160,23 @@ SECURE_WRAPPER(void, sva_update_l3_mapping, pud_t * pud, page_entry_t val) {
     if(!ptDesc) return;
 
   /* 
-   * If the frame is not sensitive, allow the update to happen. This handles corner cases
+   * ENCOS: If the frame is not sensitive, allow the update to happen. This handles corner cases
    * inside the Linux kernel. 
+   *
+   * IMPORTANT: This current implementation is not correct. Specifically, we should make sure that
+   * the page table was not referencing the SVA/Enclave Pages. (TODO; same for all PT levels)
    */
-  // if (ptDesc->type != PG_L3) {
-    if(!isSensitivePg(ptDesc)) {
-      /* TODO: Shouldn't we set this protection bit? */
-      // set_page_protection((unsigned long)pud, /*should_protect=*/1);
-      // sva_remove_mapping_secure(__pa(pud));
-      // sva_declare_l3_mapping_secure(__pa(pud));
+  if(!isSensitivePg(ptDesc)) {
+    /* TODO: Shouldn't we set this protection bit? */
+    // set_page_protection((unsigned long)pud, /*should_protect=*/1);
+    // sva_remove_mapping_secure(__pa(pud));
+    // sva_declare_l3_mapping_secure(__pa(pud));
 
-      /* FIX*/
-      declare_internal(__pa(pud), 3);
-    } else {
-      panic ("SVA: MMU: update_l3 on a sensitive frame: %lx %lx: %lx\n", &pud->pud, val, ptDesc->type);
-    }
-  // }
+    /* FIX*/
+    declare_internal(__pa(pud), 3);
+  } else {
+    panic ("SVA: MMU: update_l3 on a sensitive frame: %lx %lx: %lx\n", &pud->pud, val, ptDesc->type);
+  }
 
   __update_mapping(&pud->pud, val);
 
@@ -2210,8 +2205,11 @@ SECURE_WRAPPER( void, sva_update_l4_mapping ,p4d_t * p4d, page_entry_t val) {
     if(!ptDesc) return;
 
   /* 
-   * If the frame is not sensitive, allow the update to happen. This handles corner cases
+   * ENCOS: If the frame is not sensitive, allow the update to happen. This handles corner cases
    * inside the Linux kernel. 
+   *
+   * IMPORTANT: This current implementation is not correct. Specifically, we should make sure that
+   * the page table was not referencing the SVA/Enclave Pages. (TODO; same for all PT levels)
    */
   if(!isFramePg(ptDesc)) {
     /* TODO: Shouldn't we set this protection bit? */
@@ -2256,22 +2254,23 @@ SECURE_WRAPPER( void, sva_update_l5_mapping, pgd_t * pgd, page_entry_t val) {
     if(!ptDesc) return;
 
   /* 
-   * If the frame is not sensitive, allow the update to happen. This handles corner cases
+   * ENCOS: If the frame is not sensitive, allow the update to happen. This handles corner cases
    * inside the Linux kernel. 
+   *
+   * IMPORTANT: This current implementation is not correct. Specifically, we should make sure that
+   * the page table was not referencing the SVA/Enclave Pages. (TODO; same for all PT levels)
    */
-  // if (ptDesc->type != PG_L4) {
-    if(!isFramePg(ptDesc)) {
-      /* TODO: Shouldn't we set this protection bit? */
-      // set_page_protection((unsigned long)pud, /*should_protect=*/1);
-      // sva_remove_mapping_secure(__pa(pgd));
-      // sva_declare_l5_mapping_secure(__pa(pgd));
+  if(!isFramePg(ptDesc)) {
+    /* TODO: Shouldn't we set this protection bit? */
+    // set_page_protection((unsigned long)pud, /*should_protect=*/1);
+    // sva_remove_mapping_secure(__pa(pgd));
+    // sva_declare_l5_mapping_secure(__pa(pgd));
 
-      /* FIX*/
-      declare_internal(__pa(pgd), 5);      
-    } else {
-      panic ("SVA: MMU: update_l5 on a sensitive frame: %lx %lx: %lx\n", &pgd->pgd, val, ptDesc->type);
-    }
-  // }
+    /* FIX*/
+    declare_internal(__pa(pgd), 5);      
+  } else {
+    panic ("SVA: MMU: update_l5 on a sensitive frame: %lx %lx: %lx\n", &pgd->pgd, val, ptDesc->type);
+  }
 
   __update_mapping(&pgd->pgd, val);
 
