@@ -1326,8 +1326,8 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
         ++(page_desc[index].count);
         return;
       } else {
-        thisPg->type = PG_L2;       /* Set the page type to L2 */
-        thisPg->user = 0;           /* Set the priv flag to kernel */
+        thisPg->type = PG_L2;         /* Set the page type to L2 */
+        thisPg->user = 0;             /* Set the priv flag to kernel */
         ++(thisPg->count);
         subLevelPgType = PG_L1;
         numSubLevelPgEntries = NPMDPG; // numPgEntries;
@@ -1335,23 +1335,11 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
       break;
 
     case PG_L1:
-      // if ((pageMapping & PG_PS) != 0){
-      //   LOG_WALK(2, "\tIdentified 2MB page...\n");
-
-      //   /* The frame address referencing the page obtained */
-      //   unsigned long index = (pageMapping_masked & ~PMDMASK) / pageSize;
-      //   page_desc[index].type = PG_TKDATA;
-      //   page_desc[index].user = 0;           /* Set the priv flag to kernel */
-      //   ++(page_desc[index].count);
-      //   return;
-      // } else 
-      {
-        thisPg->type = PG_L1;       /* Set the page type to L1 */
-        thisPg->user = 0;           /* Set the priv flag to kernel */
-        ++(thisPg->count);
-        subLevelPgType = PG_TKDATA;
-        numSubLevelPgEntries = NPTEPG;    // numPgEntries;
-      }
+      thisPg->type = PG_L1;           /* Set the page type to L1 */
+      thisPg->user = 0;               /* Set the priv flag to kernel */
+      ++(thisPg->count);
+      subLevelPgType = PG_TKDATA;
+      numSubLevelPgEntries = NPTEPG;    // numPgEntries;
       break;
 
     default:
@@ -1383,18 +1371,19 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
   }
 
   for (i = 0; i < numSubLevelPgEntries; i++){
+
+    /* 
+     * ENCOS: I believe this should not be a problem anyways. Since, we are skipping 
+     * recursion on PG_L1, any leaf page should not be marked as PG_TKDATA.
+     */
 #if 0
     /*
      * Do not process any entries that implement the direct map.  This prevents
      * us from marking physical pages in the direct map as kernel data pages.
      */
-    if ((pageLevel == PG_L4) && (i == (0xfffffe0000000000 / 0x1000))) {
+    if ((pageLevel == PG_L4) && (i == (0xffff888000000000 / 0x1000))) {
       continue;
     }
-#endif
-#if OBSOLETE
-    //pagePtr += (sizeof(page_entry_t) * i);
-    //page_entry_t *nextEntry = pagePtr;
 #endif
 
     page_entry_t * nextEntry = & pagePtr[i];
@@ -1430,7 +1419,6 @@ out:
   LOG_WALK(2, "%sThe number of || non valid pages: %lu || valid pages: %lu\n",
               indent, nNonValPgs, nValPgs);
   SVA_ASSERT((nNonValPgs + nValPgs) == 512, "Wrong number of entries traversed");
-
 }
 
 /*
@@ -1461,8 +1449,8 @@ init_protected_pages (uintptr_t startVA, uintptr_t endVA, enum page_type_t type)
       // pks_update_mapping(page, 1);
       set_page_protection(page, /*should_protect=*/1);
 
-      // Flush the TLB for this virtual address
-      // sva_mm_flush_tlb(page);
+      /* ENCOS: I think we should flush here after setting PKS/CR0.WP */
+      sva_mm_flush_tlb(page);
   }
 }
 
@@ -1495,7 +1483,7 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
   MMULock_Acquire();
 
   /* Hello World! */
-  LOG_PRINTK("Initializing the SECURE memory management unit ..\n");
+  LOG_PRINTK("[.] Initializing: SECURE memory management unit \n");
 
   /* Zero out the page descriptor array */
   memset (page_desc, 0, numPageDescEntries * sizeof(page_desc_t));
@@ -1510,13 +1498,8 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
   init_protected_pages((uintptr_t) _svastart, (uintptr_t) _svaend, PG_SVA);
 
   /* Walk the kernel page tables and initialize the sva page_desc */
-  // declare_ptp_and_walk_pt_entries(__pa(kpgdVA), nkpgde, PG_L5);
   unsigned long kpgdPA = (sva_get_current_pgd() << 12);
-  declare_ptp_and_walk_pt_entries(kpgdPA, 1, PG_L5);
-
-  // PANIC("for fun\n");
-
-  /* TODO: Protect the SVA-related page table frames */
+  declare_ptp_and_walk_pt_entries(kpgdPA, NP4DEPG, PG_L5);
   
   /* Now load the initial value of the cr3 to complete kernel init */
   // _load_cr3(kpgdMapping->pgd & PG_FRAME);
@@ -1531,6 +1514,9 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
    * Note that the MMU is now initialized.
    */
   mmuIsInitialized = 1;
+
+  LOG_PRINTK("[*] SECURE memory management unit initialized \n");
+
   MMULock_Release();
 }
 
