@@ -82,6 +82,7 @@
 #define PG_AVAIL3     0x800     /* \                          */
 #define PG_PDE_PAT    0x1000    /* PAT  PAT index             */
 #define PG_NX         (1ul<<63) /* NX   No-execute            */
+#define PG_CBIT       (1ul<<51) /* C    C-bit (SEV)           */
 
 /* Various interpretations of the above */
 #define PG_W          PG_AVAIL1               /* "Wired" pseudoflag */
@@ -202,7 +203,7 @@ SVA_NOOP_ASSERT (int res, char * str) {
 static inline void
 SVA_ASSERT (unsigned char passed, char * str) {
   if (!passed)
-    // panic ("%s", str);
+    panic ("%s", str);
   return;
 }
 
@@ -270,8 +271,6 @@ typedef struct page_desc_t {
     /* The PID of the Enclave that owns this page */
     unsigned encID;
 } page_desc_t;
-
-
 extern uintptr_t getPhysicalAddr (void * v);
 
 /*

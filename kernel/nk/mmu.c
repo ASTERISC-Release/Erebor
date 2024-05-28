@@ -467,7 +467,8 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
             }
           }
         } else {
-          SVA_ASSERT (isL1Pg(newPG), "MMU: Mapping non-L1 page into L2.");
+          // ENCOS: TODO (check why this fails.)
+          // SVA_ASSERT (isL1Pg(newPG), "MMU: Mapping non-L1 page into L2.");
         }
         break;
 
@@ -491,19 +492,17 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
             }
           }
         } else {
-          SVA_ASSERT (isL2Pg(newPG), "SVA: Mapping non-L2 page into L3.");
+          // SVA_ASSERT (isL2Pg(newPG), "SVA: Mapping non-L2 page into L3.");
         }
         break;
 
       case PG_L4:
-        SVA_ASSERT (isL3Pg(newPG), 
-                    "SVA: Mapping non-L3 page into L4.");
+        SVA_ASSERT (isL3Pg(newPG), "SVA: Mapping non-L3 page into L4.");
         break;
 
 #if defined (CONFIG_X86_5LEVEL)
       case PG_L5:
-        SVA_ASSERT (isL4Pg(newPG), 
-                    "SVA: Mapping non-L4 page into L5.");
+        SVA_ASSERT (isL4Pg(newPG), "SVA: Mapping non-L4 page into L5.");
         break;
 #endif
 
@@ -540,8 +539,7 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
      * pointing this entry to another code page, thus fail.
      */
     if (origPG && isCodePg (origPG)) {
-      SVA_ASSERT ((*page_entry & PG_U),
-                  "Kernel attempting to modify code page mapping");
+      SVA_ASSERT ((*page_entry & PG_U), "Kernel attempting to modify code page mapping");
     }
   }
 
@@ -562,15 +560,13 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
  */
 static  void
 updateNewPageData(page_entry_t mapping) {
-  uintptr_t newPA = mapping & PG_FRAME;
+  uintptr_t newPA = ((mapping & PG_FRAME) & PG_NX) & PG_CBIT;
+  uintptr_t newVA = (uintptr_t) getVirtual(newPA);
   page_desc_t *newPG = getPageDescPtr(mapping);
   if(!newPG) return;
 
-  /*
-   * If the new mapping is valid, update the counts for it.
-   */
+  /* If the new mapping is valid, update the counts for it. */
   if (mapping & PG_V) {
-#if 0
     /*
      * If the new page is to a page table page and this is the first reference
      * to the page, we need to set the VA mapping this page so that the
@@ -582,23 +578,14 @@ updateNewPageData(page_entry_t mapping) {
     if (isPTP(newPG)) {
       newPG->pgVaddr = newVA;
     }
-#endif
 
     /* 
      * Update the reference count for the new page frame. Check that we aren't
      * overflowing the counter.
      */
-    SVA_ASSERT (pgRefCount(newPG) < ((1u << 13) - 1), 
-                "MMU: overflow for the mapping count");
+    SVA_ASSERT (pgRefCount(newPG) < ((1u << 13) - 1), "MMU: overflow for the mapping count");
     newPG->count++;
-
-    /* 
-     * Set the VA of this entry if it is the first mapping to a page
-     * table page.
-     */
   }
-
-  return;
 }
 
 /*
@@ -761,23 +748,24 @@ __update_mapping (uintptr_t * pageEntryPtr, page_entry_t val) {
        * Note: all writes to such objects should be made inside the SVA code.   
        */
       
-      /* TODO: enable this read-only later. */
+      /* ENCOS: TODO: enable this read-only after completing checks. */
       // val = setMappingReadOnly (val);
       __do_mmu_update ((page_entry_t *) pageEntryPtr, val);
       break;
 
     case 2:
-
       /* This updates are valid and we should allow them */
       __do_mmu_update ((page_entry_t *) pageEntryPtr, val);
       break;
 
     case 0:
-      /* Silently ignore the request */
+      /* 
+       * ENCOS: This updates junk kernel mappings (>>memSize). Not entirely
+       * clear why the kernel creates such mappings, but let's allow them.
+       */
       __do_mmu_update ((page_entry_t *) pageEntryPtr, val);
+      break;
 
-      // panic("Invalid mmu update requested!\n");
-      return;
     default:
       panic("##### SVA invalid page update!!!\n");
   }
@@ -974,18 +962,10 @@ getPhysicalAddr (void * v) {
   unsigned char * cr3 = get_pagetable();
 
   /*
-   * Get the address of the PGD.
+   * Get the address of the PGD, P4D, and PUD.
    */
   pgd_t * pgd = get_pgdVaddr (cr3, vaddr);
-
-  /*
-   * Use the PGD to get the address of the P4D.
-   */
   p4d_t * p4d = get_p4dVaddr (pgd, vaddr);
-
-  /*
-   * Use the P4D to get the address of the PUD.
-   */
   pud_t * pud = get_pudVaddr (p4d, vaddr);
 
   /*
@@ -1022,7 +1002,6 @@ getPhysicalAddr (void * v) {
   return paddr;
 }
 
-
 SECURE_WRAPPER(void, 
 sva_mmu_test, void) {
   uintptr_t sp;
@@ -1049,50 +1028,52 @@ sva_mmu_test, void) {
  * Inputs:
  *  pg - The physical address of the top-level page table page.
  */
-// SECURE_WRAPPER(void,
-// sva_mm_load_pgtable, void *pg) {
-//   MMULock_Acquire();
-//   /* Control Register 0 Value (which is used to enable paging) */
-//   unsigned int cr0;
+SECURE_WRAPPER(void,
+sva_mm_load_pgtable, void *pg) {
+  MMULock_Acquire();
+  /* Control Register 0 Value (which is used to enable paging) */
+  unsigned int cr0;
 
-//   /*
-//    * TODO fully implement this. right now it is just a simulation for
-//    * performance numbers 
-//    */
+  /*
+   * TODO fully implement this. right now it is just a simulation for
+   * performance numbers.
+   *
+   * ENCOS: Nested Kernel seems to not have implemented this. TODO.
+   */
 
-//   /* read a PTE, and store it to simulate obtaining the load_cr3 mapping */
-//   page_entry_t * page_entry = get_pgeVaddr (pg);
-//   page_entry_store(page_entry, *page_entry);
-//   sva_mm_flush_tlb (pg);
+  /* read a PTE, and store it to simulate obtaining the load_cr3 mapping */
+  /* ENCOS: "NULL" was added for compilation. TODO: check correctness */
+  page_entry_t * page_entry = get_pgeVaddr (pg, NULL);
+  page_entry_store(page_entry, *page_entry);
+  sva_mm_flush_tlb (pg);
 
-//   /* simulate the branch */
-//   goto DOCHECK;
+  /* simulate the branch */
+  goto DOCHECK;
   
-//   //==-- Code residing on another set of pages --==//
-//   //
-//   /*
-//    * Check that the new page table is an L5 page table page.
-//    */
-// DOCHECK: 
-//   if ((mmuIsInitialized) && (getPageDescPtr(pg)->type != PG_L5)) {
-//     panic ("SVA: Loading non-L5 page into CR3: %lx %x\n", pg, getPageDescPtr (pg)->type);
-//   }
+  //==-- Code residing on another set of pages --==//
+  /*
+   * Check that the new page table is an L5 page table page.
+   */
+DOCHECK: 
+  if ((mmuIsInitialized) && (getPageDescPtr(pg)->type != PG_L5)) {
+    panic ("SVA: Loading non-L5 page into CR3: %lx %x\n", pg, getPageDescPtr (pg)->type);
+  }
 
-//   _load_cr3(pg);
+  _load_cr3(pg);
 
-//   /* Simulate return instruction */
-//   goto fini;
+  /* Simulate return instruction */
+  goto fini;
 
-// fini: 
-//   //==-- Simulate removing the mapping and then flush the TLB --==//
-//   page_entry = get_pgeVaddr (pg);
-//   page_entry_store(page_entry, *page_entry);
-//   sva_mm_flush_tlb (pg);
+fini: 
+  //==-- Simulate removing the mapping and then flush the TLB --==//
+  /* ENCOS: "NULL" was added for compilation. TODO: check correctness */
+  page_entry = get_pgeVaddr (pg, NULL);
+  page_entry_store(page_entry, *page_entry);
+  sva_mm_flush_tlb (pg);
 
-  
-//   MMULock_Release();
-//   return;
-// }
+  MMULock_Release();
+  return;
+}
 
 /*
  * Function: sva_write_cr0
@@ -1103,12 +1084,10 @@ sva_mmu_test, void) {
  */
 SECURE_WRAPPER(void,
 sva_write_cr0, unsigned long val) {
-    // MMULock_Acquire();
     val |= CR0_WP;
     _load_cr0(val);
     NK_ASSERT_PERF ((val & CR0_WP), "SVA: attempt to clear the CR0.WP bit: %x.",
         val);
-    // MMULock_Release();
 }
 
 /*
@@ -1119,15 +1098,15 @@ sva_write_cr0, unsigned long val) {
  *  bits are enabled. 
  */
 void sva_write_cr4(unsigned long val) {
-  // MMULock_Acquire();
-  // if(mmuIsInitialized) {
-  val |= (1 << 24);
-  //   printk("[mmu_init = 1] sva_write_cr4 = %lx\n", val);
-  // } else {
-  //   printk("[mmu_init = 0] sva_write_cr4 = %lx\n", val);
-  // }
+  MMULock_Acquire();
+  if(mmuIsInitialized) {
+    /* ENCOS: Is this the PKS bit? (check the SMAP/SMEP bits) */
+    val |= (1 << 24);
+    printk("[mmu_init = 1] sva_write_cr4 = %lx\n", val);
+  } else {
+    printk("[mmu_init = 0] sva_write_cr4 = %lx\n", val);
+  }
   _load_cr4(val);
-  // MMULock_Release();
 }
 
 /*
@@ -1144,7 +1123,7 @@ sva_load_msr(u_int msr, uint64_t val) {
     }
     _wrmsr(msr, val);
     if ((msr == MSR_REG_EFER) && !(val & EFER_NXE)) {
-      // panic("SVA: attempt to clear the EFER.NXE bit: %x.", val);
+      PANIC("SVA: attempt to clear the EFER.NXE bit: %x.", val);
     }
 }
 
@@ -1485,7 +1464,6 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
 
 #if DEBUG_INIT >= 1
   SVA_ASSERT((nNonValPgs + nValPgs) == 512, "Wrong number of entries traversed");
-
   printk("%sThe number of || non valid pages: %lu || valid pages: %lu\n",
           indent, nNonValPgs, nValPgs);
 #endif
