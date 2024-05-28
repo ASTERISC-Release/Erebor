@@ -424,7 +424,7 @@ static inline pgd_t *_pgd_alloc(void)
 {
 	pgd_t *new = (pgd_t *)__get_free_pages(GFP_PGTABLE_USER,
 					 PGD_ALLOCATION_ORDER);
-#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+#if 0
 	sva_remove_page(__pa(new));
 	sva_declare_l5_page(__pa(new));
 #endif

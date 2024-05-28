@@ -50,15 +50,16 @@ sudo virsh undefine $VMNAME || true >> /dev/null 2>&1
 echo "Starting to install the image file by virt-install."
 sudo virt-install \
   --name $VMNAME \
-  --memory 1024 \
+  --memory 2048 \
   --disk $VMDISK,device=disk,bus=virtio \
   --disk ubuntu-vm-init.iso,device=cdrom \
   --os-type linux \
-  --os-variant ubuntu22.04 \
   --virt-type kvm \
+  --os-variant ubuntu22.04 \
   --graphics none \
   --network network=default,model=virtio \
   --import
+
 
 # Destroy domain and name if exists
 sudo virsh destroy $VMNAME || true

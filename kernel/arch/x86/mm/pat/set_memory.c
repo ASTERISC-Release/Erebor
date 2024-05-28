@@ -794,7 +794,8 @@ phys_addr_t slow_virt_to_phys(void *__virt_addr)
 }
 EXPORT_SYMBOL_GPL(slow_virt_to_phys);
 
-#if !defined(CONFIG_ENCOS) || !defined(CONFIG_ENCOS_MMU)
+
+#if !defined(CONFIG_ENCOS) && !defined(CONFIG_ENCOS_MMU)
 /*
  * Set the new pmd in all the pgds we know about:
  */
@@ -980,6 +981,7 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
 	/* All checks passed. Update the large page mapping. */
 	new_pte = pfn_pte(old_pfn, new_prot);
 #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+	printk("SVA-Untrusted: executing this code. (WARNING).\n");
 	if(level == PG_LEVEL_2M) {
 		pmd_t pmd;
 		pmd.pmd = new_pte.pte;
@@ -1135,18 +1137,8 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
 		// Rahul: Turns out the (PMD) hugepage is either explicitly declared as an L1 page
 		// or gets internally declared as an L1 by the nested kernel due to its mappings being set
 		// using a set_pte instead of a set_pmd
-
 		// Hence, while splitting the large page, we have to remove it from the nested kernel metadata
 		// and redeclare it as an L2
-
-		// Adil: changed this setting to ENCOS_MMU
-		#ifdef CONFIG_ENCOS_MMU
-			printk("ENCOS: Populating large PGD (2M) \n");
-			sva_remove_page(__pa((uintptr_t)kpte & PTE_PFN_MASK));
-			printk("ENCOS: Remove complete \n");
-			sva_declare_l2_page(__pa((uintptr_t)kpte & PTE_PFN_MASK));
-			printk("ENCOS: Declaration complete \n");
-		#endif
 
 		/* Chuqi:
 		 * For 2MB -> 4KB spliting, the L2 page will point to a L1 PTP.
@@ -1156,21 +1148,11 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
 		 */
 
 		set_pmd((pmd_t*)kpte, pmd);
-		printk("ENCOS: Set pmd complete \n");
 	} else if(level == PG_LEVEL_1G) {
 		// Rahul: Probably have to remove the L2 + declare the page as an L3 here too
 		// Skipping for now, since I haven't encountered any 1GB page being split during boot
 		pud_t pud;
 		pud.pud = mk_pte(base, __pgprot(_KERNPG_TABLE)).pte;
-
-		// Adil: changed this setting to ENCOS_MMU
-		// I don't see this being executed.
-		#ifdef CONFIG_ENCOS_MMU
-			printk("ENCOS: Populating large PGD (1GB) \n");
-			sva_remove_page(__pa((uintptr_t)kpte & PTE_PFN_MASK));
-			sva_declare_l3_page(__pa((uintptr_t)kpte & PTE_PFN_MASK));
-		#endif
-
 		set_pud((pud_t*)kpte, pud);
 	}
 #else
@@ -1687,7 +1669,6 @@ repeat:
 		new_prot = verify_rwx(old_prot, new_prot, address, pfn, 1);
 
 		new_prot = pgprot_clear_protnone_bits(new_prot);
-
 		/*
 		 * We need to keep the pfn from the existing PTE,
 		 * after all we're only going to change it's attributes
@@ -1701,6 +1682,7 @@ repeat:
 #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
 		// Rahul: Check what's happening here, and find a better way to handle this
 		if (pte_val(old_pte) != pte_val(new_pte) && (new_prot.pgprot & _PAGE_PRESENT) == 1) {
+		// if (pte_val(old_pte) != pte_val(new_pte)) {
 #else
 		if (pte_val(old_pte) != pte_val(new_pte)) {
 #endif
@@ -1716,6 +1698,7 @@ repeat:
 	 * and just change the pte:
 	 */
 	do_split = should_split_large_page(kpte, address, cpa);
+
 	/*
 	 * When the range fits into the existing large page,
 	 * return. cp->numpages and cpa->tlbflush have been updated in
@@ -1836,6 +1819,7 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int primary)
 
 		if (!debug_pagealloc_enabled())
 			spin_lock(&cpa_lock);
+
 		ret = __change_page_attr(cpa, primary);
 		if (!debug_pagealloc_enabled())
 			spin_unlock(&cpa_lock);

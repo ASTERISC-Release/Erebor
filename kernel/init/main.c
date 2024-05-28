@@ -1091,12 +1091,12 @@ void start_kernel(void)
 #ifdef CONFIG_ENCOS_WP
 	/* already instrumented to set 1 << 16 */
 	native_write_cr0(native_read_cr0());
-#endif	/* CONFIG_ENCOS_WP */
+#endif
 
 #ifdef CONFIG_ENCOS_MMU
 	// Initialize the SVA MMU
-	sva_mmu_init();
-#endif	/* CONFIG_ENCOS_MMU */
+	// sva_mmu_init();
+#endif
 
 	// Test that the secure call works
 	uintptr_t sp;

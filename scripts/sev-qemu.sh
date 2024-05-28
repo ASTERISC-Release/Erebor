@@ -407,7 +407,7 @@ if [ -n "$BRIDGE" ]; then
 else
 	echo "Forwarding guest port"
 	# sleep 5
-	add_opts "-netdev user,id=vmnic,hostfwd=tcp::8000-:22 -device e1000,netdev=vmnic,romfile="
+	add_opts "-netdev user,id=vmnic,hostfwd=tcp::8001-:22 -device e1000,netdev=vmnic,romfile="
 	#add_opts "-netdev user,id=vmnic -device e1000,netdev=vmnic,romfile="
 fi
 

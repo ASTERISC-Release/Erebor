@@ -82,6 +82,7 @@
 #define PG_AVAIL3     0x800     /* \                          */
 #define PG_PDE_PAT    0x1000    /* PAT  PAT index             */
 #define PG_NX         (1ul<<63) /* NX   No-execute            */
+#define PG_CBIT       (1ul<<51) /* C    C-bit (SEV)           */
 
 /* Various interpretations of the above */
 #define PG_W          PG_AVAIL1               /* "Wired" pseudoflag */
@@ -201,10 +202,8 @@ SVA_NOOP_ASSERT (int res, char * str) {
  */
 static inline void
 SVA_ASSERT (unsigned char passed, char * str) {
-  if (!passed) {
-  //  printk("SVA_ASSERT FAILED. %s.\n", str);
-   // panic ("%s", str); 
-  }
+  if (!passed)
+    panic ("%s", str);
   return;
 }
 
@@ -272,8 +271,6 @@ typedef struct page_desc_t {
     /* The PID of the Enclave that owns this page */
     unsigned encID;
 } page_desc_t;
-
-
 extern uintptr_t getPhysicalAddr (void * v);
 
 /*
@@ -463,6 +460,13 @@ static inline int isFramePg (page_desc_t *page) {
          (page->type == PG_CODE);           /* Defines a code page */
 }
 
+static inline int isSensitivePg (page_desc_t *page) { 
+  return (page->type == PG_TKDATA)   ||      /* Defines a kernel data page */
+         (page->type == PG_TUDATA)   ||      /* Defines a user data page */
+         (page->type == PG_ENC)      ||      /* Defines an enclave page */
+         (page->type == PG_CODE);           /* Defines a code page */
+}
+
 /* Description: Return whether the page is active or not */
 static inline int pgIsActive (page_desc_t *page) 
     { return page->type != PG_UNUSED ; } 
@@ -574,6 +578,45 @@ mapPageReadOnly(page_desc_t * ptePG, page_entry_t mapping) {
   }
 
   return 0;
+}
+
+/*
+ * Function: protect_paging()
+ *
+ * Description:
+ *  Actually enforce read only protection. 
+ *
+ *  Protects the page table entry. This disables the flag in CR0 which bypasses
+ *  the RW flag in pagetables. After this call, it is safe to re-enable
+ *  interrupts.
+ */
+static inline void
+protect_paging(void) {
+  /* The flag value for enabling page protection */
+  const uintptr_t flag = 0x00010000;
+  uintptr_t value = 0;
+  __asm__ __volatile ("movq %%cr0,%0\n": "=r" (value));
+  value |= flag;
+  __asm__ __volatile ("movq %0,%%cr0\n": :"r" (value));
+  return;
+}
+
+/*
+ * Function: unprotect_paging
+ *
+ * Description:
+ *  This function disables page protection on x86_64 systems.  It is used by
+ *  the SVA VM to allow itself to disable protection to update the in-memory
+ *  page tables.
+ */
+static inline void
+unprotect_paging(void) {
+  /* The flag value for enabling page protection */
+  const uintptr_t flag = 0xfffffffffffeffff;
+  uintptr_t value;
+  __asm__ __volatile("movq %%cr0,%0\n": "=r"(value));
+  value &= flag;
+  __asm__ __volatile("movq %0,%%cr0\n": : "r"(value));
 }
 
 /*

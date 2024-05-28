@@ -1320,6 +1320,14 @@ void __init_or_module alternatives_smp_module_add(struct module *mod,
 	if (!uniproc_patched)
 		goto unlock;
 
+	/* ENCOS */
+#ifdef CONFIG_ENCOS_MMU
+	printk("SVA-Untrusted: adding a kernel module .. \n");
+	printk("locks %px -> %px, text %px -> %px, name %s\n",
+		locks, locks_end,
+		text, text_end, name);
+#endif
+
 	if (num_possible_cpus() == 1)
 		/* Don't bother remembering, we'll never have to undo it. */
 		goto smp_unlock;
@@ -1776,15 +1784,32 @@ static void text_poke_memset(void *dst, const void *src, size_t len)
 
 typedef void text_poke_f(void *dst, const void *src, size_t len);
 
+#ifdef CONFIG_ENCOS_MMU
+/* Call the secure poking function to avoid providing RW kernel code mapping(s) */
+struct sva_secure_poke_t {
+  page_entry_t pte;
+  page_entry_t ptetwo;
+  pte_t *ptep;
+  bool cross_page_boundary;
+};
+extern void sva_secure_poke(text_poke_f func, void *addr, const void *src, size_t len,
+  struct sva_secure_poke_t* spt);
+#endif
+
 static void *__text_poke(text_poke_f func, void *addr, const void *src, size_t len)
 {
 	bool cross_page_boundary = offset_in_page(addr) + len > PAGE_SIZE;
 	struct page *pages[2] = {NULL};
-	temp_mm_state_t prev;
 	unsigned long flags;
-	pte_t pte, *ptep;
+	pte_t *ptep;
 	spinlock_t *ptl;
 	pgprot_t pgprot;
+	temp_mm_state_t prev;
+#ifdef CONFIG_ENCOS_MMU
+	struct sva_secure_poke_t spt;
+#else 
+	pte_t pte;
+#endif
 
 	/*
 	 * While boot memory allocator is running we cannot use struct pages as
@@ -1826,7 +1851,24 @@ static void *__text_poke(text_poke_f func, void *addr, const void *src, size_t l
 
 	local_irq_save(flags);
 
+#ifdef CONFIG_ENCOS_MMU
+	spt.ptep = ptep;
+	spt.pte = (mk_pte(pages[0], pgprot)).pte;
+	spt.cross_page_boundary = cross_page_boundary;
+	if (cross_page_boundary) {
+		spt.ptetwo = (mk_pte(pages[1], pgprot)).pte;
+	}
+
+	/*
+	 * Loading the temporary mm behaves as a compiler barrier, which
+	 * guarantees that the PTE will be set at the time memcpy() is done.
+	 */
+	prev = use_temporary_mm(poking_mm);
+	
+	sva_secure_poke(func, addr, src, len, &spt);
+#else
 	pte = mk_pte(pages[0], pgprot);
+
 	set_pte_at(poking_mm, poking_addr, ptep, pte);
 
 	if (cross_page_boundary) {
@@ -1853,6 +1895,7 @@ static void *__text_poke(text_poke_f func, void *addr, const void *src, size_t l
 	pte_clear(poking_mm, poking_addr, ptep);
 	if (cross_page_boundary)
 		pte_clear(poking_mm, poking_addr + PAGE_SIZE, ptep + 1);
+#endif
 
 	/*
 	 * Loading the previous page-table hierarchy requires a serializing
@@ -1860,6 +1903,7 @@ static void *__text_poke(text_poke_f func, void *addr, const void *src, size_t l
 	 * Xen-PV is assumed to serialize execution in a similar manner.
 	 */
 	unuse_temporary_mm(prev);
+
 
 	/*
 	 * Flushing the TLB might involve IPIs, which would require enabled

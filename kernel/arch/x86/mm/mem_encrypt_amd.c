@@ -449,10 +449,11 @@ static int __init early_set_memory_enc_dec(unsigned long vaddr,
 		 * page then we request a split of the large page into 4K
 		 * chunks. A 1GB large page is split into 2M pages, resp.
 		 */
-		if (level == PG_LEVEL_2M)
+		if (level == PG_LEVEL_2M) {
 			split_page_size_mask = 0;
-		else
+		} else {
 			split_page_size_mask = 1 << PG_LEVEL_2M;
+		}
 
 		/*
 		 * kernel_physical_mapping_change() does not flush the TLBs, so

@@ -21,16 +21,10 @@ CURBRANCH=`git status | head -1 | cut -d ' ' -f3`
 # Build the kernel executable
 pushd $LINUXFOLDER
     # copy the saved config
-    cp $CURDIR/.config.saved .config
+    cp $CURDIR/.config.saved.nokvm-perf-nolivepatch-nospec-noloadmod-nohp-no5level .config
 
-    {
-        cat .config | grep HUGE
-        cat .config | grep CONFIG_PREEMPT
-        cat .config | grep CONFIG_PREEMPT_RCU || true
-
-        # Start the build process
-        make -j`nproc` 
-    } |& tee $CURDIR/build.kern.log
+    # Start the build process
+    make -j`nproc`
 popd
 
 # Export required environment variables

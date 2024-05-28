@@ -109,6 +109,15 @@ sva_mm_save_pgtable (void)
   return p;
 }
 
+static inline unsigned long
+sva_get_current_pgd (void)
+{
+  unsigned long p;
+  __asm__ __volatile__ ("movq %%cr3, %0\n" : "=r" (p));
+  p >>= 12;
+  return p;
+}
+
 /*
  * Function: sva_mm_flush_tlb()
  *

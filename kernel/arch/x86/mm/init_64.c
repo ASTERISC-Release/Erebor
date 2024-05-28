@@ -1352,6 +1352,11 @@ void __init mem_init(void)
 		kclist_add(&kcore_vsyscall, (void *)VSYSCALL_ADDR, PAGE_SIZE, KCORE_USER);
 
 	preallocate_vmalloc_pages();
+
+	/* enclave-cross-arch Call SVA to ensure kernel regions are protected now */
+	#ifdef CONFIG_ENCOS_MMU
+		sva_mmu_init();
+	#endif
 }
 
 #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
@@ -1377,8 +1382,8 @@ void mark_rodata_ro(void)
 	unsigned long rodata_end = PFN_ALIGN(__end_rodata);
 	unsigned long all_end;
 
-	printk(KERN_INFO "Write protecting the kernel read-only data: %luk\n",
-	       (end - start) >> 10);
+	printk(KERN_INFO "Write protecting the kernel read-only data: %px, %luk\n",
+	       (void*) start, (end - start) >> 10);
 	set_memory_ro(start, (end - start) >> PAGE_SHIFT);
 
 	kernel_set_to_readonly = 1;

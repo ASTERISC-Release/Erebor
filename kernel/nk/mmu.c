@@ -28,7 +28,53 @@
 #include "sva/idt.h"
 #include "sva/enc.h"
 
-/* Chuqi: moved the VCPU configuration to config.h */
+/* Logging parameters and definitions local to the MMU configuration change */
+enum log_type_t {
+    PRINTK = 0,
+    DECLARE,  /* Print all declares and printk */
+    UPDATE,   /* Print all declares, printk, and updates */
+};
+#define VERBOSE PRINTK
+#define DEBUG_WALK 2
+
+#define LOG_PRINTK(args...) printk("SVA: " args)
+#define LOG_WALK(verb, args...) { \
+  if (DEBUG_WALK >= verb) { \
+    printk("SVA: (walk) " args); \
+  } else {} }
+#define LOG_DECLARE(args...) { \
+  if (VERBOSE>=DECLARE) { \
+    printk("SVA: (declare) " args); \
+  } else {} }
+#define LOG_UPDATE(args...) { \
+  if (VERBOSE>=UPDATE) { \
+    printk("SVA: (update) " args); \
+  } else {} }
+
+/* Special panic(..) that also prints the outer kernel's stack */
+extern char _svastart[];
+extern char _svaend[];
+extern char _stext[];
+extern char _etext[];
+
+static inline void print_insecure_stack(void) {
+  show_stack(current, get_insecure_context_rsp(), KERN_DEFAULT);
+}
+
+#define PANIC(args ...) \
+  printk("-----------------------------------------------"); \
+  print_insecure_stack(); \
+  printk("-----------------------------------------------"); \
+  panic(args)
+
+#define PANIC_WRONG_MAPPING(args ...) \
+  printk("-----------------------------------------------"); \
+  print_insecure_stack(); \
+  printk("-----------------------------------------------"); \
+  LOG_PRINTK("_stext: %lx, _etext: %lx\n", __pa(_stext), __pa(_etext)); \
+  LOG_PRINTK("_svastart: %lx, _svaend: %lx\n", __pa(_svastart), __pa(_svaend)); \
+  printk("-----------------------------------------------"); \
+  panic(args)
 
 /* 
  * Description: 
@@ -40,7 +86,7 @@ char SecureStack[pageSize*NCPU] SVAMEM;
 /* Chuqi: Important this value can't be changed from outside the nested kernel! 
  * Remember the stack grows down, so the base is the highest address.
  */
-const uintptr_t SecureStackBase = (uintptr_t) SecureStack + pageSize;
+const unsigned long SecureStackBase = (unsigned long) SecureStack + pageSize;
 
 
 /*
@@ -61,9 +107,8 @@ const uintptr_t SyscallSecureStackBase = (uintptr_t) SyscallSecureStack + pageSi
  * MSR and control register (CR) operations.
  *****************************************************************************
  */
-// Rahul: Moved functions here from the header file mmu.h
- uint64_t
-_rdmsr(uintptr_t msr)
+uint64_t
+_rdmsr(unsigned long msr)
 {
     uint32_t low, high;
 
@@ -82,7 +127,7 @@ _load_cr4(unsigned long val) {
 }
 
 void
-_wrmsr(uintptr_t msr, uint64_t newval)
+_wrmsr(unsigned long msr, uint64_t newval)
 {
 	uint32_t low, high;
 
@@ -96,23 +141,23 @@ _wrmsr(uintptr_t msr, uint64_t newval)
     __asm __volatile("movq %0,%%cr3" : : "r" (data) : "memory"); 
 }
 
- uintptr_t
+ unsigned long
 _rcr0(void) {
-    uintptr_t  data;
+    unsigned long  data;
     __asm __volatile("movq %%cr0,%0" : "=r" (data));
     return (data);
 }
 
- uintptr_t
+ unsigned long
 _rcr3(void) {
-    uintptr_t  data;
+    unsigned long  data;
     __asm __volatile("movq %%cr3,%0" : "=r" (data));
     return (data);
 }
 
- uintptr_t
+ unsigned long
 _rcr4(void) {
-    uintptr_t  data;
+    unsigned long  data;
     __asm __volatile("movq %%cr4,%0" : "=r" (data));
     return (data);
 }
@@ -131,7 +176,7 @@ _efer(void) {
 /*
  * Private local mapping update function prototypes.
  */
-static  void __update_mapping (uintptr_t * pageEntryPtr, page_entry_t val);
+static  void __update_mapping (unsigned long * pageEntryPtr, page_entry_t val);
 
 /*
  *****************************************************************************
@@ -176,7 +221,8 @@ static void MMULock_Release(void) {
 /*
  * Description:
  *  Given a page table entry value, return the page description associate with
- *  the frame being addressed in the mapping.
+ *  the frame being addressed in the mapping. For AMD SEV VMs, this also removes 
+ *  the c-bit (51) from the physical address
  *
  * Inputs:
  *  mapping: the mapping with the physical address of the referenced frame
@@ -186,16 +232,16 @@ static void MMULock_Release(void) {
  */
 page_desc_t * getPageDescPtr(unsigned long mapping) {
 
-  /* Adil: Unset the c-bit (which is 51) */
   unsigned long long mask = ~(1ULL << 51);
-  unsigned long long frameIndex = (mapping & mask);
-  // printk("Mapping (before = %px, after = %px)\n", mapping, frameIndex);
+  unsigned long long frameIndex = ((mapping & PG_FRAME) & mask) / pageSize;
 
-  frameIndex = ((mapping & PG_FRAME) & mask) / pageSize;
-
-  if(frameIndex  >= numPageDescEntries)
+  /* Sanity check */
+  if(frameIndex  >= numPageDescEntries) {
+    /* Basically, this is to deal with the kernel's junk mappings */
+    // LOG_PRINTK("[PANIC]: SVA: getPageDescPtr: %lx %lx %lx\n", mapping, frameIndex, numPageDescEntries);
     return NULL;
-    // panic ("[PANIC]: SVA: getPageDescPtr: %lx %lx %lx\n", mapping, frameIndex, numPageDescEntries);
+  }
+
   return page_desc + frameIndex;
 }
 
@@ -245,13 +291,17 @@ init_mmu () {
  *
  */
 static  void
-page_entry_store (unsigned long *page_entry, page_entry_t newVal) {
-  /* Write the new value to the page_entry */
-  // *page_entry = newVal;
+page_entry_store (unsigned long *page_entry, page_entry_t newVal) {  
+  /* 
+   * ENCOS: Using Linux primitive. No need to flush ( __flush_tlb_all();), since 
+   * the kernel should automatically handle flushing after return.
+   */
   WRITE_ONCE(*page_entry, newVal);
 
-  // __flush_tlb_all();
-  /* TODO: Add a check here to make sure the value matches the one passed in */
+  /* 
+   * TODO: Add a check here to make sure the value matches the one passed in. 
+   * ENCOS: not sure this is required, but leaving for now.
+   */
 }
 
 /*
@@ -285,32 +335,37 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
   /* Collect associated information for the existing mapping */
   unsigned long origPA = *page_entry & PG_FRAME;
   unsigned long origFrame = origPA >> PAGESHIFT;
-  uintptr_t origVA = (uintptr_t) getVirtual(origPA);
+  unsigned long origVA = (unsigned long) getVirtual(origPA);
 
   page_desc_t *origPG = getPageDescPtr(origPA);
 
   /* Get associated information for the new page being mapped */
   unsigned long newPA = newVal & PG_FRAME;
   unsigned long newFrame = newPA >> PAGESHIFT;
-  uintptr_t newVA = (uintptr_t) getVirtual(newPA);
-  page_desc_t *newPG = getPageDescPtr(newPA);
+  unsigned long newVA = (unsigned long) getVirtual(newPA);
 
-  if(!newPG) return 0;
+  page_desc_t *newPG = getPageDescPtr(newPA);
+  if(!newPG) {
+    /* 
+     * ENCOS: This may be possible since Linux adds junk mappings. 
+     * For simplicity, we allow these cases to go ahead.
+     */
+    return 0;
+  }
 
   /* Get the page table page descriptor. The page_entry is the viratu */
-  uintptr_t ptePAddr = __pa (page_entry);
+  unsigned long ptePAddr = __pa (page_entry);
   page_desc_t *ptePG = getPageDescPtr(ptePAddr);
-
 
   /* Return value */
   unsigned char retValue = 2;
 
-  /*
-   * Deal with the enclave page
+  /* 
+   * Deal with the enclave page(s). TODO: fix and test this case rigorously.
    */
   if (newPG->type == PG_ENC) {
     if (current_encid() != newPG->encID) {
-      panic ("SVA: MMU: Mapping enclave page to wrong enclave container.");
+      PANIC ("SVA: MMU: Mapping enclave page to wrong enclave container.");
     }
   }
 
@@ -319,7 +374,7 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
    * some cases we must, otherwise, the checks will fail. For example if this
    * is a mapping in a page table page then we allow a zero mapping. 
    */
-  // if (newVal & PG_V) {
+  if (newVal & PG_V) {
     /* If the mapping is to an SVA page then fail */
     SVA_ASSERT (!isSVAPg(newPG), "Kernel attempted to map an SVA page");
 
@@ -329,7 +384,7 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
      */
     if (isCodePg (newPG)) {
       if ((newVal & (PG_RW | PG_U)) == (PG_RW)) {
-        panic ("SVA: Making kernel code writeable: %lx %lx\n", newVA, newVal);
+        PANIC ("SVA: Making kernel code writeable: %lx %lx\n", newVA, newVal);
       }
     }
 
@@ -349,17 +404,16 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
        * Otherwise, this is the first mapping of the page, and we should record
        * in what virtual address it is being placed.
        */
-#if 0
       if (pgRefCount(newPG) > 1) {
         if (newPG->pgVaddr != page_entry) {
-          panic ("SVA: PG: %lx %lx: type=%x\n", newPG->pgVaddr, page_entry, newPG->type);
+          PANIC("Map PTP to 2nd VA (oldVA: %lx newVA:%lx, PA:%px, type=%x\n", 
+              newPG->pgVaddr, page_entry, ptePAddr, newPG->type);
         }
-        SVA_ASSERT (newPG->pgVaddr == page_entry, "MMU: Map PTP to second VA");
       } else {
         newPG->pgVaddr = page_entry;
       }
-#endif
     }
+
     /*
      * Verify that that the mapping matches the correct type of page
      * allowed to be mapped into this page table. Verify that the new
@@ -381,7 +435,19 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
           if ((newPG->type >= PG_L1) && (newPG->type <= PG_L5)) {
             retValue = 2;
           } else {
-            panic ("SVA: MMU: Map bad page type into L1: %x\n", newPG->type);
+            /* 
+             * ENCOS: Another compromise made here. Basically, this is the case
+             * where the kernel will split hugepages for SVA regions (and others?).
+             * In such cases, we allow split mappings, but enable protection on 
+             * child entries.
+             */
+            if (newPG->type >= PG_SVA) {
+              /* TODO: Let's add the read-only bit. */
+              retValue = 2;
+            } else {
+              PANIC_WRONG_MAPPING ("SVA: Map bad page type into L1: (virt: %px, phys: %px, pte: %px, pgtype: %x)\n", 
+                newVA, newPA, ptePAddr, newPG->type);
+            }
           }
         }
 
@@ -402,11 +468,24 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
             if ((newPG->type >= PG_L1) && (newPG->type <= PG_L5)) {
               retValue = 2;
             } else {
-              panic ("SVA: MMU: Map bad page type into L2: %x\n", newPG->type);
+            /* 
+             * ENCOS: Another compromise made here. Basically, this is the case
+             * where the kernel will split hugepages for SVA regions (and others?).
+             * In such cases, we allow split mappings, but enable protection on 
+             * child entries.
+             */
+              if (newPG->type >= PG_SVA) {
+                /* TODO: Let's add the read-only bit. */
+                retValue = 2;
+              } else {
+                PANIC_WRONG_MAPPING ("SVA: Map bad page type into L2: (virt: %px, phys: %px, pte: %px, pgtype: %x)\n", 
+                newVA, newPA, ptePAddr, newPG->type);
+              }
             }
           }
         } else {
-          SVA_ASSERT (isL1Pg(newPG), "MMU: Mapping non-L1 page into L2.");
+          // ENCOS: TODO (check why this fails.)
+          // SVA_ASSERT (isL1Pg(newPG), "MMU: Mapping non-L1 page into L2.");
         }
         break;
 
@@ -425,28 +504,30 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
             if ((newPG->type >= PG_L1) && (newPG->type <= PG_L5)) {
               retValue = 2;
             } else {
-              panic ("SVA: MMU: Map bad page type into L2: %x\n", newPG->type);
+              PANIC_WRONG_MAPPING ("SVA: Map bad page type into L3: (virt: %px, phys: %px, pte: %px, pgtype: %x)\n", 
+                newVA, newPA, ptePAddr, newPG->type);
             }
           }
         } else {
-          SVA_ASSERT (isL2Pg(newPG), "MMU: Mapping non-L2 page into L3.");
+          // SVA_ASSERT (isL2Pg(newPG), "SVA: Mapping non-L2 page into L3.");
         }
         break;
 
       case PG_L4:
-        SVA_ASSERT (isL3Pg(newPG), 
-                    "MMU: Mapping non-L3 page into L4.");
+        SVA_ASSERT (isL3Pg(newPG), "SVA: Mapping non-L3 page into L4.");
         break;
 
+#if defined (CONFIG_X86_5LEVEL)
       case PG_L5:
-        SVA_ASSERT (isL4Pg(newPG), 
-                    "MMU: Mapping non-L4 page into L5.");
+        SVA_ASSERT (isL4Pg(newPG), "SVA: Mapping non-L4 page into L5.");
         break;
+#endif
 
       default:
+        PANIC_WRONG_MAPPING("SVA: Incorrect mapping that does not belong to L1 - L4/5");
         break;
     }
-  // }
+  }
 
   /*
    * If the new mapping is set for user access, but the VA being used is to
@@ -475,8 +556,7 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
      * pointing this entry to another code page, thus fail.
      */
     if (origPG && isCodePg (origPG)) {
-      SVA_ASSERT ((*page_entry & PG_U),
-                  "Kernel attempting to modify code page mapping");
+      SVA_ASSERT ((*page_entry & PG_U), "Kernel attempting to modify code page mapping");
     }
   }
 
@@ -497,15 +577,13 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
  */
 static  void
 updateNewPageData(page_entry_t mapping) {
-  uintptr_t newPA = mapping & PG_FRAME;
+  unsigned long newPA = ((mapping & PG_FRAME) & PG_NX) & PG_CBIT;
+  unsigned long newVA = (unsigned long) getVirtual(newPA);
   page_desc_t *newPG = getPageDescPtr(mapping);
   if(!newPG) return;
 
-  /*
-   * If the new mapping is valid, update the counts for it.
-   */
+  /* If the new mapping is valid, update the counts for it. */
   if (mapping & PG_V) {
-#if 0
     /*
      * If the new page is to a page table page and this is the first reference
      * to the page, we need to set the VA mapping this page so that the
@@ -517,23 +595,14 @@ updateNewPageData(page_entry_t mapping) {
     if (isPTP(newPG)) {
       newPG->pgVaddr = newVA;
     }
-#endif
 
     /* 
      * Update the reference count for the new page frame. Check that we aren't
      * overflowing the counter.
      */
-    SVA_ASSERT (pgRefCount(newPG) < ((1u << 13) - 1), 
-                "MMU: overflow for the mapping count");
+    SVA_ASSERT (pgRefCount(newPG) < ((1u << 13) - 1), "MMU: overflow for the mapping count");
     newPG->count++;
-
-    /* 
-     * Set the VA of this entry if it is the first mapping to a page
-     * table page.
-     */
   }
-
-  return;
 }
 
 /*
@@ -576,8 +645,8 @@ updateOrigPageData(page_entry_t mapping) {
  */
 static  void
 __do_mmu_update (page_entry_t* pteptr, page_entry_t mapping) {
-  uintptr_t origPA = (uintptr_t)(*pteptr & PG_FRAME);
-  uintptr_t newPA = (uintptr_t)(mapping & PG_FRAME);
+  unsigned long origPA = (unsigned long)(*pteptr & PG_FRAME);
+  unsigned long newPA = (unsigned long)(mapping & PG_FRAME);
 
   /*
    * If we have a new mapping as opposed to just changing the flags of an
@@ -683,29 +752,36 @@ initDeclaredPage (unsigned long frameAddr) {
  *  - val : new entry value
  */
 static void
-__update_mapping (uintptr_t * pageEntryPtr, page_entry_t val) {
+__update_mapping (unsigned long * pageEntryPtr, page_entry_t val) {
   /* 
    * If the given page update is valid then store the new value to the page
    * table entry, else raise an error.
    */
   switch (pt_update_is_valid((page_entry_t *) pageEntryPtr, val)) {
     case 1:
-      // Kernel thinks these should be RW, since it wants to write to them.
-      // Convert to read-only and carry on.
-      // CLEANUP: Need to set to read-only anymore, since we use PKS now
+      /* Kernel thinks these should be RW, since it wants to write to them.
+       * Convert to read-only and carry on. 
+       * 
+       * Note: all writes to such objects should be made inside the SVA code.   
+       */
+      
+      /* ENCOS: TODO: enable this read-only after completing checks. */
       // val = setMappingReadOnly (val);
       __do_mmu_update ((page_entry_t *) pageEntryPtr, val);
       break;
 
     case 2:
+      /* This updates are valid and we should allow them */
       __do_mmu_update ((page_entry_t *) pageEntryPtr, val);
       break;
 
     case 0:
-      /* Silently ignore the request */
+      /* 
+       * ENCOS: This updates junk kernel mappings (>>memSize). Not entirely
+       * clear why the kernel creates such mappings, but let's allow them.
+       */
       __do_mmu_update ((page_entry_t *) pageEntryPtr, val);
-      // panic("Invalid mmu update requested!\n");
-      return;
+      break;
 
     default:
       panic("##### SVA invalid page update!!!\n");
@@ -733,13 +809,14 @@ __update_mapping (uintptr_t * pageEntryPtr, page_entry_t val) {
  *  address is returned.
  */
 page_entry_t * 
-get_pgeVaddr (uintptr_t vaddr, int *is_l1) {
+get_pgeVaddr (unsigned long vaddr, int *is_l1) {
   /* Pointer to the page table entry for the virtual address */
   page_entry_t *pge = 0;
   if (is_l1)
     *is_l1 = 0;
+
   /* Get the base of the pml4 to traverse */
-  uintptr_t cr3 = (uintptr_t) get_pagetable();
+  unsigned long cr3 = (unsigned long) get_pagetable();
   if ((cr3 & 0xfffffffffffff000u) == 0)
     return 0;
 
@@ -749,7 +826,11 @@ get_pgeVaddr (uintptr_t vaddr, int *is_l1) {
   if (pgd->pgd & PG_V) {
     p4d_t *p4d = get_p4dVaddr(pgd, vaddr);
 
+  #if defined(CONFIG_X86_5LEVEL)
     if(p4d->p4d & PG_V) {
+  #else
+    if ((p4d->pgd.pgd & PG_V) > 0) {
+  #endif
       /* Get the VA of the pdpte for this vaddr */
       pud_t *pud = get_pudVaddr (p4d, vaddr);
 
@@ -791,38 +872,42 @@ get_pgeVaddr (uintptr_t vaddr, int *is_l1) {
 
 /* Refer to Intel SDM Section 4.5.2 */
 pgd_t *
-get_pgdVaddr (unsigned char * cr3, uintptr_t vaddr) {
+get_pgdVaddr (unsigned char * cr3, unsigned long vaddr) {
   /* Offset into the page table */
-  uintptr_t offset = (vaddr >> (48 - 3)) & vmask;
-  return (pgd_t *) getVirtual (((uintptr_t)cr3) | offset);
+  unsigned long offset = (vaddr >> (48 - 3)) & vmask;
+  return (pgd_t *) getVirtual (((unsigned long)cr3) | offset);
 }
 
 p4d_t *
-get_p4dVaddr (pgd_t * pgd, uintptr_t vaddr) {
+get_p4dVaddr (pgd_t * pgd, unsigned long vaddr) {
   /* Offset into the page table */
-  uintptr_t base   = (uintptr_t)(pgd->pgd) & addrmask;
-  uintptr_t offset = (vaddr >> (39 - 3)) & vmask;
-  return (p4d_t *) getVirtual (((uintptr_t)base) | offset);
+  unsigned long base   = (unsigned long)(pgd->pgd) & addrmask;
+  unsigned long offset = (vaddr >> (39 - 3)) & vmask;
+  return (p4d_t *) getVirtual (((unsigned long)base) | offset);
 }
 
 pud_t *
-get_pudVaddr (p4d_t * p4d, uintptr_t vaddr) {
-  uintptr_t base   = (uintptr_t)(p4d->p4d) & addrmask;
-  uintptr_t offset = (vaddr >> (30 - 3)) & vmask;
+get_pudVaddr (p4d_t * p4d, unsigned long vaddr) {
+  #if defined(CONFIG_X86_5LEVEL)
+    unsigned long base   = (unsigned long) (p4d->p4d) & addrmask;
+  #else
+    unsigned long base   = (unsigned long) (p4d->pgd.pgd) & addrmask;
+  #endif
+  unsigned long offset = (vaddr >> (30 - 3)) & vmask;
   return (pud_t *) getVirtual (base | offset);
 }
 
 pmd_t *
-get_pmdVaddr (pud_t * pud, uintptr_t vaddr) {
-  uintptr_t base   = (uintptr_t)(pud->pud) & addrmask;
-  uintptr_t offset = (vaddr >> (21 - 3)) & vmask;
+get_pmdVaddr (pud_t * pud, unsigned long vaddr) {
+  unsigned long base   = (unsigned long)(pud->pud) & addrmask;
+  unsigned long offset = (vaddr >> (21 - 3)) & vmask;
   return (pmd_t *) getVirtual (base | offset);
 }
 
 pte_t *
-get_pteVaddr (pmd_t * pmd, uintptr_t vaddr) {
-  uintptr_t base   = (uintptr_t)(pmd->pmd) & addrmask;
-  uintptr_t offset = (vaddr >> (12 - 3)) & vmask;
+get_pteVaddr (pmd_t * pmd, unsigned long vaddr) {
+  unsigned long base   = (unsigned long)(pmd->pmd) & addrmask;
+  unsigned long offset = (vaddr >> (12 - 3)) & vmask;
   return (pte_t *) getVirtual (base | offset);
 }
 
@@ -830,41 +915,45 @@ get_pteVaddr (pmd_t * pmd, uintptr_t vaddr) {
 /*
  * Functions for returing the physical address of page table pages.
  */
-static  uintptr_t
-get_pgdPaddr (unsigned char * cr3, uintptr_t vaddr) {
+static  unsigned long
+get_pgdPaddr (unsigned char * cr3, unsigned long vaddr) {
   /* Offset into the page table */
-  uintptr_t offset = ((vaddr >> 48) << 3) & vmask;
-  return (((uintptr_t)cr3) | offset);
+  unsigned long offset = ((vaddr >> 48) << 3) & vmask;
+  return (((unsigned long)cr3) | offset);
 }
 
-static  uintptr_t
-get_p4dPaddr (pgd_t * pgd, uintptr_t vaddr) {
-  uintptr_t offset = ((vaddr  >> 39) << 3) & vmask;
-  return (((uintptr_t)(pgd->pgd) & 0x000ffffffffff000u) | offset);
+static  unsigned long
+get_p4dPaddr (pgd_t * pgd, unsigned long vaddr) {
+  unsigned long offset = ((vaddr  >> 39) << 3) & vmask;
+  return (((unsigned long)(pgd->pgd) & 0x000ffffffffff000u) | offset);
 }
 
-static  uintptr_t
-get_pudPaddr (p4d_t * p4d, uintptr_t vaddr) {
-  uintptr_t offset = ((vaddr  >> 30) << 3) & vmask;
-  return (((uintptr_t)p4d->p4d & 0x000ffffffffff000u) | offset);
+static  unsigned long
+get_pudPaddr (p4d_t * p4d, unsigned long vaddr) {
+  unsigned long offset = ((vaddr  >> 30) << 3) & vmask;
+#if defined (CONFIG_X86_5LEVEL)
+  return (((unsigned long)p4d->p4d & 0x000ffffffffff000u) | offset);
+#else
+  return (((unsigned long)p4d->pgd.pgd & 0x000ffffffffff000u) | offset);
+#endif
 }
 
-static  uintptr_t
-get_pmdPaddr (pud_t * pud, uintptr_t vaddr) {
-  uintptr_t offset = ((vaddr >> 21) << 3) & vmask;
-  return (((uintptr_t)pud->pud & 0x000ffffffffff000u) | offset);
+static  unsigned long
+get_pmdPaddr (pud_t * pud, unsigned long vaddr) {
+  unsigned long offset = ((vaddr >> 21) << 3) & vmask;
+  return (((unsigned long)pud->pud & 0x000ffffffffff000u) | offset);
 }
 
-static  uintptr_t
-get_ptePaddr (pmd_t * pmd, uintptr_t vaddr) {
-  uintptr_t offset = ((vaddr >> 12) << 3) & vmask;
-  return (((uintptr_t)pmd->pmd & 0x000ffffffffff000u) | offset);
+static  unsigned long
+get_ptePaddr (pmd_t * pmd, unsigned long vaddr) {
+  unsigned long offset = ((vaddr >> 12) << 3) & vmask;
+  return (((unsigned long)pmd->pmd & 0x000ffffffffff000u) | offset);
 }
 
 /* Functions for querying information about a page table entry */
 // Rahul: Check instances that invoke this function and if the argument passing is correct
 static  unsigned char
-isPresent (uintptr_t * pte) {
+isPresent (unsigned long * pte) {
   return (*pte & 0x1u) ? 1u : 0u;
 }
 
@@ -874,16 +963,16 @@ isPresent (uintptr_t * pte) {
  * Description:
  *  Find the physical page number of the specified virtual address.
  */
-uintptr_t
+unsigned long
 getPhysicalAddr (void * v) {
   /* Mask to get the proper number of bits from the virtual address */
-  static const uintptr_t vmask = 0x0000000000000fffu;
+  static const unsigned long vmask = 0x0000000000000fffu;
 
   /* Virtual address to convert */
-  uintptr_t vaddr  = ((uintptr_t) v);
+  unsigned long vaddr  = ((unsigned long) v);
 
   /* Offset into the page table */
-  uintptr_t offset = 0;
+  unsigned long offset = 0;
 
   /*
    * Get the currently active page table.
@@ -891,18 +980,10 @@ getPhysicalAddr (void * v) {
   unsigned char * cr3 = get_pagetable();
 
   /*
-   * Get the address of the PGD.
+   * Get the address of the PGD, P4D, and PUD.
    */
   pgd_t * pgd = get_pgdVaddr (cr3, vaddr);
-
-  /*
-   * Use the PGD to get the address of the P4D.
-   */
   p4d_t * p4d = get_p4dVaddr (pgd, vaddr);
-
-  /*
-   * Use the P4D to get the address of the PUD.
-   */
   pud_t * pud = get_pudVaddr (p4d, vaddr);
 
   /*
@@ -935,14 +1016,13 @@ getPhysicalAddr (void * v) {
    * Compute the physical address.
    */
   offset = vaddr & vmask;
-  uintptr_t paddr = (pte->pte & 0x000ffffffffff000u) + offset;
+  unsigned long paddr = (pte->pte & 0x000ffffffffff000u) + offset;
   return paddr;
 }
 
-
 SECURE_WRAPPER(void, 
 sva_mmu_test, void) {
-  uintptr_t sp;
+  unsigned long sp;
     asm volatile (
         "movq %%rsp, %0\n\t"
         : "=r" (sp)
@@ -966,50 +1046,52 @@ sva_mmu_test, void) {
  * Inputs:
  *  pg - The physical address of the top-level page table page.
  */
-// SECURE_WRAPPER(void,
-// sva_mm_load_pgtable, void *pg) {
-//   MMULock_Acquire();
-//   /* Control Register 0 Value (which is used to enable paging) */
-//   unsigned int cr0;
+SECURE_WRAPPER(void,
+sva_mm_load_pgtable, void *pg) {
+  MMULock_Acquire();
+  /* Control Register 0 Value (which is used to enable paging) */
+  unsigned int cr0;
 
-//   /*
-//    * TODO fully implement this. right now it is just a simulation for
-//    * performance numbers 
-//    */
+  /*
+   * TODO fully implement this. right now it is just a simulation for
+   * performance numbers.
+   *
+   * ENCOS: Nested Kernel seems to not have implemented this. TODO.
+   */
 
-//   /* read a PTE, and store it to simulate obtaining the load_cr3 mapping */
-//   page_entry_t * page_entry = get_pgeVaddr (pg);
-//   page_entry_store(page_entry, *page_entry);
-//   sva_mm_flush_tlb (pg);
+  /* read a PTE, and store it to simulate obtaining the load_cr3 mapping */
+  /* ENCOS: "NULL" was added for compilation. TODO: check correctness */
+  page_entry_t * page_entry = get_pgeVaddr (pg, NULL);
+  page_entry_store(page_entry, *page_entry);
+  sva_mm_flush_tlb (pg);
 
-//   /* simulate the branch */
-//   goto DOCHECK;
+  /* simulate the branch */
+  goto DOCHECK;
   
-//   //==-- Code residing on another set of pages --==//
-//   //
-//   /*
-//    * Check that the new page table is an L5 page table page.
-//    */
-// DOCHECK: 
-//   if ((mmuIsInitialized) && (getPageDescPtr(pg)->type != PG_L5)) {
-//     panic ("SVA: Loading non-L5 page into CR3: %lx %x\n", pg, getPageDescPtr (pg)->type);
-//   }
+  //==-- Code residing on another set of pages --==//
+  /*
+   * Check that the new page table is an L5 page table page.
+   */
+DOCHECK: 
+  if ((mmuIsInitialized) && (getPageDescPtr(pg)->type != PG_L5)) {
+    panic ("SVA: Loading non-L5 page into CR3: %lx %x\n", pg, getPageDescPtr (pg)->type);
+  }
 
-//   _load_cr3(pg);
+  _load_cr3(pg);
 
-//   /* Simulate return instruction */
-//   goto fini;
+  /* Simulate return instruction */
+  goto fini;
 
-// fini: 
-//   //==-- Simulate removing the mapping and then flush the TLB --==//
-//   page_entry = get_pgeVaddr (pg);
-//   page_entry_store(page_entry, *page_entry);
-//   sva_mm_flush_tlb (pg);
+fini: 
+  //==-- Simulate removing the mapping and then flush the TLB --==//
+  /* ENCOS: "NULL" was added for compilation. TODO: check correctness */
+  page_entry = get_pgeVaddr (pg, NULL);
+  page_entry_store(page_entry, *page_entry);
+  sva_mm_flush_tlb (pg);
 
-  
-//   MMULock_Release();
-//   return;
-// }
+  MMULock_Release();
+  return;
+}
 
 /*
  * Function: sva_write_cr0
@@ -1020,12 +1102,10 @@ sva_mmu_test, void) {
  */
 SECURE_WRAPPER(void,
 sva_write_cr0, unsigned long val) {
-    // MMULock_Acquire();
     val |= CR0_WP;
     _load_cr0(val);
     NK_ASSERT_PERF ((val & CR0_WP), "SVA: attempt to clear the CR0.WP bit: %x.",
         val);
-    // MMULock_Release();
 }
 
 /*
@@ -1036,15 +1116,15 @@ sva_write_cr0, unsigned long val) {
  *  bits are enabled. 
  */
 void sva_write_cr4(unsigned long val) {
-  // MMULock_Acquire();
-  // if(mmuIsInitialized) {
-  val |= (1 << 24);
-  //   printk("[mmu_init = 1] sva_write_cr4 = %lx\n", val);
-  // } else {
-  //   printk("[mmu_init = 0] sva_write_cr4 = %lx\n", val);
-  // }
+  MMULock_Acquire();
+  if(mmuIsInitialized) {
+    /* ENCOS: Is this the PKS bit? (check the SMAP/SMEP bits) */
+    val |= (1 << 24);
+    printk("[mmu_init = 1] sva_write_cr4 = %lx\n", val);
+  } else {
+    printk("[mmu_init = 0] sva_write_cr4 = %lx\n", val);
+  }
   _load_cr4(val);
-  // MMULock_Release();
 }
 
 /*
@@ -1059,34 +1139,17 @@ sva_load_msr(u_int msr, uint64_t val) {
     if(msr == MSR_REG_EFER) {
         val |= EFER_NXE;
     }
+
+    /* 
+     * ENCOS: Using kernel function for implementation reasons. In principle,
+     * we should not use any kernel function.
+     */
     _wrmsr(msr, val);
+    
     if ((msr == MSR_REG_EFER) && !(val & EFER_NXE)) {
-      // panic("SVA: attempt to clear the EFER.NXE bit: %x.", val);
+      PANIC("SVA: attempt to clear the EFER.NXE bit: %x.", val);
     }
 }
-
-/*
- * Function: sva_wrmsr
- *
- * Description:
- *  SVA Intrinsic to load a value in an MSR. The given value should be
- *  given in edx:eax and the MSR should be given in ecx. If the MSR is
- *  EFER, we need to make sure that the NXE bit is enabled. 
- */
-// void
-// sva_wrmsr() {
-//     uint64_t val;
-//     unsigned int msr;
-//     __asm__ __volatile__ (
-//         "wrmsr\n"
-//         : "=c" (msr), "=a" (val)
-//         :
-//         : "rax", "rcx", "rdx"
-//     );
-//     if ((msr == MSR_REG_EFER) && !(val & EFER_NXE)) {
-//       // panic("SVA: attempt to clear the EFER.NXE bit: %x.", val);
-//     }
-// }
 
 /*
  * Function: declare_ptp_and_walk_pt_entries
@@ -1145,250 +1208,241 @@ sva_load_msr(u_int msr, uint64_t val) {
  *    modifying them.
  *
  */
-// #define DEBUG_INIT 0
-// void 
-// declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
-//         numPgEntries, enum page_type_t pageLevel ) 
-// { 
-//   int i;
-//   int traversedPTEAlready;
-//   enum page_type_t subLevelPgType;
-//   unsigned long numSubLevelPgEntries;
-//   page_desc_t *thisPg;
-//   page_entry_t pageMapping; 
-//   page_entry_t *pagePtr;
+void 
+declare_ptp_and_walk_pt_entries(unsigned long pageEntryPA, unsigned long
+        numPgEntries, enum page_type_t pageLevel ) 
+{ 
+  int i;
+  int traversedPTEAlready;
+  enum page_type_t subLevelPgType;
+  unsigned long numSubLevelPgEntries;
+  page_desc_t *thisPg;
+  page_entry_t pageMapping; 
+  page_entry_t pageMapping_masked; 
+  page_entry_t *pagePtr;
+  unsigned long nx_mask    = ~(1 << 63);
+  unsigned long cbit_mask  = ~(1 << 51);
 
-//   /* Store the pte value for the page being traversed */
-//   pageMapping = pageEntryPA & PG_FRAME;
+  /* Store the pte value for the page being traversed */
+  pageMapping = (pageEntryPA);
+  pageMapping_masked = (((pageEntryPA & PG_FRAME) & nx_mask) & cbit_mask);
+  if (pageMapping_masked > memSize) {
+    LOG_WALK(1, "  \tJUNK (phys ==> %px\n)", pageMapping_masked);
+    return;
+  }
 
-//   /* Set the page pointer for the given page */
-// // #if USE_VIRT
-//   // uintptr_t pagePhysAddr = pageMapping & PG_FRAME;
-//   // pagePtr = (page_entry_t *) getVirtual(pagePhysAddr);
-// // #else
-//   pagePtr = (page_entry_t*) getVirtual((uintptr_t)(pageMapping & PG_FRAME));
-// // #endif
+  /* Set the page pointer for the given page */
+  pagePtr = (page_entry_t*) getVirtual((unsigned long)(pageMapping_masked));
 
-//   /* Get the page_desc for this page */
-//   thisPg = getPageDescPtr(pageMapping);
+  /* Get the page_desc for this page */
+  thisPg = getPageDescPtr(pageMapping_masked);
+  if (!thisPg) return;
 
-//   /* Mark if we have seen this traversal already */
-//   traversedPTEAlready = (thisPg->type != PG_UNUSED);
+  /* Mark if we have seen this traversal already */
+  traversedPTEAlready = (thisPg->type != PG_UNUSED);
 
-// #if DEBUG_INIT >= 1
-//   /* Character inputs to make the printing pretty for debugging */
-//   char * indent = "";
-//   char * l5s = "L5:";
-//   char * l4s = "\tL4:";
-//   char * l3s = "\t\tL3:";
-//   char * l2s = "\t\t\tL2:";
-//   char * l1s = "\t\t\t\tL1:";
+  /* Set the virtual address of the page (for later use) */
+  thisPg->pgVaddr = pagePtr;
 
-//   switch (pageLevel){
-//     case PG_L5:
-//         indent = l5s;
-//         printk("%sSetting L5 Page: mapping:0x%lx\n", indent, pageMapping);
-//         break;
-//     case PG_L4:
-//         indent = l4s;
-//         printk("%sSetting L4 Page: mapping:0x%lx\n", indent, pageMapping);
-//         break;
-//     case PG_L3:
-//         indent = l3s;
-//         printk("%sSetting L3 Page: mapping:0x%lx\n", indent, pageMapping);
-//         break;
-//     case PG_L2:
-//         indent = l2s;
-//         printk("%sSetting L2 Page: mapping:0x%lx\n", indent, pageMapping);
-//         break;
-//     case PG_L1:
-//         indent = l1s;
-//         printk("%sSetting L1 Page: mapping:0x%lx\n", indent, pageMapping);
-//         break;
-//     default:
-//         break;
-//   }
-// #endif
+  /* Character inputs to make the printing pretty for debugging */
+  char * indent = "";
+  char * l5s = "L5:";
+  char * l4s = "\tL4:";
+  char * l3s = "\t\tL3:";
+  char * l2s = "\t\t\tL2:";
+  char * l1s = "\t\t\t\tL1:";
 
-//   /*
-//    * For each level of page we do the following:
-//    *  - Set the page descriptor type for this page table page
-//    *  - Set the sub level page type and the number of entries for the
-//    *    recursive call to the function.
-//    */
-//   switch(pageLevel){
+  switch (pageLevel){
+#if defined(CONFIG_X86_5LEVEL)
+    case PG_L5:
+        indent = l5s;
+        LOG_WALK(2, "%sSetting L5 Page: ptr: %px, mapping:0x%lx, mapping (masked):0x%lx\n", 
+            indent, pagePtr, pageMapping, pageMapping_masked);
+        break;
+#endif
+    case PG_L4:
+        indent = l4s;
+        LOG_WALK(2, "%sSetting L4 Page: ptr: %px, mapping:0x%lx, mapping (masked):0x%lx\n", indent, pagePtr, 
+            pageMapping, pageMapping_masked);
+        break;
+    case PG_L3:
+        indent = l3s;
+        LOG_WALK(2, "%sSetting L3 Page: ptr: %px mapping:0x%lx, mapping (masked):0x%lx\n", indent, pagePtr, 
+            pageMapping, pageMapping_masked);
+        break;
+    case PG_L2:
+        indent = l2s;
+        LOG_WALK(2, "%sSetting L2 Page: ptr: %px, mapping:0x%lx, mapping (masked):0x%lx\n", indent, pagePtr, 
+            pageMapping, pageMapping_masked);
+        break;
+    case PG_L1:
+        indent = l1s;
+        LOG_WALK(2, "%sSetting L1 Page: ptr: %px, mapping:0x%lx, mapping (masked):0x%lx\n", indent, pagePtr, 
+            pageMapping, pageMapping_masked);
+        break;
+    default:
+        break;
+  }
 
-//     case PG_L5:
+  /*
+   * For each level of page we do the following:
+   *  - Set the page descriptor type for this page table page
+   *  - Set the sub level page type and the number of entries for the
+   *    recursive call to the function.
+   */
+  switch(pageLevel){
 
-//       thisPg->type = PG_L5;       /* Set the page type to L4 */
-//       thisPg->user = 0;           /* Set the priv flag to kernel */
-//       ++(thisPg->count);
-//       subLevelPgType = PG_L4;
-//       numSubLevelPgEntries = NPGDEPG;//    numPgEntries;
-//       break;
+    case PG_L5:
+      thisPg->type = PG_L5;       /* Set the page type to L4 */
+      thisPg->user = 0;           /* Set the priv flag to kernel */
+      ++(thisPg->count);
+      subLevelPgType = PG_L4;
+      numSubLevelPgEntries = NPGDEPG;//    numPgEntries;
+      break;
 
-//     case PG_L4:
+    case PG_L4:
+      thisPg->type = PG_L4;       /* Set the page type to L4 */
+      thisPg->user = 0;           /* Set the priv flag to kernel */
+      ++(thisPg->count);
+      subLevelPgType = PG_L3;
+      numSubLevelPgEntries = NP4DEPG;//    numPgEntries;
+      break;
 
-//       thisPg->type = PG_L4;       /* Set the page type to L4 */
-//       thisPg->user = 0;           /* Set the priv flag to kernel */
-//       ++(thisPg->count);
-//       subLevelPgType = PG_L3;
-//       numSubLevelPgEntries = NP4DEPG;//    numPgEntries;
-//       break;
+    case PG_L3:
 
-//     case PG_L3:
-      
-//       /* TODO: Determine why we want to reassign an L4 to an L3 */
-//       if (thisPg->type != PG_L4)
-//         thisPg->type = PG_L3;       /* Set the page type to L3 */
-//       thisPg->user = 0;           /* Set the priv flag to kernel */
-//       ++(thisPg->count);
-//       subLevelPgType = PG_L2;
-//       numSubLevelPgEntries = NPUDEPG; //numPgEntries;
-//       break;
+      if ((pageMapping & PG_PS) != 0) {
+        LOG_WALK(2, "\tIdentified 1GB page...\n");
+        unsigned long index = (pageMapping_masked & ~PUDMASK) / pageSize;
+        page_desc[index].type = PG_TKDATA;
+        page_desc[index].user = 0;           /* Set the priv flag to kernel */
+        ++(page_desc[index].count);
+        return;
+      } else {
 
-//     case PG_L2:
-      
-//       /* 
-//        * If my L2 page mapping signifies that this mapping references a 1GB
-//        * page frame, then get the frame address using the correct page mask
-//        * for a L3 page entry and initialize the page_desc for this entry.
-//        * Then return as we don't need to traverse frame pages.
-//        */
-//       if ((pageMapping & PG_PS) != 0) {
-// #if DEBUG_INIT >= 1
-//         printk("\tIdentified 1GB page...\n");
-// #endif
-//         unsigned long index = (pageMapping & ~PUDMASK) / pageSize;
-//         page_desc[index].type = PG_TKDATA;
-//         page_desc[index].user = 0;           /* Set the priv flag to kernel */
-//         ++(page_desc[index].count);
-//         return;
-//       } else {
-//         thisPg->type = PG_L2;       /* Set the page type to L2 */
-//         thisPg->user = 0;           /* Set the priv flag to kernel */
-//         ++(thisPg->count);
-//         subLevelPgType = PG_L1;
-//         numSubLevelPgEntries = NPMDPG; // numPgEntries;
-//       }
-//       break;
+        /* TODO: Determine why we want to reassign an L4 to an L3 */
+        if (thisPg->type != PG_L4)
+          thisPg->type = PG_L3;       /* Set the page type to L3 */
+        thisPg->user = 0;             /* Set the priv flag to kernel */
+        ++(thisPg->count);
+        subLevelPgType = PG_L2;
+        numSubLevelPgEntries = NPUDEPG; //numPgEntries;
+      }
+      break;
 
-//     case PG_L1:
-//       /* 
-//        * If my L1 page mapping signifies that this mapping references a 2MB
-//        * page frame, then get the frame address using the correct page mask
-//        * for a L2 page entry and initialize the page_desc for this entry. 
-//        * Then return as we don't need to traverse frame pages.
-//        */
-//       if ((pageMapping & PG_PS) != 0){
-// #if DEBUG_INIT >= 1
-//         printk("\tIdentified 2MB page...\n");
-// #endif
-//         /* The frame address referencing the page obtained */
-//         unsigned long index = (pageMapping & ~PMDMASK) / pageSize;
-//         page_desc[index].type = PG_TKDATA;
-//         page_desc[index].user = 0;           /* Set the priv flag to kernel */
-//         ++(page_desc[index].count);
-//         return;
-//       } else {
-//         thisPg->type = PG_L1;       /* Set the page type to L1 */
-//         thisPg->user = 0;           /* Set the priv flag to kernel */
-//         ++(thisPg->count);
-//         subLevelPgType = PG_TKDATA;
-//         numSubLevelPgEntries = NPTEPG;//      numPgEntries;
-//       }
-//       break;
+    case PG_L2:
+      /* 
+       * If my L2 page mapping signifies that this mapping references a 2MB
+       * page frame, then get the frame address using the correct page mask
+       * for a L3 page entry and initialize the page_desc for this entry.
+       * Then return as we don't need to traverse frame pages.
+       */
+      if ((pageMapping & PG_PS) != 0) {
+        LOG_WALK(2, "\tIdentified 2MB page...\n");
 
-//     default:
-//       panic("SVA: walked an entry with invalid page type.");
-//   }
+        /* ENCOS: check. */
+        // unsigned long index = (pageMapping & ~PUDMASK) / pageSize;
+        unsigned long index = (pageMapping_masked & ~PMDMASK) / pageSize;
+        page_desc[index].type = PG_TKDATA;
+        page_desc[index].user = 0;           /* Set the priv flag to kernel */
+        ++(page_desc[index].count);
+        return;
+      } else {
+        thisPg->type = PG_L2;         /* Set the page type to L2 */
+        thisPg->user = 0;             /* Set the priv flag to kernel */
+        ++(thisPg->count);
+        subLevelPgType = PG_L1;
+        numSubLevelPgEntries = NPMDPG; // numPgEntries;
+      }
+      break;
+
+    case PG_L1:
+      thisPg->type = PG_L1;           /* Set the page type to L1 */
+      thisPg->user = 0;               /* Set the priv flag to kernel */
+      ++(thisPg->count);
+      subLevelPgType = PG_TKDATA;
+      numSubLevelPgEntries = NPTEPG;    // numPgEntries;
+      break;
+
+    default:
+      PANIC("SVA: walked an entry with invalid page type.");
+  }
   
-//   /* 
-//    * There is one recursive mapping, which is the last entry in the PML4 page
-//    * table page. Thus we return before traversing the descriptor again.
-//    * Notice though that we keep the last assignment to the page as the page
-//    * type information. 
-//    */
-//    // Rahul: Check how this translates to Linux
-//   if(traversedPTEAlready) {
-// #if DEBUG_INIT >= 1
-//     printk("%sRecursed on already initialized page_desc\n", indent);
-// #endif
-//     return;
-//   }
+  /* 
+   * There is one recursive mapping, which is the last entry in the PML4 page
+   * table page. Thus we return before traversing the descriptor again.
+   * Notice though that we keep the last assignment to the page as the page
+   * type information. 
+   */
+  if(traversedPTEAlready) {
+    LOG_WALK(2, "%sRecursed on already initialized page_desc\n", indent);
+    return;
+  }
 
-// #if DEBUG_INIT >= 1
-//   u_long nNonValPgs=0;
-//   u_long nValPgs=0;
-// #endif
-//   /* 
-//    * Iterate through all the entries of this page, recursively calling the
-//    * walk on all sub entries.
-//    */
-//   for (i = 0; i < numSubLevelPgEntries; i++){
-// #if 0
-//     /*
-//      * Do not process any entries that implement the direct map.  This prevents
-//      * us from marking physical pages in the direct map as kernel data pages.
-//      */
-//     if ((pageLevel == PG_L4) && (i == (0xfffffe0000000000 / 0x1000))) {
-//       continue;
-//     }
-// #endif
-// #if OBSOLETE
-//     //pagePtr += (sizeof(page_entry_t) * i);
-//     //page_entry_t *nextEntry = pagePtr;
-// #endif
-//     page_entry_t * nextEntry = & pagePtr[i];
+  /* Statistics and debugging */
+  u_long nNonValPgs=0;
+  u_long nValPgs=0;
 
-// #if DEBUG_INIT >= 5
-//     printk("%sPagePtr in loop: %p, val: 0x%lx\n", indent, nextEntry, *nextEntry);
-// #endif
+  /* 
+   * Iterate through all the entries of this page, recursively calling the
+   * walk on all sub entries.
+   */
+  bool skipAssert = false;
+  for (i = 0; i < numSubLevelPgEntries; i++){
+    /* ENCOS: Left this here from the NK implementation. I don't think this is required. */
+#if 0
+    /*
+     * Do not process any entries that implement the direct map.  This prevents
+     * us from marking physical pages in the direct map as kernel data pages.
+     */
+    if ((pageLevel == PG_L4) && (i == (0xffff888000000000 / 0x1000))) {
+      continue;
+    }
+#endif
 
-//     /* 
-//      * If this entry is valid then recurse the page pointed to by this page
-//      * table entry.
-//      */
-//     if (*nextEntry & PG_V) {
-// #if DEBUG_INIT >= 1
-//       nValPgs++;
-// #endif 
+    page_entry_t * nextEntry = & pagePtr[i];
+    /* 
+     * ENCOS: These are reserved mappings and they crash the system if you access.
+     * TODO: Figure out a better trick (e.g., kernel notifies of these regions).
+     */
+    if ((nextEntry >= 0xffff8880fec00000) && (nextEntry <= 0xffff8880fef00000)) {
+      skipAssert = true;
+      continue;
+    }
 
-//       /* 
-//        * If we hit the level 1 pages we have hit our boundary condition for
-//        * the recursive page table traversals. Now we just mark the leaf page
-//        * descriptors.
-//        */
-//       if (pageLevel == PG_L1){
-// #if DEBUG_INIT >= 2
-//           printk("%sInitializing leaf entry: pteaddr: %p, mapping: 0x%lx\n",
-//                   indent, nextEntry, *nextEntry);
-// #endif
-//       } else {
-// #if DEBUG_INIT >= 2
-//       printk("%sProcessing:pte addr: %p, newPgAddr: %p, mapping: 0x%lx\n",
-//               indent, nextEntry, (*nextEntry & PG_FRAME), *nextEntry ); 
-// #endif
-//           // printk("[Next - %d]: %lx %lx", i, nextEntry, *nextEntry);
-//           declare_ptp_and_walk_pt_entries((uintptr_t)*nextEntry,
-//                   numSubLevelPgEntries, subLevelPgType); 
-//       }
-//     } 
-// #if DEBUG_INIT >= 1
-//     else {
-//       nNonValPgs++;
-//     }
-// #endif
-//   }
+    LOG_WALK(3, "%sPagePtr in loop: %px, val: 0x%lx\n", indent, nextEntry, *nextEntry);
 
-// #if DEBUG_INIT >= 1
-//   SVA_ASSERT((nNonValPgs + nValPgs) == 512, "Wrong number of entries traversed");
+    /* 
+     * If this entry is valid then recurse the page pointed to by this page
+     * table entry.
+     */
+    if (*nextEntry & PG_V) {
+      nValPgs++;
+      /* 
+      * If we hit the level 1 pages we have hit our boundary condition for
+      * the recursive page table traversals. Now we just mark the leaf page
+      * descriptors.
+      */        
+      if (pageLevel == PG_L1){
+        LOG_WALK(3, "%sInitializing leaf entry: pteaddr: %px, mapping: 0x%lx\n",
+                  indent, nextEntry, *nextEntry);
+      } else {
+        LOG_WALK(3, "%sProcessing:pte addr: %px, newPgAddr: %p, mapping: 0x%lx\n",
+              indent, nextEntry, (*nextEntry & PG_FRAME), *nextEntry );
+          declare_ptp_and_walk_pt_entries((unsigned long)*nextEntry,
+                  numSubLevelPgEntries, subLevelPgType); 
+      }
+    }
+    else {
+      nNonValPgs++;
+    } 
+  }
 
-//   printk("%sThe number of || non valid pages: %lu || valid pages: %lu\n",
-//           indent, nNonValPgs, nValPgs);
-// #endif
-
-// }
+out:
+  LOG_WALK(2, "%sThe number of || non valid pages: %lu || valid pages: %lu\n",
+              indent, nNonValPgs, nValPgs);
+  if (!skipAssert)
+    SVA_ASSERT((nNonValPgs + nValPgs) == 512, "Wrong number of entries traversed");
+}
 
 /*
  * Function: init_protected_pages()
@@ -1403,18 +1457,87 @@ sva_load_msr(u_int msr, uint64_t val) {
  *  pgType     - The nested kernel page type 
  */
 static void
-init_protected_pages (uintptr_t startVA, uintptr_t endVA) {
-  uintptr_t page;
+init_protected_pages (unsigned long startVA, unsigned long endVA, enum page_type_t type) {
+  unsigned long page;
   for (page = startVA; page < endVA; page += pageSize) {
-      // Set the physical page descriptor with the pgType
+      /* Set the physical page descriptor with the pgType */
+      page_desc_t *pgDesc = getPageDescPtr(__pa(page));
+      if (!pgDesc) {
+        /* Panic if this page does not have a descriptor */
+        PANIC ("[WARNING] Page (%px) does not have a descriptor! \n", page);
+      }
+      pgDesc->type = type;
 
-      // Set the page protection for the virtual address
-      // pks_update_mapping(page, 1);
+      /* ENCOS: Set WP/PKS for the virtual address. TODO: complete */
       set_page_protection(page, /*should_protect=*/1);
 
       // Flush the TLB for this virtual address
       sva_mm_flush_tlb(page);
   }
+      /* ENCOS: I think we should flush here after setting PKS/CR0.WP */
+      sva_mm_flush_tlb(page);
+  }
+}
+
+/*
+ * Function: makePTReadOnly()
+ *
+ * Description:
+ *  Scan through all of the page descriptors and find all the page descriptors
+ *  for page table pages.  For each such page, make the virtual page that maps
+ *  it into the direct map read-only.
+ */
+static inline void
+makePTReadOnly (void) {
+  /* Disable page protection */
+  unprotect_paging();
+
+  /*
+   * For each physical page, determine if it is used as a page table page.
+   * If so, make its entry in the direct map read-only.
+   */
+  unsigned long paddr;
+  for (paddr = 0; paddr < memSize; paddr += pageSize) {
+    enum page_type_t pgType = getPageDescPtr(paddr)->type;
+
+    if ((PG_L1 <= pgType) && (pgType <= PG_L4)) {
+      #if 0
+      page_entry_t * pageEntry = get_pgeVaddr (getVirtual(paddr), NULL);
+      if (!pageEntry) {
+        LOG_PRINTK("  [warning] empty virtual address for %px\n", paddr);
+        continue;
+      }
+      #endif
+
+      page_entry_t * pageEntry = getPageDescPtr(paddr)->pgVaddr;
+      LOG_PRINTK("Page Entry ==> %px\n", pageEntry);
+
+      /* 
+       * ENCOS: These are reserved mappings and they crash the system if you access.
+       * Figure out a better trick later.
+       */
+      if ((pageEntry >= 0xffff8880fec00000) && (pageEntry <= 0xffff8880fef00000))
+        continue;
+
+      // Don't make direct map entries of larger sizes read-only,
+      // they're likely to be broken into smaller pieces later
+      // which is a process we don't handle precisely yet.
+      if (((*pageEntry) & PG_PS) == 0) {
+          /* 
+           * ENCOS: As soon as I enable this, the kernel hangs. This is likely 
+           * because you don't currently set protections (i.e., CR0.WP) disable.
+           *
+           * IMPORTANT FIX. 
+           */
+          // page_entry_store (pageEntry, setMappingReadOnly(*pageEntry));
+          page_entry_store (pageEntry, *pageEntry);
+      }
+    }
+
+  }
+
+  /* Re-enable page protection */
+  protect_paging();
 }
 
 /*
@@ -1441,54 +1564,53 @@ init_protected_pages (uintptr_t startVA, uintptr_t endVA) {
  *  - btext         : The first virtual address of the text segment.
  *  - etext         : The last virtual address of the text segment.
  */
-SECURE_WRAPPER(void,
-sva_mmu_init, void) {
-  
+SECURE_WRAPPER(void, sva_mmu_init, void) {
   init_MMULock();
-
   MMULock_Acquire();
 
-  /* Zero out the page descriptor array */
-  // memset (page_desc, 0, numPageDescEntries * sizeof(page_desc_t));
+  /* Hello World! */
+  LOG_PRINTK("[.] Initializing: SECURE memory management unit \n");
 
-  /* Walk the kernel page tables and initialize the sva page_desc */
-  // declare_ptp_and_walk_pt_entries(__pa(kpgdVA), nkpgde, PG_L5);
+  /* Zero out the page descriptor array */
+  memset (page_desc, 0, numPageDescEntries * sizeof(page_desc_t));
 
   /* Protect the kernel text region */
-  extern char _stext[];
-  extern char _etext[];
-  printk("_stext: %lx, _etext: %lx\n", _stext, _etext);
-  init_protected_pages((uintptr_t) _stext, (uintptr_t)_etext);
+  LOG_PRINTK("_stext: %lx, _etext: %lx\n", _stext, _etext);
+  init_protected_pages((unsigned long) PFN_ALIGN(_stext), (unsigned long) PFN_ALIGN(_etext), 
+    PG_CODE);
+  
+  /* Protect the SVA pages */
+  LOG_PRINTK("_svastart: %lx, _svaend: %lx\n", __pa(_svastart), __pa(_svaend));
+  init_protected_pages((unsigned long) _svastart, (unsigned long) _svaend, PG_SVA);
 
-  /* Make all SuperSpace pages read-only */
-  extern char _svastart[];
-  extern char _svaend[];
-  printk("_svastart: %lx, _svaend: %lx\n", _svastart, _svaend);
-  init_protected_pages((uintptr_t)_svastart, (uintptr_t)_svaend);
+  /* Walk the kernel page tables and initialize the sva page_desc */
+  unsigned long kpgdPA = (sva_get_current_pgd() << 12);
+  declare_ptp_and_walk_pt_entries(kpgdPA, NP4DEPG, PG_L5);
   
   /* Now load the initial value of the cr3 to complete kernel init */
+  /* ENCOS: Complete. */
   // _load_cr3(kpgdMapping->pgd & PG_FRAME);
 
-
   /* Make existing page table pages read-only */
-  // makePTReadOnly();
-
-  
-  /* Make existing page table pages read-only */
-  // makePTReadOnly();
+  makePTReadOnly();
 
   /*
    * Note that the MMU is now initialized.
    */
   mmuIsInitialized = 1;
 
+  LOG_PRINTK("[*] SECURE memory management unit initialized \n");
+
   MMULock_Release();
 }
 
-void declare_internal(uintptr_t frameAddr, int level) {
+void declare_internal(unsigned long frameAddr, int level) {
   /* Get the page_desc for the page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);
   if(!pgDesc) return;
+
+  /* Reset the whole page */
+  memset((void*) pgDesc, 0, sizeof(page_desc_t));
 
   /* Setup metadata tracking for this new page */
   pgDesc->type = level;
@@ -1514,7 +1636,7 @@ void declare_internal(uintptr_t frameAddr, int level) {
  *              Level 1 page frame.
  */
 SECURE_WRAPPER(void,
-sva_declare_l1_page, uintptr_t frameAddr) {
+sva_declare_l1_page, unsigned long frameAddr) {
   MMULock_Acquire();
 
   /* Get the page_desc for the newly declared l4 page frame */
@@ -1552,8 +1674,10 @@ sva_declare_l1_page, uintptr_t frameAddr) {
 
     /*
      * Chuqi: check here
+     * ENCOS: Added the page protection function here. I believe it's doing nothing
+     * at the moment. Please fix.
      */
-    // set_page_protection((unsigned long)__va(frameAddr), /*should_protect=*/1);
+    set_page_protection((unsigned long)__va(frameAddr), /*should_protect=*/1);
 
     /* 
      * Initialize the page data and page entry. Note that we pass a general
@@ -1585,14 +1709,14 @@ SECURE_WRAPPER(void,
 sva_declare_l2_page, uintptr_t frameAddr) {
   // printk("ENCOS-Internal: Declaring L2 page internally. (frameaddr = %px)\n", 
     // (void*) frameAddr);
+sva_declare_l2_page, unsigned long frameAddr) {
   MMULock_Acquire();
-  // printk("ENCOS-Internal: Lock acquired"); 
+
+  LOG_DECLARE("Declaring L2 page (%px)\n", (void*) frameAddr);
 
   /* Get the page_desc for the newly declared l2 page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);
   if(!pgDesc) return;
-
-  // printk("ENCOS-Internal: Checking..\n");
 
   /*
    * Make sure that this is already an L2 page, an unused page, or a kernel
@@ -1652,11 +1776,12 @@ sva_declare_l2_page, uintptr_t frameAddr) {
  *              Level 3 page frame.
  */
 SECURE_WRAPPER(void,
-sva_declare_l3_page, uintptr_t frameAddr) {
+sva_declare_l3_page, unsigned long frameAddr) {
   MMULock_Acquire();
 
   // printk("ENCOS-Internal: Declaring L3 page internally. (frameaddr = %px)\n", 
   //   (void*) frameAddr);  
+  LOG_DECLARE("Declaring L3 page (%px)\n", (void*) frameAddr);
 
   /* Get the page_desc for the newly declared l4 page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);
@@ -1716,11 +1841,12 @@ sva_declare_l3_page, uintptr_t frameAddr) {
  *              Level 4 page frame.
  */
 SECURE_WRAPPER(void,
-sva_declare_l4_page, uintptr_t frameAddr) {
+sva_declare_l4_page, unsigned long frameAddr) {
   MMULock_Acquire();
 
   // printk("ENCOS-Internal: Declaring L4 page internally. (frameaddr = %px)\n", 
   //   (void*) frameAddr);
+  LOG_DECLARE("Declaring L4 page (%px)\n", (void*) frameAddr);
 
   /* Get the page_desc for the newly declared l4 page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);
@@ -1747,12 +1873,6 @@ sva_declare_l4_page, uintptr_t frameAddr) {
   if (pgDesc->type != PG_L4) {
     /* Mark this page frame as an L4 page frame */
     pgDesc->type = PG_L4;
-
-    // unsigned long vaddr = __va(frameAddr);
-    // vaddr = (vaddr >> 12) << 12;
-    // printk("SVA_declare_L4 %lx %lx\n", frameAddr, vaddr);
-    // pks_update_mapping(vaddr, 1);
-    // sva_mm_flush_tlb(vaddr);
 
     /*
      * Reset the virtual address which can point to this page table page.
@@ -1784,11 +1904,12 @@ sva_declare_l4_page, uintptr_t frameAddr) {
  *              Level 5 page frame.
  */
 SECURE_WRAPPER(void,
-sva_declare_l5_page, uintptr_t frameAddr) {
+sva_declare_l5_page, unsigned long frameAddr) {
   MMULock_Acquire();
 
   // printk("ENCOS-Internal: Declaring L5 page internally. (frameaddr = %px)\n", 
   //   (void*) frameAddr);  
+  LOG_DECLARE("Declaring L5 page (%px)\n", (void*) frameAddr);
 
   /* Get the page_desc for the newly declared l4 page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);
@@ -1833,7 +1954,6 @@ sva_declare_l5_page, uintptr_t frameAddr) {
   MMULock_Release();
 }
 
-
 /*
  * Function: sva_remove_page()
  *
@@ -1845,17 +1965,15 @@ sva_declare_l5_page, uintptr_t frameAddr) {
  *  paddr - The physical address of the page table page.
  */
 SECURE_WRAPPER(void,
-sva_remove_page, uintptr_t paddr) {
+sva_remove_page, unsigned long paddr) {
   MMULock_Acquire();
-
-  /* Get the entry controlling the permissions for this pte PTP */
-  page_entry_t *pte = get_pgeVaddr(getVirtual (paddr), NULL);
 
   /* Get the page_desc for the page frame */
   page_desc_t *pgDesc = getPageDescPtr(paddr);
     if(!pgDesc) return;
 
   set_page_protection((unsigned long)__va(paddr), 0);
+
   /*
    * Make sure that this is a page table page.  We don't want the system
    * software to trick us.
@@ -1870,11 +1988,14 @@ sva_remove_page, uintptr_t paddr) {
 
     default:
       /* Restore interrupts */
-      // Rahul: 
-      // The Linux kernel does not seem to use a specific PTP free fucntion to free a page tbale page
-      // Hence we call an sva_remove page on all memory frees. For now, just ignoring this panic.
-      // TODO: Check if this leads to a significant performance overhead.
-      // panic ("SVA: undeclare bad page type: %lx %lx\n", paddr, pgDesc->type);
+      /* 
+       * ENCOS: (IMPORTANT) Please check this case out. Why are we getting undeclared pages and
+       * we get many of them if I uncomment these lines.
+       */
+      
+      // if (mmuIsInitialized) {
+      //   LOG_PRINTK (" (warning) undeclare bad page type: %lx %lx\n", paddr, pgDesc->type);
+      // }
       MMULock_Release();
       return;
       break;
@@ -1889,26 +2010,27 @@ sva_remove_page, uintptr_t paddr) {
    * Note that we check for a reference count of 1 because the page is always
    * mapped into the direct map.
    */
-  // if ((pgDesc->count == 1) || (pgDesc->count == 0)) {
+  if ((pgDesc->count == 1) || (pgDesc->count == 0)) {
     /*
      * Mark the page frame as an unused page.
      */
     pgDesc->type = PG_UNUSED;
 
-    // unsigned long vaddr = __va(paddr);
-    // vaddr = (vaddr >> 12) << 12;
-    // printk("SVA_declare_L4 %lx %lx\n", frameAddr, vaddr);
-    // pks_update_mapping(vaddr, 0);
-
     /*
      * Make the page writeable again.  Be sure to flush the TLBs to make the
      * change take effect right away.
      */
-    // page_entry_store ((page_entry_t *) pte, setMappingReadWrite (*pte));
-    // sva_mm_flush_tlb (getVirtual (paddr));
-  // } else {
-    // panic ("SVA: remove_page: type=%x count %x\n", pgDesc->type, pgDesc->count);
-  // }
+    if (pgDesc->pgVaddr) {
+      page_entry_store ((page_entry_t *) pgDesc->pgVaddr, 
+        setMappingReadWrite (*((page_entry_t*) pgDesc->pgVaddr)));
+      sva_mm_flush_tlb (getVirtual (paddr));
+    }
+
+    /* Reset the page descriptor entry */
+    memset(pgDesc, 0, sizeof(page_desc_t));
+  } else {
+    panic ("SVA: remove_page: type=%x count %x\n", pgDesc->type, pgDesc->count);
+  }
  
   MMULock_Release();
   return;
@@ -1931,13 +2053,7 @@ sva_remove_page, uintptr_t paddr) {
 SECURE_WRAPPER(void,
 sva_remove_mapping, page_entry_t *pteptr) {
   MMULock_Acquire();
-
-  /* Get the page_desc for the newly declared l4 page frame */
-  // page_desc_t *pgDesc = getPageDescPtr(*pteptr); // Rahul: What's happening here ?
-
-  /* Update the page table mapping to zero */
   __update_mapping (pteptr, ZERO_MAPPING);
-
   MMULock_Release();
 }
 
@@ -1961,6 +2077,10 @@ sva_remove_mapping, page_entry_t *pteptr) {
 SECURE_WRAPPER(void,
 sva_update_l1_mapping, pte_t *pte, page_entry_t val) {
   MMULock_Acquire();
+
+  /* Debugging */
+  LOG_UPDATE("Updating L1 page (%px, %lx)", pte, val);
+
   /*
    * Ensure that the PTE pointer points to an L1 page table.  If it does not,
    * then report an error.
@@ -1969,22 +2089,24 @@ sva_update_l1_mapping, pte_t *pte, page_entry_t val) {
   page_desc_t * ptDesc = getPageDescPtr (__pa(pte));
     if(!ptDesc) return;
 
-  #if DECLARE_STRATEGY == 1
-  #endif
-
-  #if DECLARE_STRATEGY == 2
-    if(ptDesc->type != PG_L1 && ptDesc->type == PG_UNUSED) {
-      /*
-      * Chuqi: check here
-      */
+  /* 
+   * ENCOS: If the frame is not sensitive, allow the update to happen. This handles corner cases
+   * inside the Linux kernel. 
+   *
+   * IMPORTANT: This current implementation is not correct. Specifically, we should make sure that
+   * the page table was not referencing the SVA/Enclave Pages. (TODO; same for all PT levels)
+   */
+  if(!isSensitivePg(ptDesc)) {
+      /* TODO: Shouldn't we set this protection bit? */
       // set_page_protection((unsigned long)pte, /*should_protect=*/1);
+      // sva_remove_mapping_secure(__pa(pte));
+      // sva_declare_l1_mapping_secure(__pa(pte));
 
+      /* FIX*/
       declare_internal(__pa(pte), 1);
-    }
-  #endif
-
-  if (ptDesc->type != PG_L1) {
-    panic ("SVA: MMU: update_l1 not an L1: %lx %lx: %lx\n", &pte->pte, val, ptDesc->type);
+  }
+  else {
+    panic ("SVA: MMU: update_l1 on a sensitive frame: %lx %lx: %lx\n", &pte->pte, val, ptDesc->type);
   }
 
   /*
@@ -2007,6 +2129,10 @@ sva_update_l1_mapping, pte_t *pte, page_entry_t val) {
 SECURE_WRAPPER(void,
 sva_update_l2_mapping, pmd_t *pmd, page_entry_t val) {
   MMULock_Acquire();
+
+  /* Debugging */
+  LOG_UPDATE("Updating L2 page (%px,%lx)", pmd, val);
+
   /*
    * Ensure that the PTE pointer points to an L2 page table.  If it does not,
    * then report an error.
@@ -2015,24 +2141,25 @@ sva_update_l2_mapping, pmd_t *pmd, page_entry_t val) {
   page_desc_t * ptDesc = getPageDescPtr (__pa(pmd));
     if(!ptDesc) return;
 
-  #if DECLARE_STRATEGY == 1
-    uintptr_t nextPagePaddr = (val >> 12) << 12;
-    page_desc_t * nextPagePtDesc = getPageDescPtr (nextPagePaddr);
-    if(nextPagePtDesc->type != PG_L1 && nextPagePtDesc->type == PG_UNUSED) {
-      declare_internal(nextPagePaddr, 1);
-    }
-  #endif
+  /* 
+   * ENCOS: If the frame is not sensitive, allow the update to happen. This handles corner cases
+   * inside the Linux kernel. 
+   *
+   * IMPORTANT: This current implementation is not correct. Specifically, we should make sure that
+   * the page table was not referencing the SVA/Enclave Pages. (TODO; same for all PT levels)
+   */
+  if(!isSensitivePg(ptDesc)) {
+    /* TODO: Shouldn't we set this protection bit? */
+    // set_page_protection((unsigned long)pmd, /*should_protect=*/1);
+    // sva_remove_mapping_secure(__pa(pmd));
+    // sva_declare_l2_mapping_secure(__pa(pmd));
 
-  #if DECLARE_STRATEGY == 2
-    if(ptDesc->type != PG_L2 && ptDesc->type == PG_UNUSED) {
+      /* FIX*/
       declare_internal(__pa(pmd), 2);
-    }
-  #endif
-
-  if (ptDesc->type != PG_L2) {
-    panic ("SVA: MMU: update_l2 not an L2: %lx %lx: type=%lx count=%lx\n", &pmd->pmd, val, ptDesc->type, ptDesc->count);
+  } else {
+    panic ("SVA: MMU: update_l2 on a sensitive frame: %lx %lx: %lx\n", &pmd->pmd, val, ptDesc->type);
   }
-
+  
   /*
    * Update the page mapping.
    */
@@ -2047,6 +2174,10 @@ sva_update_l2_mapping, pmd_t *pmd, page_entry_t val) {
  */
 SECURE_WRAPPER(void, sva_update_l3_mapping, pud_t * pud, page_entry_t val) {
   MMULock_Acquire();
+
+  /* Debugging */
+  LOG_UPDATE("Updating L3 page (%px, %lx)", pud, val);
+
   /*
    * Ensure that the PTE pointer points to an L3 page table.  If it does not,
    * then report an error.
@@ -2054,22 +2185,23 @@ SECURE_WRAPPER(void, sva_update_l3_mapping, pud_t * pud, page_entry_t val) {
   page_desc_t * ptDesc = getPageDescPtr (__pa(&pud->pud));
     if(!ptDesc) return;
 
-  #if DECLARE_STRATEGY == 1
-    uintptr_t nextPagePaddr = (val >> 12) << 12;
-    page_desc_t * nextPagePtDesc = getPageDescPtr (nextPagePaddr);
-    if(nextPagePtDesc->type != PG_L2 && nextPagePtDesc->type == PG_UNUSED) {
-      declare_internal(nextPagePaddr, 2);
-    }
-  #endif
+  /* 
+   * ENCOS: If the frame is not sensitive, allow the update to happen. This handles corner cases
+   * inside the Linux kernel. 
+   *
+   * IMPORTANT: This current implementation is not correct. Specifically, we should make sure that
+   * the page table was not referencing the SVA/Enclave Pages. (TODO; same for all PT levels)
+   */
+  if(!isSensitivePg(ptDesc)) {
+    /* TODO: Shouldn't we set this protection bit? */
+    // set_page_protection((unsigned long)pud, /*should_protect=*/1);
+    // sva_remove_mapping_secure(__pa(pud));
+    // sva_declare_l3_mapping_secure(__pa(pud));
 
-  #if DECLARE_STRATEGY == 2
-    if(ptDesc->type != PG_L3 && ptDesc->type == PG_UNUSED) {
-      declare_internal(__pa(pud), 3);
-    }
-  #endif
-
-  if (ptDesc->type != PG_L3) {
-    panic ("SVA: MMU: update_l3 not an L3: %lx %lx: %lx\n", &pud->pud, val, ptDesc->type);
+    /* FIX*/
+    declare_internal(__pa(pud), 3);
+  } else {
+    panic ("SVA: MMU: update_l3 on a sensitive frame: %lx %lx: %lx\n", &pud->pud, val, ptDesc->type);
   }
 
   __update_mapping(&pud->pud, val);
@@ -2083,35 +2215,49 @@ SECURE_WRAPPER(void, sva_update_l3_mapping, pud_t * pud, page_entry_t val) {
  */
 SECURE_WRAPPER( void, sva_update_l4_mapping ,p4d_t * p4d, page_entry_t val) {
   MMULock_Acquire();
+
+  /* Debugging */
+  LOG_UPDATE("Updating L4 page (%px, %lx)", p4d, val);
+
   /*
    * Ensure that the PTE pointer points to an L4 page table.  If it does not,
    * then report an error.
    */
-  page_desc_t * ptDesc = getPageDescPtr (__pa(&p4d->p4d));
+  #if defined(CONFIG_X86_5LEVEL)
+    page_desc_t * ptDesc = getPageDescPtr (__pa(&p4d->p4d));
+  #else
+    page_desc_t * ptDesc = getPageDescPtr (__pa(&p4d->pgd.pgd));
+  #endif
     if(!ptDesc) return;
 
-  #if DECLARE_STRATEGY == 1
-    uintptr_t nextPagePaddr = (val >> 12) << 12;
-    page_desc_t * nextPagePtDesc = getPageDescPtr (nextPagePaddr);
-    if(nextPagePtDesc->type != PG_L3 && nextPagePtDesc->type == PG_UNUSED) {
-      declare_internal(nextPagePaddr, 3);
-    }
-  #endif
+  /* 
+   * ENCOS: If the frame is not sensitive, allow the update to happen. This handles corner cases
+   * inside the Linux kernel. 
+   *
+   * IMPORTANT: This current implementation is not correct. Specifically, we should make sure that
+   * the page table was not referencing the SVA/Enclave Pages. (TODO; same for all PT levels)
+   */
+  if(!isFramePg(ptDesc)) {
+    /* TODO: Shouldn't we set this protection bit? */
+    // set_page_protection((unsigned long)pud, /*should_protect=*/1);
+    // sva_remove_mapping_secure(__pa(p4d));
+    // sva_declare_l4_mapping_secure(__pa(p4d));
 
-  #if DECLARE_STRATEGY == 2
-    if(ptDesc->type != PG_L4 && ptDesc->type == PG_UNUSED) {
-      // unsigned long vaddr = &p4d->p4d;
-      // vaddr = (vaddr >> 12) << 12;
-      // pks_update_mapping(vaddr, 1);
-      declare_internal(__pa(p4d), 4);
-    }
-  #endif
-  
-  if (ptDesc->type != PG_L4) {
-    panic ("SVA: MMU: update_l4 not an L4: %lx %lx: %lx\n", &p4d->p4d, val, ptDesc->type);
+    /* FIX*/
+    declare_internal(__pa(p4d), 4);
+  } else {
+    #if defined(CONFIG_X86_5LEVEL)
+      panic ("SVA: MMU: update_l4 on a sensitive frame: %lx %lx: %lx\n", &p4d->p4d, val, ptDesc->type);
+    #else
+      panic ("SVA: MMU: update_l4 on a sensitive frame: %lx %lx: %lx\n", &p4d->pgd.pgd, val, ptDesc->type);
+    #endif
   }
 
-  __update_mapping(&p4d->p4d, val);
+  #if defined(CONFIG_X86_5LEVEL)
+    __update_mapping(&p4d->p4d, val);
+  #else
+    __update_mapping(&p4d->pgd.pgd, val);
+  #endif
 
   MMULock_Release();
   return;
@@ -2122,6 +2268,10 @@ SECURE_WRAPPER( void, sva_update_l4_mapping ,p4d_t * p4d, page_entry_t val) {
  */
 SECURE_WRAPPER( void, sva_update_l5_mapping, pgd_t * pgd, page_entry_t val) {
   MMULock_Acquire();
+
+  /* Debugging */
+  LOG_UPDATE("Updating L5 page (%px, %lx)", pgd, val);
+
   /*
    * Ensure that the PTE pointer points to an L5 page table.  If it does not,
    * then report an error.
@@ -2129,29 +2279,78 @@ SECURE_WRAPPER( void, sva_update_l5_mapping, pgd_t * pgd, page_entry_t val) {
   page_desc_t * ptDesc = getPageDescPtr (__pa(&pgd->pgd));
     if(!ptDesc) return;
 
-  #if DECLARE_STRATEGY == 1
-    uintptr_t nextPagePaddr = (val >> 12) << 12;
-    page_desc_t * nextPagePtDesc = getPageDescPtr (nextPagePaddr);  
-    if(nextPagePtDesc->type != PG_L4 && nextPagePtDesc->type == PG_UNUSED) {
-      declare_internal(nextPagePaddr, 4);
-    }
-  #endif
+  /* 
+   * ENCOS: If the frame is not sensitive, allow the update to happen. This handles corner cases
+   * inside the Linux kernel. 
+   *
+   * IMPORTANT: This current implementation is not correct. Specifically, we should make sure that
+   * the page table was not referencing the SVA/Enclave Pages. (TODO; same for all PT levels)
+   */
+  if(!isFramePg(ptDesc)) {
+    /* TODO: Shouldn't we set this protection bit? */
+    // set_page_protection((unsigned long)pud, /*should_protect=*/1);
+    // sva_remove_mapping_secure(__pa(pgd));
+    // sva_declare_l5_mapping_secure(__pa(pgd));
 
-  #if DECLARE_STRATEGY == 2
-    if(ptDesc->type != PG_L5 && ptDesc->type == PG_UNUSED) {
-      // unsigned long vaddr = &pgd->pgd;
-      // vaddr = (vaddr >> 12) << 12;
-      // pks_update_mapping(vaddr, 1);
-      declare_internal(__pa(pgd), 5);
-    }
-  #endif
-
-  if (ptDesc->type != PG_L5) {
-    panic ("SVA: MMU: update_l5 not an L5: %lx %lx: %lx\n", &pgd->pgd, val, ptDesc->type);
+    /* FIX*/
+    declare_internal(__pa(pgd), 5);      
+  } else {
+    panic ("SVA: MMU: update_l5 on a sensitive frame: %lx %lx: %lx\n", &pgd->pgd, val, ptDesc->type);
   }
 
   __update_mapping(&pgd->pgd, val);
 
   MMULock_Release();
+  return;
+}
+
+/* 
+ * Secure text poking (for kernel relocations)
+ */
+typedef void text_poke_f(void *dst, const void *src, size_t len);
+struct sva_secure_poke_t {
+  page_entry_t pte;
+  page_entry_t ptetwo;
+  pte_t *ptep;
+  bool cross_page_boundary;
+};
+
+SECURE_WRAPPER(void, sva_secure_poke, 
+  text_poke_f func, void *addr, const void *src, size_t len,
+  struct sva_secure_poke_t* spt) 
+{
+  /* Debugging */
+  // LOG_PRINTK("sva_secure_poke (%px, %px, %px, %lx, %px)\n",
+  //   func, addr, src, len, spt);
+
+	// set_pte_at(poking_mm, poking_addr, ptep, pte);
+	// set_pte_at(spt->poking_mm, poking_addr + PAGE_SIZE, spt->ptep + 1, spt->ptetwo);
+  __do_mmu_update(spt->ptep, spt->pte);
+	if (spt->cross_page_boundary) {
+		__do_mmu_update(spt->ptep + 1, spt->ptetwo);
+	}
+
+	/*
+	 * Loading the temporary mm behaves as a compiler barrier, which
+	 * guarantees that the PTE will be set at the time memcpy() is done.
+	 */
+  barrier();
+
+	kasan_disable_current();
+	func((u8 *)poking_addr + offset_in_page(addr), src, len);
+	kasan_enable_current();
+
+	/*
+	 * Ensure that the PTE is only cleared after the instructions of memcpy
+	 * were issued by using a compiler barrier.
+	 */
+	barrier();
+
+	// pte_clear(poking_mm, poking_addr, ptep);
+  // 	pte_clear(poking_mm, poking_addr + PAGE_SIZE, ptep + 1);
+  __do_mmu_update(spt->ptep, 0);
+	if (spt->cross_page_boundary)
+    __do_mmu_update(spt->ptep + 1, 0);
+	
   return;
 }
