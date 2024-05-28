@@ -343,7 +343,11 @@ SYM_CODE_START(entry_SYSCALL_64_enclave)
 	 */
 	pushaq
 	movq	%rsp, %rdi
-	call	SM_validate_syscall_stack
+	/*
+	 * This should be a normal SM call without secure wrappers (call gates),
+	 * Since we already use the secure syscall stack.
+	 */
+	call	sm_validate_syscall_stack
 	popaq
 
 SYM_INNER_LABEL(entry_SYSCALL_64_safe_stack_enclave, SYM_L_GLOBAL)

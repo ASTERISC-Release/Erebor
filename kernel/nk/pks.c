@@ -18,7 +18,12 @@ void set_page_protection(uintptr_t virtual_page, int should_protect)
     page_entry = get_pgeVaddr(virtual_page, &is_l1);
     
     if (!is_l1) {
-        printk("NOT PROTECTED: 0x%lx.\n", virtual_page);
+        //debug
+        for (int i = 0; i < NCPU; i++){
+            if (virtual_page == SyscallSecureStackBase + i * pageSize) {
+                printk("NOT PROTECT PROTECT_PAGE of SyscallSecureStack: 0x%lx.\n", virtual_page);
+            }
+        }
         return;
     }
     /* set protection key in PTE */

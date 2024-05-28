@@ -104,10 +104,12 @@ SM_setup_pcpu_syscall_stack, void)
 static inline unsigned long ROUNDUP(unsigned long address) {
     return (address + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 }
-/* This should be called after switching to the secure syscall stack */
-/* at the callsite, there was a pushq */
-SECURE_WRAPPER(void,
-SM_validate_syscall_stack, unsigned long sys_rsp)
+/* 
+ * This should be called after switching to the secure syscall stack.
+ * Since the caller is within SM code, it is not necessary to use 
+ * the secure wrapper (entry and exit gates).
+ */
+void sm_validate_syscall_stack(unsigned long sys_rsp)
 {
     unsigned long sys_stack_top;
     unsigned long sys_rsp_popq;
@@ -116,7 +118,7 @@ SM_validate_syscall_stack, unsigned long sys_rsp)
     sys_rsp_popq = ROUNDUP(sys_rsp);
     sys_stack_top = (unsigned long)(SyscallSecureStackBase +
                                         SYS_STACK_SIZE * cpu_id);
-    printk("KERNEL CR4: 0x%lx.\n", native_read_cr4());
+    // printk("KERNEL CR4: 0x%lx.\n", native_read_cr4());
     /* Chuqi: remove debug */
     SVA_ASSERT(sys_rsp_popq == sys_stack_top, "Secure syscall stack validation failed.\n");
 
