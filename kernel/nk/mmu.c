@@ -35,15 +35,20 @@ enum log_type_t {
     UPDATE,   /* Print all declares, printk, and updates */
 };
 #define VERBOSE PRINTK
+#define DEBUG_WALK 2
 
 #define LOG_PRINTK(args...) printk("SVA: " args)
+#define LOG_WALK(verb, args...) { \
+  if (DEBUG_WALK >= verb) { \
+    printk("SVA: (walk) " args); \
+  } else {} }
 #define LOG_DECLARE(args...) { \
   if (VERBOSE>=DECLARE) { \
-    printk("SVA: " args); \
+    printk("SVA: (declare) " args); \
   } else {} }
 #define LOG_UPDATE(args...) { \
   if (VERBOSE>=UPDATE) { \
-    printk("SVA: " args); \
+    printk("SVA: (update) " args); \
   } else {} }
 
 /* Special panic(..) that also prints the outer kernel's stack */
@@ -90,8 +95,7 @@ const uintptr_t SecureStackBase = (uintptr_t) SecureStack + 4096;
  * MSR and control register (CR) operations.
  *****************************************************************************
  */
-// Rahul: Moved functions here from the header file mmu.h
- uint64_t
+uint64_t
 _rdmsr(uintptr_t msr)
 {
     uint32_t low, high;
@@ -1121,34 +1125,17 @@ sva_load_msr(u_int msr, uint64_t val) {
     if(msr == MSR_REG_EFER) {
         val |= EFER_NXE;
     }
+
+    /* 
+     * ENCOS: Using kernel function for implementation reasons. In principle,
+     * we should not use any kernel function.
+     */
     _wrmsr(msr, val);
+    
     if ((msr == MSR_REG_EFER) && !(val & EFER_NXE)) {
       PANIC("SVA: attempt to clear the EFER.NXE bit: %x.", val);
     }
 }
-
-/*
- * Function: sva_wrmsr
- *
- * Description:
- *  SVA Intrinsic to load a value in an MSR. The given value should be
- *  given in edx:eax and the MSR should be given in ecx. If the MSR is
- *  EFER, we need to make sure that the NXE bit is enabled. 
- */
-// void
-// sva_wrmsr() {
-//     uint64_t val;
-//     unsigned int msr;
-//     __asm__ __volatile__ (
-//         "wrmsr\n"
-//         : "=c" (msr), "=a" (val)
-//         :
-//         : "rax", "rcx", "rdx"
-//     );
-//     if ((msr == MSR_REG_EFER) && !(val & EFER_NXE)) {
-//       // panic("SVA: attempt to clear the EFER.NXE bit: %x.", val);
-//     }
-// }
 
 /*
  * Function: declare_ptp_and_walk_pt_entries
@@ -1207,8 +1194,6 @@ sva_load_msr(u_int msr, uint64_t val) {
  *    modifying them.
  *
  */
-// #define DEBUG_INIT 1
-#define DEBUG_INIT 0
 
 void 
 declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
@@ -1229,8 +1214,7 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
   pageMapping = (pageEntryPA);
   pageMapping_masked = (((pageEntryPA & PG_FRAME) & nx_mask) & cbit_mask);
   if (pageMapping_masked > memSize) {
-    LOG_PRINTK("Returning (mapping ==> %px, entries ==> %lx\n)", 
-      pageMapping_masked, numPageDescEntries);
+    LOG_WALK(1, "  \tJUNK (phys ==> %px\n)", pageMapping_masked);
     return;
   }
 
@@ -1244,7 +1228,6 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
   /* Mark if we have seen this traversal already */
   traversedPTEAlready = (thisPg->type != PG_UNUSED);
 
-#if DEBUG_INIT >= 1
   /* Character inputs to make the printing pretty for debugging */
   char * indent = "";
   char * l5s = "L5:";
@@ -1254,30 +1237,31 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
   char * l1s = "\t\t\t\tL1:";
 
   switch (pageLevel){
+#if defined(CONFIG_X86_5LEVEL)
     case PG_L5:
         indent = l5s;
-        LOG_PRINTK("%sSetting L5 Page: mapping:0x%lx\n", indent, pageMapping);
+        LOG_WALK(2, "%sSetting L5 Page: mapping:0x%lx\n", indent, pageMapping);
         break;
+#endif
     case PG_L4:
         indent = l4s;
-        LOG_PRINTK("%sSetting L4 Page: mapping:0x%lx\n", indent, pageMapping);
+        LOG_WALK(2, "%sSetting L4 Page: mapping:0x%lx\n", indent, pageMapping_masked);
         break;
     case PG_L3:
         indent = l3s;
-        LOG_PRINTK("%sSetting L3 Page: mapping:0x%lx\n", indent, pageMapping);
+        LOG_WALK(2, "%sSetting L3 Page: mapping:0x%lx\n", indent, pageMapping_masked);
         break;
     case PG_L2:
         indent = l2s;
-        LOG_PRINTK("%sSetting L2 Page: mapping:0x%lx\n", indent, pageMapping);
+        LOG_WALK(2, "%sSetting L2 Page: mapping:0x%lx\n", indent, pageMapping_masked);
         break;
     case PG_L1:
         indent = l1s;
-        LOG_PRINTK("%sSetting L1 Page: mapping:0x%lx\n", indent, pageMapping);
+        LOG_WALK(2, "%sSetting L1 Page: mapping:0x%lx\n", indent, pageMapping_masked);
         break;
     default:
         break;
   }
-#endif
 
   /*
    * For each level of page we do the following:
@@ -1306,36 +1290,35 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
     case PG_L3:
 
       if ((pageMapping & PG_PS) != 0) {
-        #if DEBUG_INIT >= 0
-          printk("\tIdentified 1GB page...\n");
-        #endif
+        LOG_WALK(2, "\tIdentified 1GB page...\n");
         unsigned long index = (pageMapping_masked & ~PUDMASK) / pageSize;
         page_desc[index].type = PG_TKDATA;
         page_desc[index].user = 0;           /* Set the priv flag to kernel */
         ++(page_desc[index].count);
         return;
-      }
+      } else {
 
-      /* TODO: Determine why we want to reassign an L4 to an L3 */
-      if (thisPg->type != PG_L4)
-        thisPg->type = PG_L3;       /* Set the page type to L3 */
-      thisPg->user = 0;             /* Set the priv flag to kernel */
-      ++(thisPg->count);
-      subLevelPgType = PG_L2;
-      numSubLevelPgEntries = NPUDEPG; //numPgEntries;
+        /* TODO: Determine why we want to reassign an L4 to an L3 */
+        if (thisPg->type != PG_L4)
+          thisPg->type = PG_L3;       /* Set the page type to L3 */
+        thisPg->user = 0;             /* Set the priv flag to kernel */
+        ++(thisPg->count);
+        subLevelPgType = PG_L2;
+        numSubLevelPgEntries = NPUDEPG; //numPgEntries;
+      }
       break;
 
     case PG_L2:
       /* 
-       * If my L2 page mapping signifies that this mapping references a 1GB
+       * If my L2 page mapping signifies that this mapping references a 2MB
        * page frame, then get the frame address using the correct page mask
        * for a L3 page entry and initialize the page_desc for this entry.
        * Then return as we don't need to traverse frame pages.
        */
       if ((pageMapping & PG_PS) != 0) {
-#if DEBUG_INIT >= 0
-        printk("\tIdentified 2MB page...\n");
-#endif
+        LOG_WALK(2, "\tIdentified 2MB page...\n");
+
+        /* ENCOS: check. */
         // unsigned long index = (pageMapping & ~PUDMASK) / pageSize;
         unsigned long index = (pageMapping_masked & ~PMDMASK) / pageSize;
         page_desc[index].type = PG_TKDATA;
@@ -1352,23 +1335,17 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
       break;
 
     case PG_L1:
-      /* 
-       * If my L1 page mapping signifies that this mapping references a 2MB
-       * page frame, then get the frame address using the correct page mask
-       * for a L2 page entry and initialize the page_desc for this entry. 
-       * Then return as we don't need to traverse frame pages.
-       */
-      if ((pageMapping & PG_PS) != 0){
-#if DEBUG_INIT >= 0
-        printk("\tIdentified 2MB page...\n");
-#endif
-        /* The frame address referencing the page obtained */
-        unsigned long index = (pageMapping_masked & ~PMDMASK) / pageSize;
-        page_desc[index].type = PG_TKDATA;
-        page_desc[index].user = 0;           /* Set the priv flag to kernel */
-        ++(page_desc[index].count);
-        return;
-      } else {
+      // if ((pageMapping & PG_PS) != 0){
+      //   LOG_WALK(2, "\tIdentified 2MB page...\n");
+
+      //   /* The frame address referencing the page obtained */
+      //   unsigned long index = (pageMapping_masked & ~PMDMASK) / pageSize;
+      //   page_desc[index].type = PG_TKDATA;
+      //   page_desc[index].user = 0;           /* Set the priv flag to kernel */
+      //   ++(page_desc[index].count);
+      //   return;
+      // } else 
+      {
         thisPg->type = PG_L1;       /* Set the page type to L1 */
         thisPg->user = 0;           /* Set the priv flag to kernel */
         ++(thisPg->count);
@@ -1378,7 +1355,7 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
       break;
 
     default:
-      panic("SVA: walked an entry with invalid page type.");
+      PANIC("SVA: walked an entry with invalid page type.");
   }
   
   /* 
@@ -1388,20 +1365,23 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
    * type information. 
    */
   if(traversedPTEAlready) {
-#if DEBUG_INIT >= 1
-    printk("%sRecursed on already initialized page_desc\n", indent);
-#endif
+    LOG_WALK(2, "%sRecursed on already initialized page_desc\n", indent);
     return;
   }
 
-#if DEBUG_INIT >= 1
+  /* Statistics and debugging */
   u_long nNonValPgs=0;
   u_long nValPgs=0;
-#endif
+
   /* 
    * Iterate through all the entries of this page, recursively calling the
    * walk on all sub entries.
    */
+  if (pageLevel == PG_L1) {
+    nValPgs = 512;
+    goto out;
+  }
+
   for (i = 0; i < numSubLevelPgEntries; i++){
 #if 0
     /*
@@ -1416,57 +1396,40 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
     //pagePtr += (sizeof(page_entry_t) * i);
     //page_entry_t *nextEntry = pagePtr;
 #endif
-    page_entry_t * nextEntry = & pagePtr[i];
 
-#if DEBUG_INIT >= 5
-    printk("%sPagePtr in loop: %px, val: 0x%lx\n", indent, nextEntry, *nextEntry);
-#endif
+    page_entry_t * nextEntry = & pagePtr[i];
+    LOG_WALK(3, "%sPagePtr in loop: %px, val: 0x%lx\n", indent, nextEntry, *nextEntry);
 
     /* 
      * If this entry is valid then recurse the page pointed to by this page
      * table entry.
      */
-
-    if (pageLevel != PG_L1) {
-      if (*nextEntry & PG_V) {
-  #if DEBUG_INIT >= 1
-        nValPgs++;
-  #endif 
-
-        /* 
-        * If we hit the level 1 pages we have hit our boundary condition for
-        * the recursive page table traversals. Now we just mark the leaf page
-        * descriptors.
-        */
-        if (pageLevel == PG_L1){
-  #if DEBUG_INIT >= 2
-            printk("%sInitializing leaf entry: pteaddr: %px, mapping: 0x%lx\n",
-                    indent, nextEntry, *nextEntry);
-  #endif
-        } else {
-  #if DEBUG_INIT >= 2
-        printk("%sProcessing:pte addr: %px, newPgAddr: %p, mapping: 0x%lx\n",
-                indent, nextEntry, (*nextEntry & PG_FRAME), *nextEntry ); 
-  #endif
-            // printk("[Next - %d]: %lx %lx", i, nextEntry, *nextEntry);
-            declare_ptp_and_walk_pt_entries((uintptr_t)*nextEntry,
-                    numSubLevelPgEntries, subLevelPgType); 
-        }
-
-      } 
+    if (*nextEntry & PG_V) {
+      nValPgs++;
+      /* 
+      * If we hit the level 1 pages we have hit our boundary condition for
+      * the recursive page table traversals. Now we just mark the leaf page
+      * descriptors.
+      */        
+      if (pageLevel == PG_L1){
+        LOG_WALK(3, "%sInitializing leaf entry: pteaddr: %px, mapping: 0x%lx\n",
+                  indent, nextEntry, *nextEntry);
+      } else {
+        LOG_WALK(3, "%sProcessing:pte addr: %px, newPgAddr: %p, mapping: 0x%lx\n",
+              indent, nextEntry, (*nextEntry & PG_FRAME), *nextEntry );
+          declare_ptp_and_walk_pt_entries((uintptr_t)*nextEntry,
+                  numSubLevelPgEntries, subLevelPgType); 
+      }
     }
-#if DEBUG_INIT >= 1
     else {
       nNonValPgs++;
-    }
-#endif
+    } 
   }
 
-#if DEBUG_INIT >= 1
+out:
+  LOG_WALK(2, "%sThe number of || non valid pages: %lu || valid pages: %lu\n",
+              indent, nNonValPgs, nValPgs);
   SVA_ASSERT((nNonValPgs + nValPgs) == 512, "Wrong number of entries traversed");
-  printk("%sThe number of || non valid pages: %lu || valid pages: %lu\n",
-          indent, nNonValPgs, nValPgs);
-#endif
 
 }
 
