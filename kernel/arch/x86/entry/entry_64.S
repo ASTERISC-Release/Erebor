@@ -280,6 +280,42 @@ SYM_CODE_END(entry_SYSCALL_64)
  */
 #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_SYSCALL_STACK)
 
+.macro pushaq
+    pushq	%rax
+    pushq	%rcx
+    pushq 	%rdx
+    pushq 	%rbx
+    pushq 	%rbp
+    pushq 	%rsi
+    pushq 	%rdi
+	pushq 	%r8
+	pushq 	%r9
+	pushq 	%r10
+	pushq 	%r11
+	pushq	%r12
+	pushq	%r13
+	pushq	%r14
+	pushq	%r15
+.endm # pushaq
+
+.macro popaq
+	popq	%r15
+	popq	%r14
+	popq	%r13
+	popq	%r12
+	popq	%r11
+	popq	%r10
+	popq	%r9
+	popq	%r8
+	popq	%rdi
+	popq	%rsi
+	popq	%rbp
+	popq	%rbx
+	popq	%rdx
+	popq	%rcx
+	popq	%rax
+.endm # popaq
+
 /* Chuqi: 
  * Please note that `entry_SYSCALL_64_enclave` is a secure code page,
  * and we use the secure syscall stack during this code page.
@@ -305,10 +341,10 @@ SYM_CODE_START(entry_SYSCALL_64_enclave)
 	 * the OS, so we need to validate the secure syscall stack by asking
 	 * the security monitor.
 	 */
-	pushq	%rdi
+	pushaq
 	movq	%rsp, %rdi
 	call	SM_validate_syscall_stack
-	popq	%rdi
+	popaq
 
 SYM_INNER_LABEL(entry_SYSCALL_64_safe_stack_enclave, SYM_L_GLOBAL)
 	ANNOTATE_NOENDBR

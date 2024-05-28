@@ -18,6 +18,8 @@
 #include <linux/smp.h>      /* smp_processor_id() */
 #include <asm/current.h>    /* pcpu_hot */
 
+#include <asm/special_insns.h> /* native_read_cr4 debug */
+
 #ifndef PAGE_SIZE
 #define PAGE_SIZE   4096
 #endif
@@ -98,17 +100,30 @@ SM_setup_pcpu_syscall_stack, void)
     return;
 }
 
+
+static inline unsigned long ROUNDUP(unsigned long address) {
+    return (address + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+}
 /* This should be called after switching to the secure syscall stack */
+/* at the callsite, there was a pushq */
 SECURE_WRAPPER(void,
 SM_validate_syscall_stack, unsigned long sys_rsp)
 {
     unsigned long sys_stack_top;
+    unsigned long sys_rsp_popq;
     int cpu_id = smp_processor_id();
 
+    sys_rsp_popq = ROUNDUP(sys_rsp);
     sys_stack_top = (unsigned long)(SyscallSecureStackBase +
                                         SYS_STACK_SIZE * cpu_id);
+    printk("KERNEL CR4: 0x%lx.\n", native_read_cr4());
     /* Chuqi: remove debug */
-    SVA_ASSERT(sys_rsp == sys_stack_top, "Secure syscall stack validation failed.\n");
+    SVA_ASSERT(sys_rsp_popq == sys_stack_top, "Secure syscall stack validation failed.\n");
+
+    if (sys_rsp_popq != sys_stack_top) {
+        panic("[fault] ROUNDUP(sys_rsp)=0x%lx, sys_stack_top=0x%lx.\n", 
+                ROUNDUP(sys_rsp), sys_stack_top);
+    }
     return;
 }
 

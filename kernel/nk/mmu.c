@@ -35,21 +35,21 @@
  *   This is a pointer to the secure monitor's runtime stack, which is used on
  *   calls to SM.
  */
-char SecureStack[4096*NCPU] SVAMEM;
+char SecureStack[pageSize*NCPU] SVAMEM;
 
 /* Chuqi: Important this value can't be changed from outside the nested kernel! 
  * Remember the stack grows down, so the base is the highest address.
  */
-const uintptr_t SecureStackBase = (uintptr_t) SecureStack + 4096;
+const uintptr_t SecureStackBase = (uintptr_t) SecureStack + pageSize;
 
 
 /*
  * Chuqi: TODO: protect its memory
  */
 // char SyscallSecureStack[4096*NCPU] __attribute__((aligned(0x1000)));
-char SyscallSecureStack[4096*NCPU] SVAMEM;
+char SyscallSecureStack[pageSize*NCPU] SVAMEM;
 
-const uintptr_t SyscallSecureStackBase = (uintptr_t) SyscallSecureStack + 4096;
+const uintptr_t SyscallSecureStackBase = (uintptr_t) SyscallSecureStack + pageSize;
 
 
 #undef NKDEBUGG

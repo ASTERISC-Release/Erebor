@@ -1148,6 +1148,13 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
 			printk("ENCOS: Declaration complete \n");
 		#endif
 
+		/* Chuqi:
+		 * For 2MB -> 4KB spliting, the L2 page will point to a L1 PTP.
+		 * We need to:
+		 * (a) populate the L2's PKS key to the L1 PTP entries
+		 * (b) clear the L2's PKS key as it is no longer a last-level PTE
+		 */
+
 		set_pmd((pmd_t*)kpte, pmd);
 		printk("ENCOS: Set pmd complete \n");
 	} else if(level == PG_LEVEL_1G) {

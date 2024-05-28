@@ -1,6 +1,7 @@
 #include <asm/msr.h>
 #include <sva/mmu.h>
 #include <sva/pks.h>
+#include <sva/stack.h>
 #include <sva/mmu_intrinsics.h>
 
 /*
@@ -17,6 +18,7 @@ void set_page_protection(uintptr_t virtual_page, int should_protect)
     page_entry = get_pgeVaddr(virtual_page, &is_l1);
     
     if (!is_l1) {
+        printk("NOT PROTECTED: 0x%lx.\n", virtual_page);
         return;
     }
     /* set protection key in PTE */
@@ -35,7 +37,13 @@ void set_page_protection(uintptr_t virtual_page, int should_protect)
     else
         *page_entry |= PG_RW;
 #endif
-    
+    //debug
+    for (int i = 0; i < NCPU; i++){
+        if (virtual_page == SyscallSecureStackBase + i * pageSize) {
+            printk("PROTECT_PAGE of SyscallSecureStack: 0x%lx.\n", virtual_page);
+        }
+    }
+
     /* flush the TLB after the function */
     sva_mm_flush_tlb((void *)virtual_page);
 }
