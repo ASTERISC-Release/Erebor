@@ -1115,7 +1115,7 @@ sva_write_cr0, unsigned long val) {
  *  SVA Intrinsic to load a value in cr4. We need to make sure that the SMEP and PKS
  *  bits are enabled. 
  */
-void sva_write_cr4(unsigned long val) {
+SECURE_WRAPPER(void, sva_write_cr4, unsigned long val) {
   MMULock_Acquire();
   if(mmuIsInitialized) {
     /* ENCOS: Is this the PKS bit? (check the SMAP/SMEP bits) */
@@ -1125,6 +1125,7 @@ void sva_write_cr4(unsigned long val) {
     printk("[mmu_init = 0] sva_write_cr4 = %lx\n", val);
   }
   _load_cr4(val);
+  MMULock_Release();
 }
 
 /*
@@ -1469,13 +1470,10 @@ init_protected_pages (unsigned long startVA, unsigned long endVA, enum page_type
       pgDesc->type = type;
 
       /* ENCOS: Set WP/PKS for the virtual address. TODO: complete */
-      set_page_protection(page, /*should_protect=*/1);
+      // set_page_protection(page, /*should_protect=*/1);
 
       // Flush the TLB for this virtual address
-      sva_mm_flush_tlb(page);
-  }
-      /* ENCOS: I think we should flush here after setting PKS/CR0.WP */
-      sva_mm_flush_tlb(page);
+      // sva_mm_flush_tlb(page);
   }
 }
 
@@ -1677,7 +1675,7 @@ sva_declare_l1_page, unsigned long frameAddr) {
      * ENCOS: Added the page protection function here. I believe it's doing nothing
      * at the moment. Please fix.
      */
-    set_page_protection((unsigned long)__va(frameAddr), /*should_protect=*/1);
+    // set_page_protection((unsigned long)__va(frameAddr), /*should_protect=*/1);
 
     /* 
      * Initialize the page data and page entry. Note that we pass a general
@@ -1707,9 +1705,6 @@ sva_declare_l1_page, unsigned long frameAddr) {
  */
 SECURE_WRAPPER(void, 
 sva_declare_l2_page, uintptr_t frameAddr) {
-  // printk("ENCOS-Internal: Declaring L2 page internally. (frameaddr = %px)\n", 
-    // (void*) frameAddr);
-sva_declare_l2_page, unsigned long frameAddr) {
   MMULock_Acquire();
 
   LOG_DECLARE("Declaring L2 page (%px)\n", (void*) frameAddr);
@@ -1972,7 +1967,7 @@ sva_remove_page, unsigned long paddr) {
   page_desc_t *pgDesc = getPageDescPtr(paddr);
     if(!pgDesc) return;
 
-  set_page_protection((unsigned long)__va(paddr), 0);
+  // set_page_protection((unsigned long)__va(paddr), 0);
 
   /*
    * Make sure that this is a page table page.  We don't want the system
