@@ -83,7 +83,7 @@ static inline void print_insecure_stack(void) {
  */
 char SecureStack[4096*NCPU] SVAMEM;
 // TODO: Important this value can't be changed from outside the nested kernel!
-const uintptr_t SecureStackBase = (uintptr_t) SecureStack + 4096;
+const unsigned long SecureStackBase = (unsigned long) SecureStack + 4096;
 
 
 #undef NKDEBUGG
@@ -96,7 +96,7 @@ const uintptr_t SecureStackBase = (uintptr_t) SecureStack + 4096;
  *****************************************************************************
  */
 uint64_t
-_rdmsr(uintptr_t msr)
+_rdmsr(unsigned long msr)
 {
     uint32_t low, high;
 
@@ -115,7 +115,7 @@ _load_cr4(unsigned long val) {
 }
 
 void
-_wrmsr(uintptr_t msr, uint64_t newval)
+_wrmsr(unsigned long msr, uint64_t newval)
 {
 	uint32_t low, high;
 
@@ -129,23 +129,23 @@ _wrmsr(uintptr_t msr, uint64_t newval)
     __asm __volatile("movq %0,%%cr3" : : "r" (data) : "memory"); 
 }
 
- uintptr_t
+ unsigned long
 _rcr0(void) {
-    uintptr_t  data;
+    unsigned long  data;
     __asm __volatile("movq %%cr0,%0" : "=r" (data));
     return (data);
 }
 
- uintptr_t
+ unsigned long
 _rcr3(void) {
-    uintptr_t  data;
+    unsigned long  data;
     __asm __volatile("movq %%cr3,%0" : "=r" (data));
     return (data);
 }
 
- uintptr_t
+ unsigned long
 _rcr4(void) {
-    uintptr_t  data;
+    unsigned long  data;
     __asm __volatile("movq %%cr4,%0" : "=r" (data));
     return (data);
 }
@@ -164,7 +164,7 @@ _efer(void) {
 /*
  * Private local mapping update function prototypes.
  */
-static  void __update_mapping (uintptr_t * pageEntryPtr, page_entry_t val);
+static  void __update_mapping (unsigned long * pageEntryPtr, page_entry_t val);
 
 /*
  *****************************************************************************
@@ -323,14 +323,14 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
   /* Collect associated information for the existing mapping */
   unsigned long origPA = *page_entry & PG_FRAME;
   unsigned long origFrame = origPA >> PAGESHIFT;
-  uintptr_t origVA = (uintptr_t) getVirtual(origPA);
+  unsigned long origVA = (unsigned long) getVirtual(origPA);
 
   page_desc_t *origPG = getPageDescPtr(origPA);
 
   /* Get associated information for the new page being mapped */
   unsigned long newPA = newVal & PG_FRAME;
   unsigned long newFrame = newPA >> PAGESHIFT;
-  uintptr_t newVA = (uintptr_t) getVirtual(newPA);
+  unsigned long newVA = (unsigned long) getVirtual(newPA);
 
   page_desc_t *newPG = getPageDescPtr(newPA);
   if(!newPG) {
@@ -342,7 +342,7 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
   }
 
   /* Get the page table page descriptor. The page_entry is the viratu */
-  uintptr_t ptePAddr = __pa (page_entry);
+  unsigned long ptePAddr = __pa (page_entry);
   page_desc_t *ptePG = getPageDescPtr(ptePAddr);
 
   /* Return value */
@@ -564,8 +564,8 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
  */
 static  void
 updateNewPageData(page_entry_t mapping) {
-  uintptr_t newPA = ((mapping & PG_FRAME) & PG_NX) & PG_CBIT;
-  uintptr_t newVA = (uintptr_t) getVirtual(newPA);
+  unsigned long newPA = ((mapping & PG_FRAME) & PG_NX) & PG_CBIT;
+  unsigned long newVA = (unsigned long) getVirtual(newPA);
   page_desc_t *newPG = getPageDescPtr(mapping);
   if(!newPG) return;
 
@@ -632,8 +632,8 @@ updateOrigPageData(page_entry_t mapping) {
  */
 static  void
 __do_mmu_update (page_entry_t* pteptr, page_entry_t mapping) {
-  uintptr_t origPA = (uintptr_t)(*pteptr & PG_FRAME);
-  uintptr_t newPA = (uintptr_t)(mapping & PG_FRAME);
+  unsigned long origPA = (unsigned long)(*pteptr & PG_FRAME);
+  unsigned long newPA = (unsigned long)(mapping & PG_FRAME);
 
   /*
    * If we have a new mapping as opposed to just changing the flags of an
@@ -739,7 +739,7 @@ initDeclaredPage (unsigned long frameAddr) {
  *  - val : new entry value
  */
 static void
-__update_mapping (uintptr_t * pageEntryPtr, page_entry_t val) {
+__update_mapping (unsigned long * pageEntryPtr, page_entry_t val) {
   /* 
    * If the given page update is valid then store the new value to the page
    * table entry, else raise an error.
@@ -796,13 +796,14 @@ __update_mapping (uintptr_t * pageEntryPtr, page_entry_t val) {
  *  address is returned.
  */
 page_entry_t * 
-get_pgeVaddr (uintptr_t vaddr, int *is_l1) {
+get_pgeVaddr (unsigned long vaddr, int *is_l1) {
   /* Pointer to the page table entry for the virtual address */
   page_entry_t *pge = 0;
   if (is_l1)
     *is_l1 = 0;
+
   /* Get the base of the pml4 to traverse */
-  uintptr_t cr3 = (uintptr_t) get_pagetable();
+  unsigned long cr3 = (unsigned long) get_pagetable();
   if ((cr3 & 0xfffffffffffff000u) == 0)
     return 0;
 
@@ -858,42 +859,42 @@ get_pgeVaddr (uintptr_t vaddr, int *is_l1) {
 
 /* Refer to Intel SDM Section 4.5.2 */
 pgd_t *
-get_pgdVaddr (unsigned char * cr3, uintptr_t vaddr) {
+get_pgdVaddr (unsigned char * cr3, unsigned long vaddr) {
   /* Offset into the page table */
-  uintptr_t offset = (vaddr >> (48 - 3)) & vmask;
-  return (pgd_t *) getVirtual (((uintptr_t)cr3) | offset);
+  unsigned long offset = (vaddr >> (48 - 3)) & vmask;
+  return (pgd_t *) getVirtual (((unsigned long)cr3) | offset);
 }
 
 p4d_t *
-get_p4dVaddr (pgd_t * pgd, uintptr_t vaddr) {
+get_p4dVaddr (pgd_t * pgd, unsigned long vaddr) {
   /* Offset into the page table */
-  uintptr_t base   = (uintptr_t)(pgd->pgd) & addrmask;
-  uintptr_t offset = (vaddr >> (39 - 3)) & vmask;
-  return (p4d_t *) getVirtual (((uintptr_t)base) | offset);
+  unsigned long base   = (unsigned long)(pgd->pgd) & addrmask;
+  unsigned long offset = (vaddr >> (39 - 3)) & vmask;
+  return (p4d_t *) getVirtual (((unsigned long)base) | offset);
 }
 
 pud_t *
-get_pudVaddr (p4d_t * p4d, uintptr_t vaddr) {
+get_pudVaddr (p4d_t * p4d, unsigned long vaddr) {
   #if defined(CONFIG_X86_5LEVEL)
-    uintptr_t base   = (uintptr_t) (p4d->p4d) & addrmask;
+    unsigned long base   = (unsigned long) (p4d->p4d) & addrmask;
   #else
-    uintptr_t base   = (uintptr_t) (p4d->pgd.pgd) & addrmask;
+    unsigned long base   = (unsigned long) (p4d->pgd.pgd) & addrmask;
   #endif
-  uintptr_t offset = (vaddr >> (30 - 3)) & vmask;
+  unsigned long offset = (vaddr >> (30 - 3)) & vmask;
   return (pud_t *) getVirtual (base | offset);
 }
 
 pmd_t *
-get_pmdVaddr (pud_t * pud, uintptr_t vaddr) {
-  uintptr_t base   = (uintptr_t)(pud->pud) & addrmask;
-  uintptr_t offset = (vaddr >> (21 - 3)) & vmask;
+get_pmdVaddr (pud_t * pud, unsigned long vaddr) {
+  unsigned long base   = (unsigned long)(pud->pud) & addrmask;
+  unsigned long offset = (vaddr >> (21 - 3)) & vmask;
   return (pmd_t *) getVirtual (base | offset);
 }
 
 pte_t *
-get_pteVaddr (pmd_t * pmd, uintptr_t vaddr) {
-  uintptr_t base   = (uintptr_t)(pmd->pmd) & addrmask;
-  uintptr_t offset = (vaddr >> (12 - 3)) & vmask;
+get_pteVaddr (pmd_t * pmd, unsigned long vaddr) {
+  unsigned long base   = (unsigned long)(pmd->pmd) & addrmask;
+  unsigned long offset = (vaddr >> (12 - 3)) & vmask;
   return (pte_t *) getVirtual (base | offset);
 }
 
@@ -901,45 +902,45 @@ get_pteVaddr (pmd_t * pmd, uintptr_t vaddr) {
 /*
  * Functions for returing the physical address of page table pages.
  */
-static  uintptr_t
-get_pgdPaddr (unsigned char * cr3, uintptr_t vaddr) {
+static  unsigned long
+get_pgdPaddr (unsigned char * cr3, unsigned long vaddr) {
   /* Offset into the page table */
-  uintptr_t offset = ((vaddr >> 48) << 3) & vmask;
-  return (((uintptr_t)cr3) | offset);
+  unsigned long offset = ((vaddr >> 48) << 3) & vmask;
+  return (((unsigned long)cr3) | offset);
 }
 
-static  uintptr_t
-get_p4dPaddr (pgd_t * pgd, uintptr_t vaddr) {
-  uintptr_t offset = ((vaddr  >> 39) << 3) & vmask;
-  return (((uintptr_t)(pgd->pgd) & 0x000ffffffffff000u) | offset);
+static  unsigned long
+get_p4dPaddr (pgd_t * pgd, unsigned long vaddr) {
+  unsigned long offset = ((vaddr  >> 39) << 3) & vmask;
+  return (((unsigned long)(pgd->pgd) & 0x000ffffffffff000u) | offset);
 }
 
-static  uintptr_t
-get_pudPaddr (p4d_t * p4d, uintptr_t vaddr) {
-  uintptr_t offset = ((vaddr  >> 30) << 3) & vmask;
+static  unsigned long
+get_pudPaddr (p4d_t * p4d, unsigned long vaddr) {
+  unsigned long offset = ((vaddr  >> 30) << 3) & vmask;
 #if defined (CONFIG_X86_5LEVEL)
-  return (((uintptr_t)p4d->p4d & 0x000ffffffffff000u) | offset);
+  return (((unsigned long)p4d->p4d & 0x000ffffffffff000u) | offset);
 #else
-  return (((uintptr_t)p4d->pgd.pgd & 0x000ffffffffff000u) | offset);
+  return (((unsigned long)p4d->pgd.pgd & 0x000ffffffffff000u) | offset);
 #endif
 }
 
-static  uintptr_t
-get_pmdPaddr (pud_t * pud, uintptr_t vaddr) {
-  uintptr_t offset = ((vaddr >> 21) << 3) & vmask;
-  return (((uintptr_t)pud->pud & 0x000ffffffffff000u) | offset);
+static  unsigned long
+get_pmdPaddr (pud_t * pud, unsigned long vaddr) {
+  unsigned long offset = ((vaddr >> 21) << 3) & vmask;
+  return (((unsigned long)pud->pud & 0x000ffffffffff000u) | offset);
 }
 
-static  uintptr_t
-get_ptePaddr (pmd_t * pmd, uintptr_t vaddr) {
-  uintptr_t offset = ((vaddr >> 12) << 3) & vmask;
-  return (((uintptr_t)pmd->pmd & 0x000ffffffffff000u) | offset);
+static  unsigned long
+get_ptePaddr (pmd_t * pmd, unsigned long vaddr) {
+  unsigned long offset = ((vaddr >> 12) << 3) & vmask;
+  return (((unsigned long)pmd->pmd & 0x000ffffffffff000u) | offset);
 }
 
 /* Functions for querying information about a page table entry */
 // Rahul: Check instances that invoke this function and if the argument passing is correct
 static  unsigned char
-isPresent (uintptr_t * pte) {
+isPresent (unsigned long * pte) {
   return (*pte & 0x1u) ? 1u : 0u;
 }
 
@@ -949,16 +950,16 @@ isPresent (uintptr_t * pte) {
  * Description:
  *  Find the physical page number of the specified virtual address.
  */
-uintptr_t
+unsigned long
 getPhysicalAddr (void * v) {
   /* Mask to get the proper number of bits from the virtual address */
-  static const uintptr_t vmask = 0x0000000000000fffu;
+  static const unsigned long vmask = 0x0000000000000fffu;
 
   /* Virtual address to convert */
-  uintptr_t vaddr  = ((uintptr_t) v);
+  unsigned long vaddr  = ((unsigned long) v);
 
   /* Offset into the page table */
-  uintptr_t offset = 0;
+  unsigned long offset = 0;
 
   /*
    * Get the currently active page table.
@@ -1002,13 +1003,13 @@ getPhysicalAddr (void * v) {
    * Compute the physical address.
    */
   offset = vaddr & vmask;
-  uintptr_t paddr = (pte->pte & 0x000ffffffffff000u) + offset;
+  unsigned long paddr = (pte->pte & 0x000ffffffffff000u) + offset;
   return paddr;
 }
 
 SECURE_WRAPPER(void, 
 sva_mmu_test, void) {
-  uintptr_t sp;
+  unsigned long sp;
     asm volatile (
         "movq %%rsp, %0\n\t"
         : "=r" (sp)
@@ -1196,7 +1197,7 @@ sva_load_msr(u_int msr, uint64_t val) {
  */
 
 void 
-declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
+declare_ptp_and_walk_pt_entries(unsigned long pageEntryPA, unsigned long
         numPgEntries, enum page_type_t pageLevel ) 
 { 
   int i;
@@ -1207,19 +1208,20 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
   page_entry_t pageMapping; 
   page_entry_t pageMapping_masked; 
   page_entry_t *pagePtr;
-  unsigned int nx_mask    = ~(1 << PG_NX);
-  unsigned int cbit_mask  = ~(1 << 51);
+  unsigned long nx_mask    = ~(1 << 63);
+  unsigned long cbit_mask  = ~(1 << 51);
 
   /* Store the pte value for the page being traversed */
   pageMapping = (pageEntryPA);
-  pageMapping_masked = (((pageEntryPA & PG_FRAME) & nx_mask) & cbit_mask);
+  pageMapping_masked = (((pageEntryPA & PG_FRAME) & nx_mask));
+  // pageMapping_masked = (((pageEntryPA & PG_FRAME)));
   if (pageMapping_masked > memSize) {
     LOG_WALK(1, "  \tJUNK (phys ==> %px\n)", pageMapping_masked);
     return;
   }
 
   /* Set the page pointer for the given page */
-  pagePtr = (page_entry_t*) getVirtual((uintptr_t)(pageMapping_masked));
+  pagePtr = (page_entry_t*) getVirtual((unsigned long)(pageMapping_masked));
 
   /* Get the page_desc for this page */
   thisPg = getPageDescPtr(pageMapping_masked);
@@ -1227,6 +1229,9 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
 
   /* Mark if we have seen this traversal already */
   traversedPTEAlready = (thisPg->type != PG_UNUSED);
+
+  /* Set the virtual address of the page (for later use) */
+  thisPg->pgVaddr = pagePtr;
 
   /* Character inputs to make the printing pretty for debugging */
   char * indent = "";
@@ -1240,24 +1245,29 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
 #if defined(CONFIG_X86_5LEVEL)
     case PG_L5:
         indent = l5s;
-        LOG_WALK(2, "%sSetting L5 Page: mapping:0x%lx\n", indent, pageMapping);
+        LOG_WALK(2, "%sSetting L5 Page: ptr: %px, mapping:0x%lx, mapping (masked):0x%lx\n", 
+            indent, pagePtr, pageMapping, pageMapping_masked);
         break;
 #endif
     case PG_L4:
         indent = l4s;
-        LOG_WALK(2, "%sSetting L4 Page: mapping:0x%lx\n", indent, pageMapping_masked);
+        LOG_WALK(2, "%sSetting L4 Page: ptr: %px, mapping:0x%lx, mapping (masked):0x%lx\n", indent, pagePtr, 
+            pageMapping, pageMapping_masked);
         break;
     case PG_L3:
         indent = l3s;
-        LOG_WALK(2, "%sSetting L3 Page: mapping:0x%lx\n", indent, pageMapping_masked);
+        LOG_WALK(2, "%sSetting L3 Page: ptr: %px mapping:0x%lx, mapping (masked):0x%lx\n", indent, pagePtr, 
+            pageMapping, pageMapping_masked);
         break;
     case PG_L2:
         indent = l2s;
-        LOG_WALK(2, "%sSetting L2 Page: mapping:0x%lx\n", indent, pageMapping_masked);
+        LOG_WALK(2, "%sSetting L2 Page: ptr: %px, mapping:0x%lx, mapping (masked):0x%lx\n", indent, pagePtr, 
+            pageMapping, pageMapping_masked);
         break;
     case PG_L1:
         indent = l1s;
-        LOG_WALK(2, "%sSetting L1 Page: mapping:0x%lx\n", indent, pageMapping_masked);
+        LOG_WALK(2, "%sSetting L1 Page: ptr: %px, mapping:0x%lx, mapping (masked):0x%lx\n", indent, pagePtr, 
+            pageMapping, pageMapping_masked);
         break;
     default:
         break;
@@ -1406,7 +1416,7 @@ declare_ptp_and_walk_pt_entries(uintptr_t pageEntryPA, unsigned long
       } else {
         LOG_WALK(3, "%sProcessing:pte addr: %px, newPgAddr: %p, mapping: 0x%lx\n",
               indent, nextEntry, (*nextEntry & PG_FRAME), *nextEntry );
-          declare_ptp_and_walk_pt_entries((uintptr_t)*nextEntry,
+          declare_ptp_and_walk_pt_entries((unsigned long)*nextEntry,
                   numSubLevelPgEntries, subLevelPgType); 
       }
     }
@@ -1434,8 +1444,8 @@ out:
  *  pgType     - The nested kernel page type 
  */
 static void
-init_protected_pages (uintptr_t startVA, uintptr_t endVA, enum page_type_t type) {
-  uintptr_t page;
+init_protected_pages (unsigned long startVA, unsigned long endVA, enum page_type_t type) {
+  unsigned long page;
   for (page = startVA; page < endVA; page += pageSize) {
       /* Set the physical page descriptor with the pgType */
       page_desc_t *pgDesc = getPageDescPtr(__pa(page));
@@ -1465,35 +1475,50 @@ init_protected_pages (uintptr_t startVA, uintptr_t endVA, enum page_type_t type)
 static inline void
 makePTReadOnly (void) {
   /* Disable page protection */
-  // unprotect_paging();
+  unprotect_paging();
 
   /*
    * For each physical page, determine if it is used as a page table page.
    * If so, make its entry in the direct map read-only.
    */
-  uintptr_t paddr;
+  unsigned long paddr;
   for (paddr = 0; paddr < memSize; paddr += pageSize) {
     enum page_type_t pgType = getPageDescPtr(paddr)->type;
 
     if ((PG_L1 <= pgType) && (pgType <= PG_L4)) {
+      #if 0
       page_entry_t * pageEntry = get_pgeVaddr (getVirtual(paddr), NULL);
       if (!pageEntry) {
         LOG_PRINTK("  [warning] empty virtual address for %px\n", paddr);
         continue;
       }
+      #endif
+
+      page_entry_t * pageEntry = getPageDescPtr(paddr)->pgVaddr;
+      LOG_PRINTK("Page Entry ==> %px\n", pageEntry);
+
+      if ((pageEntry >= 0xffff8880fec00000) && (pageEntry <= 0xffff8880fee00000))
+        continue;
 
       // Don't make direct map entries of larger sizes read-only,
       // they're likely to be broken into smaller pieces later
       // which is a process we don't handle precisely yet.
       if (((*pageEntry) & PG_PS) == 0) {
-          page_entry_store (pageEntry, setMappingReadOnly(*pageEntry));
+          /* 
+           * ENCOS: As soon as I enable this, the kernel hangs. This is likely 
+           * because you don't currently set protections (i.e., CR0.WP) disable.
+           *
+           * IMPORTANT FIX. 
+           */
+          // page_entry_store (pageEntry, setMappingReadOnly(*pageEntry));
+          // page_entry_store (pageEntry, *pageEntry);
       }
     }
 
   }
 
   /* Re-enable page protection */
-  // protect_paging();
+  protect_paging();
 }
 
 /*
@@ -1532,12 +1557,12 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
 
   /* Protect the kernel text region */
   LOG_PRINTK("_stext: %lx, _etext: %lx\n", _stext, _etext);
-  init_protected_pages((uintptr_t) PFN_ALIGN(_stext), (uintptr_t) PFN_ALIGN(_etext), 
+  init_protected_pages((unsigned long) PFN_ALIGN(_stext), (unsigned long) PFN_ALIGN(_etext), 
     PG_CODE);
   
   /* Protect the SVA pages */
   LOG_PRINTK("_svastart: %lx, _svaend: %lx\n", __pa(_svastart), __pa(_svaend));
-  init_protected_pages((uintptr_t) _svastart, (uintptr_t) _svaend, PG_SVA);
+  init_protected_pages((unsigned long) _svastart, (unsigned long) _svaend, PG_SVA);
 
   /* Walk the kernel page tables and initialize the sva page_desc */
   unsigned long kpgdPA = (sva_get_current_pgd() << 12);
@@ -1562,7 +1587,7 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
   MMULock_Release();
 }
 
-void declare_internal(uintptr_t frameAddr, int level) {
+void declare_internal(unsigned long frameAddr, int level) {
   /* Get the page_desc for the page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);
   if(!pgDesc) return;
@@ -1591,7 +1616,7 @@ void declare_internal(uintptr_t frameAddr, int level) {
  *              Level 1 page frame.
  */
 SECURE_WRAPPER(void,
-sva_declare_l1_page, uintptr_t frameAddr) {
+sva_declare_l1_page, unsigned long frameAddr) {
   MMULock_Acquire();
 
   /* Get the page_desc for the newly declared l4 page frame */
@@ -1659,7 +1684,7 @@ sva_declare_l1_page, uintptr_t frameAddr) {
  *              Level 2 page frame.
  */
 SECURE_WRAPPER(void, 
-sva_declare_l2_page, uintptr_t frameAddr) {
+sva_declare_l2_page, unsigned long frameAddr) {
   MMULock_Acquire();
 
   LOG_DECLARE("Declaring L2 page (%px)\n", (void*) frameAddr);
@@ -1724,7 +1749,7 @@ sva_declare_l2_page, uintptr_t frameAddr) {
  *              Level 3 page frame.
  */
 SECURE_WRAPPER(void,
-sva_declare_l3_page, uintptr_t frameAddr) {
+sva_declare_l3_page, unsigned long frameAddr) {
   MMULock_Acquire();
 
   LOG_DECLARE("Declaring L3 page (%px)\n", (void*) frameAddr);
@@ -1787,7 +1812,7 @@ sva_declare_l3_page, uintptr_t frameAddr) {
  *              Level 4 page frame.
  */
 SECURE_WRAPPER(void,
-sva_declare_l4_page, uintptr_t frameAddr) {
+sva_declare_l4_page, unsigned long frameAddr) {
   MMULock_Acquire();
 
   LOG_DECLARE("Declaring L4 page (%px)\n", (void*) frameAddr);
@@ -1854,7 +1879,7 @@ sva_declare_l4_page, uintptr_t frameAddr) {
  *              Level 5 page frame.
  */
 SECURE_WRAPPER(void,
-sva_declare_l5_page, uintptr_t frameAddr) {
+sva_declare_l5_page, unsigned long frameAddr) {
   MMULock_Acquire();
 
   LOG_DECLARE("Declaring L5 page (%px)\n", (void*) frameAddr);
@@ -1913,7 +1938,7 @@ sva_declare_l5_page, uintptr_t frameAddr) {
  *  paddr - The physical address of the page table page.
  */
 SECURE_WRAPPER(void,
-sva_remove_page, uintptr_t paddr) {
+sva_remove_page, unsigned long paddr) {
   MMULock_Acquire();
 
   /* Get the entry controlling the permissions for this pte PTP */

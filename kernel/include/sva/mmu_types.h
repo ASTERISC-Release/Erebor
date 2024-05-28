@@ -26,12 +26,12 @@
 #include <asm/pgtable_types.h>
 #include <asm/pgtable_64_types.h>
 
-typedef uintptr_t cr3_t;
+typedef unsigned long cr3_t;
 // typedef uintptr_t pgd_t;
 // typedef uintptr_t p4d_t;
 // typedef uintptr_t pud_t;
 // typedef uintptr_t pmd_t;
 // typedef uintptr_t pte_t;
-typedef uintptr_t page_entry_t;
+typedef unsigned long page_entry_t;
 
 #endif /* SVA_MMU_TYPES_H */

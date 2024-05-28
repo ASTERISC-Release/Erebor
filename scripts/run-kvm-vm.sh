@@ -20,8 +20,8 @@ sudo sh -c "echo never > /sys/kernel/mm/transparent_hugepage/defrag"
 stty intr ^]
 
 # memory (32GB)
-VMMEM=24510M
-# VMMEM=16384M
+# VMMEM=24510M
+VMMEM=16384M
 # VMMEM=32708M
 
 # debug
