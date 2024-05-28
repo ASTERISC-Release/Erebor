@@ -1476,7 +1476,11 @@ makePTReadOnly (void) {
     enum page_type_t pgType = getPageDescPtr(paddr)->type;
 
     if ((PG_L1 <= pgType) && (pgType <= PG_L4)) {
-      page_entry_t * pageEntry = get_pgeVaddr (getVirtual(paddr));
+      page_entry_t * pageEntry = get_pgeVaddr (getVirtual(paddr), NULL);
+      if (!pageEntry) {
+        LOG_PRINTK("  [warning] empty virtual address for %px\n", paddr);
+        continue;
+      }
 
       // Don't make direct map entries of larger sizes read-only,
       // they're likely to be broken into smaller pieces later
@@ -1485,7 +1489,7 @@ makePTReadOnly (void) {
           page_entry_store (pageEntry, setMappingReadOnly(*pageEntry));
       }
     }
-    
+
   }
 
   /* Re-enable page protection */
