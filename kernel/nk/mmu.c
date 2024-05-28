@@ -486,25 +486,29 @@ pt_update_is_valid (page_entry_t *page_entry, page_entry_t newVal) {
             if ((newPG->type >= PG_L1) && (newPG->type <= PG_L5)) {
               retValue = 2;
             } else {
-              panic ("SVA: MMU: Map bad page type into L2: %x\n", newPG->type);
+              PANIC_WRONG_MAPPING ("SVA: Map bad page type into L3: (virt: %px, phys: %px, pte: %px, pgtype: %x)\n", 
+                newVA, newPA, ptePAddr, newPG->type);
             }
           }
         } else {
-          SVA_ASSERT (isL2Pg(newPG), "MMU: Mapping non-L2 page into L3.");
+          SVA_ASSERT (isL2Pg(newPG), "SVA: Mapping non-L2 page into L3.");
         }
         break;
 
       case PG_L4:
         SVA_ASSERT (isL3Pg(newPG), 
-                    "MMU: Mapping non-L3 page into L4.");
+                    "SVA: Mapping non-L3 page into L4.");
         break;
 
+#if defined (CONFIG_X86_5LEVEL)
       case PG_L5:
         SVA_ASSERT (isL4Pg(newPG), 
-                    "MMU: Mapping non-L4 page into L5.");
+                    "SVA: Mapping non-L4 page into L5.");
         break;
+#endif
 
       default:
+        PANIC_WRONG_MAPPING("SVA: Incorrect mapping that does not belong to L1 - L4/5");
         break;
     }
   }
