@@ -1470,12 +1470,6 @@ init_protected_pages (unsigned long startVA, unsigned long endVA, enum page_type
 
       /* ENCOS: Set WP/PKS for the virtual address. TODO: complete */
       set_page_protection(page, /*should_protect=*/1);
-
-      // Flush the TLB for this virtual address
-      sva_mm_flush_tlb(page);
-  }
-      /* ENCOS: I think we should flush here after setting PKS/CR0.WP */
-      sva_mm_flush_tlb(page);
   }
 }
 
@@ -1706,7 +1700,7 @@ sva_declare_l1_page, unsigned long frameAddr) {
  *              Level 2 page frame.
  */
 SECURE_WRAPPER(void, 
-sva_declare_l2_page, uintptr_t frameAddr) {
+// sva_declare_l2_page, uintptr_t frameAddr) {
   // printk("ENCOS-Internal: Declaring L2 page internally. (frameaddr = %px)\n", 
     // (void*) frameAddr);
 sva_declare_l2_page, unsigned long frameAddr) {
