@@ -1455,6 +1455,44 @@ init_protected_pages (uintptr_t startVA, uintptr_t endVA, enum page_type_t type)
 }
 
 /*
+ * Function: makePTReadOnly()
+ *
+ * Description:
+ *  Scan through all of the page descriptors and find all the page descriptors
+ *  for page table pages.  For each such page, make the virtual page that maps
+ *  it into the direct map read-only.
+ */
+static inline void
+makePTReadOnly (void) {
+  /* Disable page protection */
+  // unprotect_paging();
+
+  /*
+   * For each physical page, determine if it is used as a page table page.
+   * If so, make its entry in the direct map read-only.
+   */
+  uintptr_t paddr;
+  for (paddr = 0; paddr < memSize; paddr += pageSize) {
+    enum page_type_t pgType = getPageDescPtr(paddr)->type;
+
+    if ((PG_L1 <= pgType) && (pgType <= PG_L4)) {
+      page_entry_t * pageEntry = get_pgeVaddr (getVirtual(paddr));
+
+      // Don't make direct map entries of larger sizes read-only,
+      // they're likely to be broken into smaller pieces later
+      // which is a process we don't handle precisely yet.
+      if (((*pageEntry) & PG_PS) == 0) {
+          page_entry_store (pageEntry, setMappingReadOnly(*pageEntry));
+      }
+    }
+    
+  }
+
+  /* Re-enable page protection */
+  // protect_paging();
+}
+
+/*
  * Function: sva_mmu_init
  *
  * Description:
@@ -1505,10 +1543,10 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
   // _load_cr3(kpgdMapping->pgd & PG_FRAME);
 
   /* Make existing page table pages read-only */
-  // makePTReadOnly();
+  makePTReadOnly();
   
   /* Make existing page table pages read-only */
-  // makePTReadOnly();
+  makePTReadOnly();
 
   /*
    * Note that the MMU is now initialized.
