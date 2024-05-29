@@ -1083,7 +1083,8 @@ void start_kernel(void)
 
 #ifdef CONFIG_ENCOS_PKS
 	/* already instrumented to 1 << 24 */
-	native_write_cr4(native_read_cr4());
+	printk("SET PKS IN CR4.\n");
+	native_write_cr4(native_read_cr4() | (1 << 24) );
 	/* Disable write access for key 1 */
 	wrmsrl(0x6e1, 0x8);
 #endif	/* CONFIG_ENCOS_PKS */

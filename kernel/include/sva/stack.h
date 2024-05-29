@@ -240,13 +240,13 @@ extern const uintptr_t SyscallSecureStackBase;
   /* Get current PKRS value */                                                 \
   RD_PKSMSR                                                                    \
   /* Allow access for key 1 */                                                 \
-  "andq $0xFFFFFFFFFFFFFFF7, %rax\n"                                           \
+  "andq $0xFFFFFFFFFFFFFFF3, %rax\n"                                           \
   /* Update the PKRS value */                                                  \
   WR_PKSMSR                                                                    \
   /* CONFIG_ENCOS_WP */                                                        \
   /* Get current cr0 value */                                                  \
   "movq %cr0, %rax\n"                                                          \
-  /* Clear WP bit in copy */                                                   \
+  /* Disable WP */                                                             \
   "andq $0xfffffffffffeffff, %rax\n"                                           \
   /* Replace cr0 with updated value */                                         \
   WR_RAX_CR0                                                                   \
@@ -254,8 +254,8 @@ extern const uintptr_t SyscallSecureStackBase;
   "cli\n"                                                                      \
   /* Get the processor ID */                                                   \
   "rdtscp\n"                                                                   \
-  /* Find the secure stack offset for the processor ID */                      \
   "andq $0xFFF, %rcx\n"                                                        \
+  /* Find the secure stack offset for the processor ID */                      \
   "movq %rcx, %rax\n"                                                          \
   "movq $4096, %rcx\n"                                                         \
   "mulq %rcx\n"                                                                \

@@ -422,9 +422,9 @@ static inline void set_tlbstate_lam_mode(struct mm_struct *mm)
 static inline void __native_tlb_flush_global(unsigned long cr4)
 {
 	// Rahul: Set the PKS bit to 1 if it was previously set
-#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_PKS)
-	cr4 |= native_read_cr4() & (1ul << 24);
-#endif
+// #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_PKS)
+// 	cr4 |= native_read_cr4() & (1ul << 24);
+// #endif
 	native_write_cr4(cr4 ^ X86_CR4_PGE);
 	native_write_cr4(cr4);
 }

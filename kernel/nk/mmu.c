@@ -35,7 +35,8 @@ enum log_type_t {
     UPDATE,   /* Print all declares, printk, and updates */
 };
 #define VERBOSE PRINTK
-#define DEBUG_WALK 2
+// #define DEBUG_WALK 2
+#define DEBUG_WALK 0
 
 #define LOG_PRINTK(args...) printk("SVA: " args)
 #define LOG_WALK(verb, args...) { \
@@ -123,7 +124,8 @@ _load_cr0(unsigned long val) {
 
 void
 _load_cr4(unsigned long val) {
-    __asm __volatile("movq %0,%%cr4" : : "r" (val));
+    // __asm __volatile("movq %0,%%cr4" : : "r" (val) : "memory");
+    asm volatile("mov %0,%%cr4": "+r" (val) : : "memory");
 }
 
 void
@@ -1115,15 +1117,11 @@ sva_write_cr0, unsigned long val) {
  *  SVA Intrinsic to load a value in cr4. We need to make sure that the SMEP and PKS
  *  bits are enabled. 
  */
-void sva_write_cr4(unsigned long val) {
-  MMULock_Acquire();
-  if(mmuIsInitialized) {
-    /* ENCOS: Is this the PKS bit? (check the SMAP/SMEP bits) */
-    val |= (1 << 24);
-    printk("[mmu_init = 1] sva_write_cr4 = %lx\n", val);
-  } else {
-    printk("[mmu_init = 0] sva_write_cr4 = %lx\n", val);
-  }
+SECURE_WRAPPER(void, sva_write_cr4, unsigned long val) {
+  val |= (1ul << 24);    /* enable PKS */
+  /* Chuqi: to enable SMAP/SMEP */
+  // val |= (1 << 20);    /* enable SMEP */
+  // val |= (1 << 21);    /* enable SMAP */
   _load_cr4(val);
 }
 
@@ -1504,7 +1502,7 @@ makePTReadOnly (void) {
       #endif
 
       page_entry_t * pageEntry = getPageDescPtr(paddr)->pgVaddr;
-      LOG_PRINTK("Page Entry ==> %px\n", pageEntry);
+      // LOG_PRINTK("Page Entry ==> %px\n", pageEntry);
 
       /* 
        * ENCOS: These are reserved mappings and they crash the system if you access.
@@ -1966,7 +1964,7 @@ sva_remove_page, unsigned long paddr) {
   page_desc_t *pgDesc = getPageDescPtr(paddr);
     if(!pgDesc) return;
 
-  set_page_protection((unsigned long)__va(paddr), 0);
+  set_page_protection((unsigned long)__va(paddr), /*should_protect=*/0);
 
   /*
    * Make sure that this is a page table page.  We don't want the system
@@ -1992,7 +1990,6 @@ sva_remove_page, unsigned long paddr) {
       // }
       MMULock_Release();
       return;
-      break;
   }
 
   /*
@@ -2010,15 +2007,16 @@ sva_remove_page, unsigned long paddr) {
      */
     pgDesc->type = PG_UNUSED;
 
-    /*
-     * Make the page writeable again.  Be sure to flush the TLBs to make the
-     * change take effect right away.
-     */
-    if (pgDesc->pgVaddr) {
-      page_entry_store ((page_entry_t *) pgDesc->pgVaddr, 
-        setMappingReadWrite (*((page_entry_t*) pgDesc->pgVaddr)));
-      sva_mm_flush_tlb (getVirtual (paddr));
-    }
+    // Chuqi: to remove
+    // /*
+    //  * Make the page writeable again.  Be sure to flush the TLBs to make the
+    //  * change take effect right away.
+    //  */
+    // if (pgDesc->pgVaddr) {
+    //   page_entry_store ((page_entry_t *) pgDesc->pgVaddr, 
+    //     setMappingReadWrite (*((page_entry_t*) pgDesc->pgVaddr)));
+    //   sva_mm_flush_tlb (getVirtual (paddr));
+    // }
 
     /* Reset the page descriptor entry */
     memset(pgDesc, 0, sizeof(page_desc_t));
