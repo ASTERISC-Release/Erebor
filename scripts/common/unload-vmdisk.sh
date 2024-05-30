@@ -3,15 +3,25 @@
 # source environment variables
 pushd ../ && source .env && popd
 
+if [[ $1 == "tdx" ]]; then
+  VMDISK=$VMDISK_TDX
+  VMDISKMOUNT=$VMDISKMOUNT_TDX
+fi
+
 # check if folder is empty
 if [ -z "$(ls -A $VMDISKMOUNT)" ]; 
 then
-   echo "Empty mount point for vmdisk; hence, exiting"
+   log_info "Empty mount point for vmdisk ($VMDISK); hence, exiting"
    exit
 fi
 
+log_info "Unmounting VMDISK=$VMDISKMOUNT"
+
 # unmount the disk
 sudo umount $VMDISKMOUNT/boot/efi || true
+if [[ $1 == "tdx" ]]; then
+	sudo umount $VMDISKMOUNT/boot || true
+fi
 sudo umount $VMDISKMOUNT/dev/pts || true
 sudo umount $VMDISKMOUNT/dev || true
 sudo umount $VMDISKMOUNT/sys || true

@@ -1,7 +1,14 @@
 #!/bin/bash -e
 
+pushd ../ && source .env && popd
+
 # Load the disk
-./load-vmdisk.sh
+./load-vmdisk.sh $1
+
+if [[ $1 == "tdx" ]]; then
+  VMDISK=$VMDISK_TDX
+  VMDISKMOUNT=$VMDISKMOUNT_TDX
+fi
 
 # Solving Linux versioning issues
 IFS='.'
@@ -14,11 +21,11 @@ echo "Proper Linux version: $LINUXVERSION"
 
 # Install the kernel modules to the vm image
 pushd $LINUXFOLDER
-  echo "Installing modules in $VMDISKMOUNT"
+  log_info "Installing modules in $VMDISKMOUNT"
   sudo unlink $VMDISKMOUNT/lib/modules/$LINUXVERSION/build || true
-  sudo rm -rf $VMDISKMOUNT/lib/modules/$LINUXVERSION/build
-  sudo env PATH=$PATH make INSTALL_MOD_PATH=$VMDISKMOUNT modules_install
+  sudo rm -rf $VMDISKMOUNT/lib/modules/$LINUXVERSION/build || true
+  sudo env PATH=$PATH make INSTALL_MOD_PATH=$VMDISKMOUNT modules_install || true
 popd
 
 # Unload the disk
-./unload-vmdisk.sh
+./unload-vmdisk.sh $1

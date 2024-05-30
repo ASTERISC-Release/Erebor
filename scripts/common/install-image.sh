@@ -1,10 +1,18 @@
 #!/bin/bash -e 
 
+pushd ../ && source .env && popd
+
 # Load the vm image (if not currently loaded)
-./load-vmdisk.sh
+./load-vmdisk.sh $1
+
+if [[ $1 == "tdx" ]]; then
+  VMDISK=$VMDISK_TDX
+  VMDISKMOUNT=$VMDISKMOUNT_TDX
+fi
 
 # Install the kernel to the vm image
 pushd $LINUXFOLDER
+  log_info "Installing image in $VMDISKMOUNT/boot"
   sudo env PATH=$PATH make INSTALL_PATH=$VMDISKMOUNT/boot install
 popd
 
@@ -20,8 +28,8 @@ echo "Proper Linux version: $LINUXVERSION"
 
 # Install the initramfs
 # note: we must chroot to its directory and then
-sudo chroot $VMDISKMOUNT sudo update-initramfs -c -k $LINUXVERSION
-sudo chroot $VMDISKMOUNT sudo update-grub
+sudo chroot $VMDISKMOUNT sudo update-initramfs -c -k $LINUXVERSION || true
+sudo chroot $VMDISKMOUNT sudo update-grub || true
 
 # Unload the vm image
-./unload-vmdisk.sh
+./unload-vmdisk.sh $1
