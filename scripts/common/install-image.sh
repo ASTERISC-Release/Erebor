@@ -2,6 +2,8 @@
 
 pushd ../ && source .env && popd
 
+log_info "Executing install-image.sh $1"
+
 # Load the vm image (if not currently loaded)
 ./load-vmdisk.sh $1
 
@@ -29,7 +31,10 @@ echo "Proper Linux version: $LINUXVERSION"
 # Install the initramfs
 # note: we must chroot to its directory and then
 sudo chroot $VMDISKMOUNT sudo update-initramfs -c -k $LINUXVERSION || true
-sudo chroot $VMDISKMOUNT sudo update-grub || true
+
+# I prefer to update the grub manually, because we may not 
+# using the latest kernel version...
+# sudo chroot $VMDISKMOUNT sudo update-grub || true
 
 # Unload the vm image
-./unload-vmdisk.sh $1
+# ./unload-vmdisk.sh $1
