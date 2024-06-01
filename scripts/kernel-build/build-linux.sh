@@ -28,9 +28,9 @@ CURBRANCH=`git status | head -1 | cut -d ' ' -f3`
 pushd $LINUXFOLDER
     # copy the saved config
     # if [[ $1 != "tdx" ]]; then
-    cp $CURDIR/.config.saved.nokvm-perf-nolivepatch-nospec-noloadmod-nohp-no5level-tdx .config 
+    # cp $CURDIR/.config.saved.nokvm-perf-nolivepatch-nospec-noloadmod-nohp-no5level-tdx .config 
     # else
-	# cp $CURDIR/.config.saved.nokvm-perf-nolivepatch-nospec-noloadmod-nohp-no5level .config
+	cp $CURDIR/.config.saved.nokvm-perf-nolivepatch-nospec-noloadmod-nohp-no5level .config
     # fi
     # Start the build process
     make -j`nproc`
