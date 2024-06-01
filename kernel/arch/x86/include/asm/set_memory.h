@@ -88,5 +88,6 @@ int set_direct_map_default_noflush(struct page *page);
 bool kernel_page_present(struct page *page);
 
 extern int kernel_set_to_readonly;
+extern pgprot_t pgprot_clear_protnone_bits(pgprot_t prot);
 
 #endif /* _ASM_X86_SET_MEMORY_H */

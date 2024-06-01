@@ -37,4 +37,4 @@ sudo chroot $VMDISKMOUNT sudo update-initramfs -c -k $LINUXVERSION || true
 # sudo chroot $VMDISKMOUNT sudo update-grub || true
 
 # Unload the vm image
-# ./unload-vmdisk.sh $1
+./unload-vmdisk.sh $1

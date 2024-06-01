@@ -8,3 +8,5 @@ build.kern.log
 #gdb
 .gdb_history
 peda-session-vmlinux.txt
+
+llvm-14

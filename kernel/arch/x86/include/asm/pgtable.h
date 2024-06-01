@@ -1319,7 +1319,7 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm,
 	old_pte = READ_ONCE(*ptep);
 	do {
 		new_pte = pte_wrprotect(old_pte);
-	} while (!try_cmpxchg((long *)&ptep->pte, (long *)&old_pte, *(long *)&new_pte));
+	} while(sva_update_l1_mapping((pte_t*) &ptep->pte, new_pte.pte) != 0);
 }
 
 #define flush_tlb_fix_spurious_fault(vma, address, ptep) do { } while (0)
