@@ -12,6 +12,7 @@ void set_page_protection(uintptr_t virtual_page, int should_protect)
 {   
 #ifdef CONFIG_ENCOS_PKS
     page_entry_t *page_entry;
+    int is_l1;
     unsigned long long key;
     int is_l1 = 0;
     page_entry = get_pgeVaddr(virtual_page, &is_l1);
@@ -31,6 +32,8 @@ void set_page_protection(uintptr_t virtual_page, int should_protect)
 #endif
 
 #ifdef CONFIG_ENCOS_WP
+    page_entry_t *page_entry;
+    int is_l1;
     page_entry = get_pgeVaddr(virtual_page, &is_l1);
     if (!is_l1) {
         return;

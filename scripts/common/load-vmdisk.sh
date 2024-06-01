@@ -3,8 +3,15 @@
 # source environment variables
 pushd ../ && source .env && popd
 
+if [[ $1 == "tdx" ]]; then
+  VMDISK=$VMDISK_TDX
+  VMDISKMOUNT=$VMDISKMOUNT_TDX
+fi
+
 # unload first, if disk was loaded
-./unload-vmdisk.sh || true
+./unload-vmdisk.sh $1 || true
+
+log_info "Mounting VMDISK=$VMDISKMOUNT"
 
 # install the nbd module
 sudo modprobe nbd max_part=8
@@ -23,7 +30,11 @@ sudo fdisk /dev/nbd0 -l
 
 # mount the simple drives
 sudo mount /dev/nbd0p1 $VMDISKMOUNT
-sudo mount /dev/nbd0p15 $VMDISKMOUNT/boot/efi
+# tdx ubuntu 24.04 image has to mount the /boot separately
+if [[ $1 == "tdx" ]]; then
+	sudo mount /dev/nbd0p16 $VMDISKMOUNT/boot || true
+fi
+sudo mount /dev/nbd0p15 $VMDISKMOUNT/boot/efi || true
 
 # mount the /dev and /sys folders too. This is needed for update-grub command.
 sudo mount -o bind /dev $VMDISKMOUNT/dev

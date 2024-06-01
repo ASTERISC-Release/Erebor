@@ -1143,10 +1143,10 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
 		/* Chuqi:
 		 * For 2MB -> 4KB spliting, the L2 page will point to a L1 PTP.
 		 * We need to:
-		 * (a) populate the L2's PKS key to the L1 PTP entries
-		 * (b) clear the L2's PKS key as it is no longer a last-level PTE
+		 * (a) populate the L2's PKS key / RW bit to the L1 PTP entries
+		 * (b) clear the L2's PKS key / enable its RW bit, as it is no 
+		 * longer a last-level PTE
 		 */
-
 		set_pmd((pmd_t*)kpte, pmd);
 	} else if(level == PG_LEVEL_1G) {
 		// Rahul: Probably have to remove the L2 + declare the page as an L3 here too

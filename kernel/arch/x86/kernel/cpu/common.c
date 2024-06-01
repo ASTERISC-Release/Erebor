@@ -438,8 +438,11 @@ void __no_profile native_write_cr4(unsigned long val)
 	unsigned long bits_changed = 0;
 
 set_register:
+	// printk("[native_write_cr4] orig=0x%lx, target=0x%lx.\n",
+	// 		native_read_cr4(), val);
 #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_PKS)
-	/* secure write cr4 */
+	val |= (1UL << 24);
+	/* interpose write cr4 */
 	sva_write_cr4(val);
 #else
 	asm volatile("mov %0,%%cr4": "+r" (val) : : "memory");
@@ -488,7 +491,13 @@ void cr4_init(void)
 		cr4 |= X86_CR4_PCIDE;
 	if (static_branch_likely(&cr_pinning))
 		cr4 = (cr4 & ~cr4_pinned_mask) | cr4_pinned_bits;
-
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_PKS)
+	/*
+	 * Chuqi: PLEASE DO NOT touch this stupid printk RN.
+	 * It works. WHY?
+	 */
+	printk("cr4_init: try to set cr4 (will be intercepted)=0x%lx.\n", cr4);
+#endif
 	__write_cr4(cr4);
 
 	/* Initialize cr4 shadow for this CPU. */
