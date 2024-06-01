@@ -824,7 +824,7 @@ static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 }
 #endif
 
-static pgprot_t pgprot_clear_protnone_bits(pgprot_t prot)
+pgprot_t pgprot_clear_protnone_bits(pgprot_t prot)
 {
 	/*
 	 * _PAGE_GLOBAL means "global page" for present PTEs.

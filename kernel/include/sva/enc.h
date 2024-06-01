@@ -84,8 +84,9 @@ typedef struct encos_enclave_entry {
 extern int current_encid(void);
 
 
-
+#ifdef CONFIG_ENCOS_SYSCALL_STACK
 extern void SM_setup_pcpu_syscall_stack(void);
+#endif
 
 /* empty */
 extern void SM_encos_empty(void);

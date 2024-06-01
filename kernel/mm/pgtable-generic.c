@@ -16,6 +16,8 @@
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
 
+#include <asm/msr.h>
+
 /*
  * If a p?d_bad entry is found while walking page tables, report
  * the error, before resetting entry to p?d_none.  Usually (but
@@ -287,8 +289,15 @@ pte_t *__pte_offset_map(pmd_t *pmd, unsigned long addr, pmd_t *pmdvalp)
 	pmdval = pmdp_get_lockless(pmd);
 	pmdp_get_lockless_end(irqflags);
 
-	if (pmdvalp)
+	if (pmdvalp) {
+		/* ENCOS (TODO): The L2 page_entry's physical address goes out of bounds of the 
+		   page_desc due to some strange higher bits being set. 
+		   Probably mask them in the getPageDescPtr function and use the secure call to update the L2 mapping */
+		// sva_update_l2_mapping((pmd_t*)pmdvalp, (page_entry_t)pmdval.pmd);
+		wrmsrl(0x6e1, 0x0);
 		*pmdvalp = pmdval;
+		wrmsrl(0x6e1, 0x8);
+	}
 	if (unlikely(pmd_none(pmdval) || is_pmd_migration_entry(pmdval)))
 		goto nomap;
 	if (unlikely(pmd_trans_huge(pmdval) || pmd_devmap(pmdval)))

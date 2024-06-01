@@ -628,10 +628,10 @@ unprotect_paging(void) {
 /* 
  * Function prototypes for finding the virtual address of page table components
  */
-extern inline page_entry_t * get_pgeVaddr (uintptr_t vaddr, int *is_l1);
+extern inline page_entry_t * get_pgeVaddr (uintptr_t vaddr, int *level);
 extern inline pgd_t * get_pgdVaddr (unsigned char * cr3, uintptr_t vaddr);
 extern inline p4d_t * get_p4dVaddr (pgd_t * pgd, uintptr_t vaddr);
-extern inline pud_t * get_pudVaddr (p4d_t * p4d, uintptr_t vaddr);
+extern inline pud_t * get_pudVaddr (pgd_t * pgd, uintptr_t vaddr);
 extern inline pmd_t * get_pmdVaddr (pud_t * pud, uintptr_t vaddr);
 extern inline pte_t * get_pteVaddr (pmd_t * pmd, uintptr_t vaddr);
 

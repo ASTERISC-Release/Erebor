@@ -77,13 +77,14 @@ extern void sva_declare_l3_page (uintptr_t frame);
 extern void sva_declare_l4_page (uintptr_t frame);
 extern void sva_declare_l5_page (uintptr_t frame);
 extern void sva_remove_page     (uintptr_t frame);
-extern void sva_update_l1_mapping (pte_t * ptePtr, page_entry_t val);
+extern int sva_update_l1_mapping (pte_t * ptePtr, page_entry_t val);
 extern void sva_update_l2_mapping (pmd_t * pmdPtr, page_entry_t val);
 extern void sva_update_l3_mapping (pud_t * pudPtr, page_entry_t val);
 extern void sva_update_l4_mapping (p4d_t * p4dPtr, page_entry_t val);
 extern void sva_update_l5_mapping (pgd_t * pgdPtr, page_entry_t val);
 extern void sva_remove_mapping (page_entry_t * ptePtr);
 extern void sva_mmu_init(void);
+extern void sva_clear_page(void* page);
 
 /* Key initialization and secure storage allocation */
 extern void * sva_translate(void * entryPoint);

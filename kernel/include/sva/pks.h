@@ -33,7 +33,7 @@ static inline void check_protection_available(void)
     return;
 }
 
-extern void set_page_protection(uintptr_t virtual_page, int should_protect);
+extern int set_page_protection(uintptr_t virtual_page, int should_protect);
 
 /* chuqi: this is changed to `set_page_protection` */
 // extern void pks_update_mapping(uintptr_t, int);

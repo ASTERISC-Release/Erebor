@@ -52,10 +52,18 @@ int current_encid(void) {
     return entry->enc_id;
 }
 
+
+/* ==============================================================
+ * PCPU stuff
+ * ============================================================== */
+#ifdef CONFIG_ENCOS_SYSCALL_STACK
+#define SYS_STACK_SIZE  (0x1000)
+
 /* Chuqi:
  * Enclave user to kernel (u2k) interface.
  * It should use an interposed syscall handler
  */
+
 static void prepare_u2k_interface(int is_enclave)
 {  
     /* enclave */
@@ -67,11 +75,6 @@ static void prepare_u2k_interface(int is_enclave)
         _wrmsr(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
     }
 }
-
-/* ==============================================================
- * PCPU stuff
- * ============================================================== */
-#define SYS_STACK_SIZE  (0x1000)
 
 static void __this_pcpu_setup_syscall_stack(void *junk)
 {
@@ -148,6 +151,7 @@ SM_sched_in_userspace_prepare, struct pt_regs* regs)
     return;
 }
 EXPORT_SYMBOL(SM_sched_in_userspace_prepare);
+#endif
 
 /* empty security monitor call */
 SECURE_WRAPPER(void, 

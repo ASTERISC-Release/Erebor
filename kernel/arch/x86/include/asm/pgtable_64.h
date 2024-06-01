@@ -7,6 +7,10 @@
 
 #ifndef __ASSEMBLY__
 
+#if defined(CONFIG_ENCOS)
+#include <sva/mmu_intrinsics.h>
+#endif
+
 /*
  * This file contains the functions and defines necessary to modify and use
  * the x86-64 page table tree.
@@ -112,7 +116,13 @@ static inline void native_pmd_clear(pmd_t *pmd)
 static inline pte_t native_ptep_get_and_clear(pte_t *xp)
 {
 #ifdef CONFIG_SMP
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_PKS)
+	pte_t ret = *xp;
+	sva_update_l1_mapping((pte_t*)&xp->pte, 0);
+	return ret;	
+#else
 	return native_make_pte(xchg(&xp->pte, 0));
+#endif /* CONFIG_ENCOS && CONFIG_ENCOS_PKS */
 #else
 	/* native_local_ptep_get_and_clear,
 	   but duplicated because of cyclic dependency */
