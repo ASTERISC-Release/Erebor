@@ -2,6 +2,8 @@
 
 pushd ../ && source .env && popd
 
+log_info "Executing install-modules.sh $1"
+
 # Load the disk
 ./load-vmdisk.sh $1
 

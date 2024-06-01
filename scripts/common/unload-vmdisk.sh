@@ -24,6 +24,10 @@ if [[ $1 == "tdx" ]]; then
 fi
 sudo umount $VMDISKMOUNT/dev/pts || true
 sudo umount $VMDISKMOUNT/dev || true
+# tdx ubuntu 24.04
+if [[ $1 == "tdx" ]]; then
+	sudo umount $VMDISKMOUNT/sys/firmware/efi/efivars || true
+fi
 sudo umount $VMDISKMOUNT/sys || true
 sudo umount $VMDISKMOUNT/proc || true
 sudo umount $VMDISKMOUNT/run || true
