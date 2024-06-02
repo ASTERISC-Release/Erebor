@@ -10,7 +10,7 @@
 
 #include <linux/kmsan-checks.h>
 
-#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_PKS)
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
 #include <sva/mmu_intrinsics.h>
 #endif 
 
@@ -54,7 +54,7 @@ static inline void clear_page(void *page)
 	 * below clobbers @page, so we perform unpoisoning before it.
 	 */
 	kmsan_unpoison_memory(page, PAGE_SIZE);
-#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_PKS)
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
 	sva_clear_page(page);
 #else
 	alternative_call_2(clear_page_orig,

@@ -116,7 +116,7 @@ static inline void native_pmd_clear(pmd_t *pmd)
 static inline pte_t native_ptep_get_and_clear(pte_t *xp)
 {
 #ifdef CONFIG_SMP
-#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_PKS)
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
 	pte_t ret = *xp;
 	sva_update_l1_mapping((pte_t*)&xp->pte, 0);
 	return ret;	
