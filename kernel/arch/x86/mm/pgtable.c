@@ -433,6 +433,9 @@ static inline pgd_t *_pgd_alloc(void)
 
 static inline void _pgd_free(pgd_t *pgd)
 {
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+	sva_remove_page(__pa(pgd));
+#endif
 	free_pages((unsigned long)pgd, PGD_ALLOCATION_ORDER);
 }
 #endif /* CONFIG_X86_PAE */

@@ -36,6 +36,8 @@ int set_page_protection(uintptr_t virtual_page, int key)
     /* Tightly copupling the split page function with pks.c for now */
     if(level == 2) {
         /* allocate a 4KB page */
+        /* ENCOS (TODO) Fails for update_l1 mappings, very early on  during system boot;
+           Replace with static PT pages for such cases ? */
         void* page = (void *)__get_free_pages(GFP_ATOMIC, 0);
         if (!page) {
             printk(KERN_ERR "Failed to allocate memory\n");

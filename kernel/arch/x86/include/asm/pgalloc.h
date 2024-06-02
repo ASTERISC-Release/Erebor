@@ -160,6 +160,10 @@ static inline void p4d_free(struct mm_struct *mm, p4d_t *p4d)
 {
 	if (!pgtable_l5_enabled())
 		return;
+	
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+	sva_remove_page(__pa(p4d));
+#endif
 
 	BUG_ON((unsigned long)p4d & (PAGE_SIZE-1));
 	free_page((unsigned long)p4d);

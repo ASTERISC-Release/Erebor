@@ -644,4 +644,6 @@ extern inline uintptr_t get_pudPaddr (p4d_t * p4d, uintptr_t vaddr);
 extern inline uintptr_t get_pmdPaddr (pud_t * pud, uintptr_t vaddr);
 extern inline uintptr_t get_ptePaddr (pmd_t * pmd, uintptr_t vaddr);
 
+extern void ptp_check(unsigned long pageEntryPA, unsigned long numPgEntries, enum page_type_t pageLevel, unsigned long target_page_nr, int *isPTP);
+
 #endif // SVA_MMU_H

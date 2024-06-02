@@ -118,6 +118,7 @@ static inline pte_t native_ptep_get_and_clear(pte_t *xp)
 #ifdef CONFIG_SMP
 #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_PKS)
 	pte_t ret = *xp;
+	// printk("GGWP PTE!\n");
 	sva_update_l1_mapping((pte_t*)&xp->pte, 0);
 	return ret;	
 #else
@@ -135,6 +136,7 @@ static inline pte_t native_ptep_get_and_clear(pte_t *xp)
 static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
 {
 #ifdef CONFIG_SMP
+	printk("GGWP PMD!\n");
 	return native_make_pmd(xchg(&xp->pmd, 0));
 #else
 	/* native_local_pmdp_get_and_clear,
@@ -166,6 +168,7 @@ static inline void native_pud_clear(pud_t *pud)
 static inline pud_t native_pudp_get_and_clear(pud_t *xp)
 {
 #ifdef CONFIG_SMP
+	printk("GGWP PUD!\n");
 	return native_make_pud(xchg(&xp->pud, 0));
 #else
 	/* native_local_pudp_get_and_clear,

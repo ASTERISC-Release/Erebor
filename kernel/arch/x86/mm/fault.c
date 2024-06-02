@@ -1157,6 +1157,12 @@ bool fault_in_kernel_space(unsigned long address)
 	return address >= TASK_SIZE_MAX;
 }
 
+static inline unsigned long read_cr3(void) {
+    unsigned long cr3;
+    asm volatile("mov %%cr3, %0" : "=r" (cr3));
+    return cr3;
+}
+
 /*
  * Called for all faults where 'address' is part of the kernel address
  * space.  Might get called for faults that originate from *code* that
@@ -1171,6 +1177,21 @@ do_kern_addr_fault(struct pt_regs *regs, unsigned long hw_error_code,
 	 * have no user pages in the kernel portion of the address
 	 * space, so do not expect them here.
 	 */
+	printk("Hello! Address = %lx, error code: %lx\n", address, hw_error_code);
+	unsigned long page_nr_mask = 0x0000000FFFFFF000;
+
+	// get page_nr of the physical address
+	int level = 0;
+	unsigned long page_entry = (unsigned long) get_pgeVaddr(address, &level);
+	unsigned long page_nr = (*(unsigned long *)page_entry & page_nr_mask) >> 12;
+	printk("page_entry = %lx, level = %d\n", page_nr, level);
+
+	// recursively walk and check if the page_nr is an entry in L5-L2 PTPs
+	printk("ptp_check: %lx\n", read_cr3());
+	int isPTP = 0;
+	ptp_check(read_cr3(), 512, PG_L4, page_nr, &isPTP);
+	printk("PTP CHECK = %d!!!!!", isPTP);
+
 	WARN_ON_ONCE(hw_error_code & X86_PF_PK);
 
 #ifdef CONFIG_X86_32

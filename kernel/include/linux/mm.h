@@ -2836,6 +2836,10 @@ static inline void pagetable_free(struct ptdesc *pt)
 {
 	struct page *page = ptdesc_page(pt);
 
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+	sva_remove_page(__pa(page_address(page)));
+#endif
+
 	__free_pages(page, compound_order(page));
 }
 
