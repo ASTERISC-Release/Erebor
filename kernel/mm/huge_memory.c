@@ -2747,7 +2747,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 			}
 		}
 
-		(page, list, end);
+		__split_huge_page(page, list, end);
 		ret = 0;
 	} else {
 		spin_unlock(&ds_queue->split_queue_lock);

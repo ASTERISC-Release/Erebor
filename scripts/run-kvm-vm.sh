@@ -31,7 +31,7 @@ if [[ $1 == "debug" ]]; then
     GDB="-s -S"
     echo "Enable GDB debugging."
 fi
-# launch the QEMU VM
+# launch the KVM VM
 # the 'max' version of the emulation provides all 
 # CPU features (including our needed PKS)
 sudo qemu-system-x86_64 -enable-kvm -cpu host,-pdpe1gb -smp 8,maxcpus=8\
