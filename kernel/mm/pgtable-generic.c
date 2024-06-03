@@ -296,6 +296,8 @@ pte_t *__pte_offset_map(pmd_t *pmd, unsigned long addr, pmd_t *pmdvalp)
 		// sva_update_l2_mapping((pmd_t*)pmdvalp, (page_entry_t)pmdval.pmd);
 		wrmsrl(0x6e1, 0x0);
 		*pmdvalp = pmdval;
+		// printk("updating_l2_at_outy_: pmdvalp: 0x%lx, pmdval: 0x%lx\n", 
+		// 		(unsigned long)pmdvalp, (unsigned long)pmdval.pmd);
 		wrmsrl(0x6e1, 0x8);
 	}
 	if (unlikely(pmd_none(pmdval) || is_pmd_migration_entry(pmdval)))

@@ -130,6 +130,7 @@
  * Memory layout-related definitions
  *****************************************************************************
  */
+extern unsigned char mmuIsInitialized;
 extern bool mmu_bool;
 
 /* Size of the smallest page frame in bytes */

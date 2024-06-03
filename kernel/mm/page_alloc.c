@@ -776,9 +776,9 @@ static inline void __free_one_page(struct page *page,
 	struct page *buddy;
 	bool to_tail;
 
-// #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
-// 	sva_remove_page(__pa(page_address(page)));
-// #endif
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+	sva_remove_page(__pa(page_address(page)));
+#endif
 
 	VM_BUG_ON(!zone_is_initialized(zone));
 	VM_BUG_ON_PAGE(page->flags & PAGE_FLAGS_CHECK_AT_PREP, page);
@@ -1102,6 +1102,11 @@ static __always_inline bool free_pages_prepare(struct page *page,
 			__memcg_kmem_uncharge_page(page, order);
 		reset_page_owner(page, order);
 		page_table_check_free(page, order);
+
+// #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+// 		sva_remove_pages(__pa(page_address(page)), order);
+// #endif
+
 		return false;
 	}
 
@@ -1144,6 +1149,10 @@ static __always_inline bool free_pages_prepare(struct page *page,
 	page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
 	reset_page_owner(page, order);
 	page_table_check_free(page, order);
+
+// #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+// 	sva_remove_pages(__pa(page_address(page)), order);
+// #endif
 
 	if (!PageHighMem(page)) {
 		debug_check_no_locks_freed(page_address(page),
