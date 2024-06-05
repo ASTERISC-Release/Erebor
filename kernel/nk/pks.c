@@ -91,12 +91,6 @@ int set_page_protection(unsigned long virtual_page, int should_protect)
         // pgDescL1->pgVaddr = get_page_entry();
         pgDescL1->count = 1;
 
-        // debug 
-        if ((__pa(l1_ptp_page) > 0x100000000) && (__pa(l1_ptp_page) < 0x180000000)) {
-            printk("pks.c Declaring PA (CMA?)=0x%lx\n", __pa(l1_ptp_page));
-            // print_insecure_stack();
-        }
-
         page_desc_t *pgDescL2 = getPageDescPtr(__pa(((unsigned long)page_entry & 0xFFFFFFFFFFFFF000)));
         pgDescL2->type = PG_L2;
 

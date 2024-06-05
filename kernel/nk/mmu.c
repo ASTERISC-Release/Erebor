@@ -1415,14 +1415,6 @@ declare_ptp_and_walk_pt_entries(unsigned long pageEntry, unsigned long
       ++(thisPg->count);
       subLevelPgType = PG_KDATA;
       numSubLevelPgEntries = NPTEPG;    // numPgEntries;
-      
-      // debug
-      // debug 
-      if ((pageMapping_masked > 0x100000000) && (pageMapping_masked < 0x180000000)) {
-          printk("declare_ptp PA (CMA?)=0x%lx\n", pageMapping_masked);
-          print_insecure_stack();
-      }
-      
       break;
 
     default:
@@ -1824,12 +1816,6 @@ void declare_internal(unsigned long frameAddr, int level) {
    * Reset the virtual address which can point to this page table page.
    */
   pgDesc->pgVaddr = 0;
-
-  // debug
-  if ((level == 1) && (frameAddr > 0x100000000 && (frameAddr < 0x180000000))) {
-    printk("Declaring PA (CMA?)=0x%lx\n", frameAddr);
-    print_insecure_stack();
-  }
   return;
 }
 
@@ -1895,13 +1881,6 @@ sva_declare_l1_page, unsigned long frameAddr) {
      * entry declaration functions. 
      */
     initDeclaredPage(frameAddr);
-
-    // debug
-    // debug
-    if ((frameAddr > 0x100000000) && (frameAddr < 0x180000000)) {
-      printk("declare_l1_page Declaring PA (CMA?)=0x%lx\n", frameAddr);
-      print_insecure_stack();
-    }
   } else {
     panic ("SVA: declare L1: type = %x\n", pgDesc->type);
   }

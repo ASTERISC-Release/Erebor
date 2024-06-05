@@ -221,6 +221,8 @@ int is_internalmem)
             // if (page_desc->type != PG_UNUSED)
             //     panic("The claimed page (PA=0x%lx, type=%d) is not an unused page.\n",
             //      (pa + i * pageSize), page_desc->type);
+            SVA_ASSERT(!pgIsActive(page_desc), "Claimed page (PA=0x%lx, type=%d) is not an unused page.\n",
+                 (pa + i * pageSize), page_desc->type); 
             page_desc->type = PG_ENC;
             page_desc->encID = entry->enc_id;
 

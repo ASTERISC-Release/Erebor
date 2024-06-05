@@ -470,7 +470,7 @@ static inline int isSMPg (page_desc_t *page) {
 
 /* Description: Return whether the page is active or not */
 static inline int pgIsActive (page_desc_t *page) 
-    { return page->type != PG_UNUSED ; } 
+    { return (page && page->type != PG_UNUSED) ; } 
 
 static inline unsigned char isDirectMap (unsigned char * p) {
   uintptr_t address = (uintptr_t)p;
