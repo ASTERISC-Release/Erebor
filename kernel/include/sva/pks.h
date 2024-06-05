@@ -33,6 +33,40 @@ static inline void check_protection_available(void)
     return;
 }
 
+static inline int __check_pte_protection(unsigned long *pte)
+{
+#ifdef CONFIG_ENCOS_PKS
+    if(((*pte >> 59) & 0xf) == 0)
+        return 0;
+    return 1;
+#elif defined(CONFIG_ENCOS_WP)
+    if(((*page_entry & PG_RW) == PG_RW))
+        return 0;
+    return 1;
+#endif
+    return 0;
+}
+
+static inline void __set_pte_protection(unsigned long *pte, int should_protect)
+{
+#ifdef CONFIG_ENCOS_PKS
+    /*
+     * For the PKS version, we always use key=1 for the protected page.
+     * key=0 is reserved for the kernel (unprotected pages).
+     */
+    if (should_protect)
+        *pte |= (1ull << 59);
+    else
+        /* set the existing key in the PTE to 0 */
+        *pte &= (0x87FFFFFFFFFFFFFF);
+#elif defined(CONFIG_ENCOS_WP)
+    if (should_protect)
+        *pte &= ~PG_RW;
+    else
+        *pte |= PG_RW;
+#endif
+}
+
 extern int set_page_protection(uintptr_t virtual_page, int should_protect);
 
 /* chuqi: this is changed to `set_page_protection` */

@@ -1177,6 +1177,7 @@ do_kern_addr_fault(struct pt_regs *regs, unsigned long hw_error_code,
 	 * have no user pages in the kernel portion of the address
 	 * space, so do not expect them here.
 	 */
+#ifdef CONFIG_ENCOS
 	printk("Hello! Fault address = %lx, error code: %lx\n", 
 								address, hw_error_code);
 	unsigned long page_nr_mask = 0x0000000FFFFFF000;
@@ -1185,8 +1186,8 @@ do_kern_addr_fault(struct pt_regs *regs, unsigned long hw_error_code,
 	int level = 0;
 	unsigned long page_entry = (unsigned long) get_pgeVaddr(address, &level);
 	unsigned long page_nr = (*(unsigned long *)page_entry & page_nr_mask) >> 12;
-	printk("page_entry (VA) = 0x%lx, page_nr=0x%lx, level = %d\n", 
-		page_entry, page_nr, level);
+	printk("page_entry (VA=0x%lx, PTE value=0x%lx), page_nr=0x%lx, level = %d\n", 
+		page_entry, *(unsigned long *)page_entry, page_nr, level);
 
 	// double check, they should be same
 	if (page_nr != __pa(address) >> 12) {
@@ -1202,6 +1203,7 @@ do_kern_addr_fault(struct pt_regs *regs, unsigned long hw_error_code,
 	ptp_check(read_cr3(), 512, PG_L4, page_nr, &isPTP);
 	printk("Check fault_addr page: 0x%lx (pagetype=%d), isPTP=%d", 
 			page_nr, desc->type, isPTP);
+#endif
 
 	WARN_ON_ONCE(hw_error_code & X86_PF_PK);
 

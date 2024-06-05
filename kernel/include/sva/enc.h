@@ -78,6 +78,8 @@ typedef struct encos_enclave_entry {
      * We only allow enclave trigger pagefault during mmap
      */
     int in_mmap;
+
+    unsigned long enc_CR3;
 } encos_enclave_entry_t;
 
 /* internal */
