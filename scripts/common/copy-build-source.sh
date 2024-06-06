@@ -3,6 +3,8 @@
 # Set up the required environment variables
 ./load-vmdisk.sh $1
 
+pushd ../ && source .env && popd
+
 if [[ $1 == "tdx" ]]; then
   VMDISK=$VMDISK_TDX
   VMDISKMOUNT=$VMDISKMOUNT_TDX

@@ -15,6 +15,8 @@ sudo touch $VMDISKMOUNT/etc/cloud/cloud-init.disabled
 sudo chroot $VMDISKMOUNT sudo systemctl disable systemd-networkd-wait-online.service
 sudo chroot $VMDISKMOUNT sudo systemctl mask systemd-networkd-wait-online.service
 
+sudo chroot $VMDISKMOUNT sudo systemctl disable multipathd.service
+
 echo "3: Disable login password"
 sudo chroot $VMDISKMOUNT sudo passwd -d $USERNAME
 
