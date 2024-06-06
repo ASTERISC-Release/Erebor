@@ -880,10 +880,13 @@ void start_kernel(void)
 	printk("Start Kernel");
 #ifdef CONFIG_ENCOS
 	printk(KERN_EMERG "ENCOS Enabled!");
+
+#ifdef CONFIG_ENCOS_PKS
 	printk("SET PKS IN CR4 EARLY.\n");
-	native_write_cr4(native_read_cr4() | (1 << 24) );
-	/* Disable write access for key 1 */
+	//debug
+	native_write_cr4(native_read_cr4() | (1 << 24) );	
 	wrmsrl(0x6e1, 0x8);
+#endif	/* CONFIG_ENCOS_PKS */
 #endif
 	// extern char _stext[]; 	
 	// extern char _etext[]; 

@@ -294,11 +294,15 @@ pte_t *__pte_offset_map(pmd_t *pmd, unsigned long addr, pmd_t *pmdvalp)
 		   page_desc due to some strange higher bits being set. 
 		   Probably mask them in the getPageDescPtr function and use the secure call to update the L2 mapping */
 		// sva_update_l2_mapping((pmd_t*)pmdvalp, (unsigned long)pmdval.pmd);
+#ifdef CONFIG_ENCOS_PKS   // fix corner case
 		wrmsrl(0x6e1, 0x0);
+#endif
 		*pmdvalp = pmdval;
 		// printk("updating_l2_at_outy_: pmdvalp: 0x%lx, pmdval: 0x%lx\n", 
 				// (unsigned long)pmdvalp, (unsigned long)pmdval.pmd);
+#ifdef CONFIG_ENCOS_PKS   // fix corner case
 		wrmsrl(0x6e1, 0x8);
+#endif
 	}
 	if (unlikely(pmd_none(pmdval) || is_pmd_migration_entry(pmdval)))
 		goto nomap;
