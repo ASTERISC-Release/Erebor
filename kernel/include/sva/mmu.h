@@ -125,11 +125,13 @@
 #define NBPGD         (1UL<<PGDSHIFT)               /* bytes/page map level 5 table */
 #define PGDMASK       (NBPGD-1)
 
+#define VPAGE_MASK    0xFFFFFFFFFFFFF000ul
 /*
  *****************************************************************************
  * Memory layout-related definitions
  *****************************************************************************
  */
+extern unsigned char mmuIsInitialized;
 extern bool mmu_bool;
 
 /* Size of the smallest page frame in bytes */
@@ -200,12 +202,16 @@ SVA_NOOP_ASSERT (int res, char * str) {
  *  Check that the test (given as the first argument) passed.  If it did not,
  *  then panic with the specified string.
  */
-static inline void
-SVA_ASSERT (unsigned char passed, char * str) {
-  if (!passed)
-    panic ("%s", str);
-  return;
-}
+// static inline void
+// SVA_ASSERT (unsigned char passed, char * str) {
+//   if (!passed)
+//     panic ("%s", str);
+//   return;
+// }
+#define SVA_ASSERT(truth, fmt, args...)   \
+    if(!(truth)) {\
+        panic(fmt, ## args); \
+    }
 
 /*
  *****************************************************************************
@@ -224,12 +230,10 @@ enum page_type_t {
     PG_L3,          /*  3: Defines a page being used as an L3 PTP */
     PG_L4,          /*  4: Defines a page being used as an L4 PTP */
     PG_L5,          /*  5: Defines a page being used as an L5 PTP */
-    PG_LEAF,        /*  6: Generic type representing a valid LEAF page */
-    PG_TKDATA,      /*  7: Defines a kernel data page */
-    PG_TUDATA,      /*  8: Defines a user data page */
-    PG_CODE,        /*  9: Defines a code page */
-    PG_SVA,         /* 10: Defines an SVA system page */
-    PG_ENC,         /* 11: Defines an Enclave page */
+    PG_KDATA,       /*  6: Defines a kernel data page */
+    PG_KCODE,       /*  7: Defines a kernel code page */
+    PG_SVA,         /*  8: Defines an SVA system page */
+    PG_ENC,         /*  9: Defines an Enclave page */
 };
 
 /* Mask to get the address bits out of a PTE, PDE, etc. */
@@ -246,27 +250,14 @@ static const uintptr_t addrmask = 0x000ffffffffff000u;
 typedef struct page_desc_t {
     /* Type of frame */
     enum page_type_t type;
-
     /*
      * If the page is a page table page, mark the virtual addres to which it is
      * mapped.
      */
     uintptr_t pgVaddr;
 
-    /* Flag denoting whether or not this frame is a stack frame */
-    unsigned stack : 1;
-    
-    /* Flag denoting whether or not this frame is a code frame */
-    unsigned code : 1;
-    
-    /* State of page: value of != 0 is active and 0 is inactive */
-    unsigned active : 1;
-
     /* Number of times a page is mapped */
     unsigned count : 12;
-
-    /* Is this page a user page? */
-    unsigned user : 1;
 
     /* The PID of the Enclave that owns this page */
     unsigned encID;
@@ -336,6 +327,11 @@ get_pagetable (void) {
   return (unsigned char *)((((uintptr_t)cr3) & 0x000ffffffffff000u));
 }
 
+static inline unsigned long __sm_read_cr3(void) {
+    unsigned long cr3;
+    asm volatile("mov %%cr3, %0" : "=r" (cr3));
+    return cr3;
+}
 /*
  *****************************************************************************
  * Low level register read/write functions
@@ -453,23 +449,28 @@ setMappingReadWrite (page_entry_t mapping) {
  * The following functions query the given page descriptor for type attributes.
  */
 static inline int isFramePg (page_desc_t *page) { 
-  return (page->type == PG_UNUSED)   ||      /* Defines an unused page */
-         (page->type == PG_TKDATA)   ||      /* Defines a kernel data page */
-         (page->type == PG_TUDATA)   ||      /* Defines a user data page */
+  return page && 
+         ((page->type == PG_UNUSED)   ||      /* Defines an unused page */
+         (page->type == PG_KDATA)   ||       /* Defines a kernel data page */
          (page->type == PG_ENC)      ||      /* Defines an enclave page */
-         (page->type == PG_CODE);           /* Defines a code page */
+         (page->type == PG_KCODE));           /* Defines a kernel code page */
 }
 
 static inline int isSensitivePg (page_desc_t *page) { 
-  return (page->type == PG_TKDATA)   ||      /* Defines a kernel data page */
-         (page->type == PG_TUDATA)   ||      /* Defines a user data page */
-         (page->type == PG_ENC)      ||      /* Defines an enclave page */
-         (page->type == PG_CODE);           /* Defines a code page */
+  return page &&
+         ((page->type == PG_SVA)      ||      /* Defines a SVA data page */
+         (page->type == PG_ENC));             /* Defines an enclave page */
+}
+
+/* TODO: add SVA code page */
+static inline int isSMPg (page_desc_t *page) { 
+  return page && 
+        ((page->type == PG_SVA));             /* Defines a SVA data page */
 }
 
 /* Description: Return whether the page is active or not */
 static inline int pgIsActive (page_desc_t *page) 
-    { return page->type != PG_UNUSED ; } 
+    { return (page && page->type != PG_UNUSED) ; } 
 
 static inline unsigned char isDirectMap (unsigned char * p) {
   uintptr_t address = (uintptr_t)p;
@@ -486,11 +487,7 @@ static inline int isL3Pg (page_desc_t *page) { return page->type == PG_L3; }
 static inline int isL4Pg (page_desc_t *page) { return page->type == PG_L4; }
 static inline int isL5Pg (page_desc_t *page) { return page->type == PG_L5; }
 static inline int isSVAPg (page_desc_t *page) { return page->type == PG_SVA; }
-static inline int isCodePg (page_desc_t *page) { return page->type == PG_CODE; }
-
-static inline int isKernelStackPG(page_desc_t *page) { 
-    return !page->user && page->stack; 
-}
+static inline int isCodePg (page_desc_t *page) { return page->type == PG_KCODE; }
 
 static inline int isPTP (page_desc_t *pg) { 
     return  pg->type == PG_L5    ||  
@@ -500,11 +497,6 @@ static inline int isPTP (page_desc_t *pg) {
             pg->type == PG_L1
             ;
 }
-
-static inline int isUserMapping (page_entry_t mapping) { return (mapping & PG_U);}
-static inline int isUserPTP (page_desc_t *page) { return isPTP(page) && page->user;}
-static inline int isUserPG (page_desc_t *page){ return page->user; }
-static inline int isCodePG (page_desc_t *page){ return page->code; }
 
 /*
  * Function: readOnlyPage
@@ -530,7 +522,7 @@ readOnlyPageType(page_desc_t *pg) {
 #if 0
            || (pg->type == PG_L1)
 #endif
-           || (pg->type == PG_CODE)
+           || (pg->type == PG_KCODE)
            || (pg->type == PG_SVA)
            ;
 }
@@ -628,10 +620,10 @@ unprotect_paging(void) {
 /* 
  * Function prototypes for finding the virtual address of page table components
  */
-extern inline page_entry_t * get_pgeVaddr (uintptr_t vaddr, int *is_l1);
+extern inline page_entry_t * get_pgeVaddr (uintptr_t vaddr, int *level);
 extern inline pgd_t * get_pgdVaddr (unsigned char * cr3, uintptr_t vaddr);
 extern inline p4d_t * get_p4dVaddr (pgd_t * pgd, uintptr_t vaddr);
-extern inline pud_t * get_pudVaddr (p4d_t * p4d, uintptr_t vaddr);
+extern inline pud_t * get_pudVaddr (pgd_t * pgd, uintptr_t vaddr);
 extern inline pmd_t * get_pmdVaddr (pud_t * pud, uintptr_t vaddr);
 extern inline pte_t * get_pteVaddr (pmd_t * pmd, uintptr_t vaddr);
 
@@ -643,5 +635,7 @@ extern inline uintptr_t get_p4dPaddr (pgd_t * pgd, uintptr_t vaddr);
 extern inline uintptr_t get_pudPaddr (p4d_t * p4d, uintptr_t vaddr);
 extern inline uintptr_t get_pmdPaddr (pud_t * pud, uintptr_t vaddr);
 extern inline uintptr_t get_ptePaddr (pmd_t * pmd, uintptr_t vaddr);
+
+extern void ptp_check(unsigned long pageEntryPA, unsigned long numPgEntries, enum page_type_t pageLevel, unsigned long target_page_nr, int *isPTP);
 
 #endif // SVA_MMU_H

@@ -193,7 +193,7 @@
 //         printk("\tIdentified 1GB page...\n");
 // #endif
 //         unsigned long index = (pageMapping & ~PUDMASK) / pageSize;
-//         page_desc[index].type = PG_TKDATA;
+//         page_desc[index].type = PG_KDATA;
 //         page_desc[index].user = 0;           /* Set the priv flag to kernel */
 //         ++(page_desc[index].count);
 //         return;
@@ -219,7 +219,7 @@
 // #endif
 //         /* The frame address referencing the page obtained */
 //         unsigned long index = (pageMapping & ~PMDMASK) / pageSize;
-//         page_desc[index].type = PG_TKDATA;
+//         page_desc[index].type = PG_KDATA;
 //         page_desc[index].user = 0;           /* Set the priv flag to kernel */
 //         ++(page_desc[index].count);
 //         return;
@@ -227,7 +227,7 @@
 //         thisPg->type = PG_L1;       /* Set the page type to L1 */
 //         thisPg->user = 0;           /* Set the priv flag to kernel */
 //         ++(thisPg->count);
-//         subLevelPgType = PG_TKDATA;
+//         subLevelPgType = PG_KDATA;
 //         numSubLevelPgEntries = NPTEPG;//      numPgEntries;
 //       }
 //       break;

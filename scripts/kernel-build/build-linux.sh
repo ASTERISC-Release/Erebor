@@ -24,15 +24,11 @@ fi
 
 CURDIR=$(pwd)
 CURBRANCH=`git status | head -1 | cut -d ' ' -f3`
+
 # Build the kernel executable
 pushd $LINUXFOLDER
     # copy the saved config
-    # if [[ $1 != "tdx" ]]; then
-    cp $CURDIR/.config.saved.nokvm-perf-nolivepatch-nospec-noloadmod-nohp-no5level-tdx .config 
-    # else
-	# cp $CURDIR/.config.saved.nokvm-perf-nolivepatch-nospec-noloadmod-nohp-no5level .config
-    # fi
-    # Start the build process
+    cp $CURDIR/.config.saved.nokvm-perf-nolivepatch-nospec-noloadmod-nohp-no5level .config
     make -j`nproc`
 popd
 

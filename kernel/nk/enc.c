@@ -52,10 +52,18 @@ int current_encid(void) {
     return entry->enc_id;
 }
 
+
+/* ==============================================================
+ * PCPU stuff
+ * ============================================================== */
+#ifdef CONFIG_ENCOS_SYSCALL_STACK
+#define SYS_STACK_SIZE  (0x1000)
+
 /* Chuqi:
  * Enclave user to kernel (u2k) interface.
  * It should use an interposed syscall handler
  */
+
 static void prepare_u2k_interface(int is_enclave)
 {  
     /* enclave */
@@ -67,11 +75,6 @@ static void prepare_u2k_interface(int is_enclave)
         _wrmsr(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
     }
 }
-
-/* ==============================================================
- * PCPU stuff
- * ============================================================== */
-#define SYS_STACK_SIZE  (0x1000)
 
 static void __this_pcpu_setup_syscall_stack(void *junk)
 {
@@ -148,6 +151,7 @@ SM_sched_in_userspace_prepare, struct pt_regs* regs)
     return;
 }
 EXPORT_SYMBOL(SM_sched_in_userspace_prepare);
+#endif
 
 /* empty security monitor call */
 SECURE_WRAPPER(void, 
@@ -174,6 +178,12 @@ SM_encos_enclave_assign, void)
 
     encos_enclave_table[pid].enc_id = enc_id;
     encos_enclave_table[pid].activate = 0;
+    
+    /* declare its CR3 */
+    encos_enclave_table[pid].enc_CR3 = __sm_read_cr3();
+    page_desc_t *cr3_desc = getPageDescPtr(encos_enclave_table[pid].enc_CR3);
+    cr3_desc->encID = enc_id;
+
     return enc_id;
 }
 
@@ -187,7 +197,8 @@ int is_internalmem)
     unsigned long kva;
 
     encos_enclave_entry_t *entry = current_enclave_entry();
-
+    /* set up its CR3 */
+    SVA_ASSERT(entry->enc_CR3, "The current enclave did not declare its CR3.\n");
     log_info("[pid=%d,enc_id=%d] Start claiming memory.{uva=0x%lx -> pa=0x%lx, nr_pages=%lu} is_internal=%d.\n", 
                 current->pid, entry->enc_id, uva, pa, nr_pages, is_internalmem);
     /* Chuqi: 
@@ -207,8 +218,11 @@ int is_internalmem)
          */
         for (i = 0; i < nr_pages; i++) {
             page_desc = getPageDescPtr(pa + i * pageSize);
-            if (page_desc->type != PG_UNUSED)
-                panic("GGWP! The page is already used by other processes.\n");
+            // if (page_desc->type != PG_UNUSED)
+            //     panic("The claimed page (PA=0x%lx, type=%d) is not an unused page.\n",
+            //      (pa + i * pageSize), page_desc->type);
+            SVA_ASSERT(!pgIsActive(page_desc), "Claimed page (PA=0x%lx, type=%d) is not an unused page.\n",
+                 (pa + i * pageSize), page_desc->type); 
             page_desc->type = PG_ENC;
             page_desc->encID = entry->enc_id;
 
@@ -223,15 +237,6 @@ int is_internalmem)
         entry->last_claim_mem.pa = pa;
         entry->last_claim_mem.nr_pages = nr_pages;
     }
-    // /* Chuqi: 
-    //  * for enclave inter-container shared memory, we should mark and
-    //  * ensure no user container has write permissions
-    //  */
-    // else {
-    //     if (entry->enc_id) {
-    //         /* revoke the W permissions in page table entries */
-    //     }
-    // }
 }
 
 SECURE_WRAPPER(void,

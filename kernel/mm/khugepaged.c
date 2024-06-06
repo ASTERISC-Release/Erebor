@@ -1649,6 +1649,7 @@ int collapse_pte_mapped_thp(struct mm_struct *mm, unsigned long addr,
 	mmu_notifier_invalidate_range_end(&range);
 
 	mm_dec_nr_ptes(mm);
+	printk("page_table_check_pte_clear_range: mm_dec_nr_ptes\n");
 	page_table_check_pte_clear_range(mm, haddr, pgt_pmd);
 	pte_free_defer(mm, pmd_pgtable(pgt_pmd));
 
@@ -1753,6 +1754,7 @@ static void retract_page_tables(struct address_space *mapping, pgoff_t pgoff)
 
 		if (!skipped_uffd) {
 			mm_dec_nr_ptes(mm);
+			printk("page_table_check_pte_clear_range: mm_dec_nr_ptes\n");
 			page_table_check_pte_clear_range(mm, addr, pgt_pmd);
 			pte_free_defer(mm, pmd_pgtable(pgt_pmd));
 		}

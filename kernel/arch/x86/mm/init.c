@@ -235,6 +235,11 @@ static void __init probe_page_size_mask(void)
 	else
 		direct_gbpages = 0;
 
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+	/* remove 2M mapping */
+	page_size_mask &= ~(1 << PG_LEVEL_2M);
+#endif
+
 	/* Enable PSE if available */
 	if (boot_cpu_has(X86_FEATURE_PSE))
 		cr4_set_bits_and_update_boot(X86_CR4_PSE);

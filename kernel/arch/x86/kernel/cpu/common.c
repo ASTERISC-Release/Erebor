@@ -438,13 +438,11 @@ void __no_profile native_write_cr4(unsigned long val)
 	unsigned long bits_changed = 0;
 
 set_register:
-	// printk("[native_write_cr4] orig=0x%lx, target=0x%lx.\n",
-	// 		native_read_cr4(), val);
 #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_PKS)
-	val |= (1UL << 24);
-	/* interpose write cr4 */
+	/* secure write cr4 */
 	sva_write_cr4(val);
 #else
+	// val |= (1 << 24);
 	asm volatile("mov %0,%%cr4": "+r" (val) : : "memory");
 #endif
 	if (static_branch_likely(&cr_pinning)) {

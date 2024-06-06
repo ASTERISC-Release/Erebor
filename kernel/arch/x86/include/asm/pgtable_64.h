@@ -7,6 +7,10 @@
 
 #ifndef __ASSEMBLY__
 
+#if defined(CONFIG_ENCOS)
+#include <sva/mmu_intrinsics.h>
+#endif
+
 /*
  * This file contains the functions and defines necessary to modify and use
  * the x86-64 page table tree.
@@ -112,7 +116,14 @@ static inline void native_pmd_clear(pmd_t *pmd)
 static inline pte_t native_ptep_get_and_clear(pte_t *xp)
 {
 #ifdef CONFIG_SMP
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+	pte_t ret = *xp;
+	// printk("GGWP PTE!\n");
+	sva_update_l1_mapping((pte_t*)&xp->pte, 0);
+	return ret;	
+#else
 	return native_make_pte(xchg(&xp->pte, 0));
+#endif /* CONFIG_ENCOS && CONFIG_ENCOS_PKS */
 #else
 	/* native_local_ptep_get_and_clear,
 	   but duplicated because of cyclic dependency */
@@ -125,6 +136,7 @@ static inline pte_t native_ptep_get_and_clear(pte_t *xp)
 static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
 {
 #ifdef CONFIG_SMP
+	printk("GGWP PMD!\n");
 	return native_make_pmd(xchg(&xp->pmd, 0));
 #else
 	/* native_local_pmdp_get_and_clear,
@@ -156,6 +168,7 @@ static inline void native_pud_clear(pud_t *pud)
 static inline pud_t native_pudp_get_and_clear(pud_t *xp)
 {
 #ifdef CONFIG_SMP
+	printk("GGWP PUD!\n");
 	return native_make_pud(xchg(&xp->pud, 0));
 #else
 	/* native_local_pudp_get_and_clear,

@@ -10,6 +10,10 @@
 
 #include <linux/kmsan-checks.h>
 
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+#include <sva/mmu_intrinsics.h>
+#endif 
+
 /* duplicated to the one in bootmem.h */
 extern unsigned long max_pfn;
 extern unsigned long phys_base;
@@ -50,12 +54,16 @@ static inline void clear_page(void *page)
 	 * below clobbers @page, so we perform unpoisoning before it.
 	 */
 	kmsan_unpoison_memory(page, PAGE_SIZE);
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+	sva_clear_page(page);
+#else
 	alternative_call_2(clear_page_orig,
 			   clear_page_rep, X86_FEATURE_REP_GOOD,
 			   clear_page_erms, X86_FEATURE_ERMS,
 			   "=D" (page),
 			   "0" (page)
 			   : "cc", "memory", "rax", "rcx");
+#endif
 }
 
 void copy_page(void *to, void *from);

@@ -52,4 +52,37 @@ static const unsigned MAX_THREADS = 1024;
 #define log_err(fmt, arg...) \
     printk(KERN_ERR "[%s][%d] "pr_fmt(fmt)"", __func__, __LINE__, ##arg)
 
+/* Logging parameters and definitions local to the MMU configuration change */
+enum log_type_t {
+    PRINTK = 0,
+    DECLARE,  /* Print all declares and printk */
+    UPDATE,   /* Print all declares, printk, and updates */
+};
+#define VERBOSE PRINTK
+#define DEBUG_WALK 1
+// #define DEBUG_WALK 0
+
+#define LOG_WALK(verb, args...) { \
+  if (DEBUG_WALK >= verb) { \
+    printk("SVA: (walk) " args); \
+  } else {} }
+
+#define LOG_GENERAL(verb, args...) { \
+  if (DEBUG_WALK >= verb) { \
+    printk("SVA: (walk) " args); \
+  } else {} }
+
+#define LOG_PRINTK(args...) printk("SVA: " args)
+#define LOG_VIOLATION(args...) printk("[*]Violation: " args)
+
+#define LOG_DECLARE(args...) { \
+  if (VERBOSE>=DECLARE) { \
+    printk("SVA: (declare) " args); \
+  } else {} }
+
+#define LOG_UPDATE(args...) { \
+  if (VERBOSE>=UPDATE) { \
+    printk("SVA: (update) " args); \
+  } else {} }
+
 #endif

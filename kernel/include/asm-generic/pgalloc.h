@@ -103,6 +103,9 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
  */
 static inline void pte_free(struct mm_struct *mm, struct page *pte_page)
 {
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+	sva_remove_page(__pa(page_address(pte_page)));
+#endif
 	struct ptdesc *ptdesc = page_ptdesc(pte_page);
 
 	pagetable_pte_dtor(ptdesc);
@@ -145,6 +148,9 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
 #ifndef __HAVE_ARCH_PMD_FREE
 static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 {
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+	sva_remove_page(__pa(pmd));
+#endif
 	struct ptdesc *ptdesc = virt_to_ptdesc(pmd);
 
 	BUG_ON((unsigned long)pmd & (PAGE_SIZE-1));
@@ -190,6 +196,9 @@ static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
 
 static inline void __pud_free(struct mm_struct *mm, pud_t *pud)
 {
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+	sva_remove_page(__pa(pud));
+#endif
 	BUG_ON((unsigned long)pud & (PAGE_SIZE-1));
 	pagetable_free(virt_to_ptdesc(pud));
 }
