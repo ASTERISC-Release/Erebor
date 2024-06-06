@@ -70,3 +70,5 @@ rm -rf *.iso *.cfg *.img*
 
 # Run bootstrap commands
 ./bootstrap.sh
+
+# remember to sudo systemctl disable multipathd.service
