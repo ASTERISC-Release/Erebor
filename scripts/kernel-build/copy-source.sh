@@ -20,5 +20,5 @@ export LINUXVERSION
 
 # Install the kernel modules and image
 pushd ../common
-    ./copy-build-source.sh
+    ./copy-build-source.sh $1
 popd
