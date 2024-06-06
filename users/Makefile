@@ -11,6 +11,7 @@ UL_OBJ = $(patsubst %.c, %.o, $(UL_SRC))
 # CFLAGS_kmod.o := -Wall -O0
 
 obj-m += cpuid_kmod.o
+obj-m += pks_kmod.o
 
 EXEC := encos_dev_user
 EXEC2 := mprotect_test
