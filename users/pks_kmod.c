@@ -13,6 +13,10 @@
 
 static void write_cr4(unsigned long bv) {
     unsigned long __cr4;
+    /* 
+     * simply enable PKS feature, without setting any
+     * protection key permissions. (PKRS)
+     */
     __cr4 = native_read_cr4() | (1 << 24);
     printk("cr4: prepare to write 0x%lx\n", __cr4);
     __asm__ volatile ("mov %0, %%cr4" : : "r" (__cr4));
