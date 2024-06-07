@@ -47,6 +47,10 @@ static inline int __check_pte_protection(unsigned long *pte)
     return 0;
 }
 
+/* Chuqi: 
+ * Please not flush tlb is called after __set_pte_protection,
+ * which is during __do_mmu_update.
+ */
 static inline void __set_pte_protection(unsigned long *pte, int should_protect)
 {
 #ifdef CONFIG_ENCOS_PKS
@@ -71,6 +75,6 @@ extern int set_page_protection(uintptr_t virtual_page, int should_protect);
 
 /* chuqi: this is changed to `set_page_protection` */
 // extern void pks_update_mapping(uintptr_t, int);
-extern void pks_set_key(int, bool, bool);
+// extern void pks_set_key(int, bool, bool);
 
 #endif // SVA_PKS_H

@@ -97,27 +97,18 @@ const uintptr_t SyscallSecureStackBase = (uintptr_t) SyscallSecureStack + pageSi
  * MSR and control register (CR) operations.
  *****************************************************************************
  */
-uint64_t
-_rdmsr(unsigned long msr)
-{
-    uint32_t low, high;
-
-    __asm __volatile("rdmsr" : "=a" (low), "=d" (high) : "c" (msr));
-    return (low | ((uint64_t)high << 32));
-}
-
-void
+void SVATEXT_PRIV
 _load_cr0(unsigned long val) {
     __asm __volatile("movq %0,%%cr0" : : "r" (val));
 }
 
-void
+void SVATEXT_PRIV
 _load_cr4(unsigned long val) {
     // __asm __volatile("movq %0,%%cr4" : : "r" (val) : "memory");
     asm volatile("mov %0,%%cr4": "+r" (val) : : "memory");
 }
 
-void
+void SVATEXT_PRIV
 _wrmsr(unsigned long msr, uint64_t newval)
 {
 	uint32_t low, high;
@@ -127,10 +118,19 @@ _wrmsr(unsigned long msr, uint64_t newval)
 	__asm __volatile("wrmsr" : : "a" (low), "d" (high), "c" (msr));
 }
 
-void
+void SVATEXT_PRIV
 _load_cr3(unsigned long data)
 { 
     __asm __volatile("movq %0,%%cr3" : : "r" (data) : "memory"); 
+}
+
+uint64_t
+_rdmsr(unsigned long msr)
+{
+    uint32_t low, high;
+
+    __asm __volatile("rdmsr" : "=a" (low), "=d" (high) : "c" (msr));
+    return (low | ((uint64_t)high << 32));
 }
 
 unsigned long
@@ -157,52 +157,6 @@ _rcr4(void) {
 uint64_t
 _efer(void) {
     return _rdmsr(MSR_REG_EFER);
-}
-
-/* map/unmap privilege sections */
-void SVATEXT_PRIV
-sm_entry_map_priv_page(void) 
-{
-  int level;
-  if (!mmuIsInitialized)
-    return;
-  if (!__svamem_priv_text_pte) {
-    __svamem_priv_text_pte = get_pgeVaddr((unsigned long)__svamem_priv_text_start, &level);
-    if (level != 1){ /* won't happen */
-      printk("[map] pteVal=0x%lx, level=%d\n", 
-              *__svamem_priv_text_pte, level);
-      __svamem_priv_text_pte = NULL;
-      return;
-    }
-  }
-  /* map the privilege code page */
-  *__svamem_priv_text_pte |= PG_V;
-  printk("[map] priv_text start VA=0x%lx PTEval=0x%lx.\n",
-        (unsigned long)__svamem_priv_text_start, *__svamem_priv_text_pte);
-  sva_mm_flush_tlb(__svamem_priv_text_start);
-  return;
-}
-
-void SVATEXT_PRIV
-sm_exit_unmap_priv_page(void)
-{
-  int level;
-  if (!mmuIsInitialized)
-    return;
-  if (!__svamem_priv_text_pte) {
-    __svamem_priv_text_pte = get_pgeVaddr((unsigned long)__svamem_priv_text_start, &level);
-    if (level != 1){ /* won't happen */
-      printk("[unmap] pteVal=0x%lx, level=%d\n", 
-              *__svamem_priv_text_pte, level); 
-      __svamem_priv_text_pte = NULL;
-      return;
-    }
-  }
-  /* unmap the privilege code page */
-  *__svamem_priv_text_pte &= ~PG_V;
-  printk("[unmap] priv_text start VA=0x%lx PTEval=0x%lx.\n",
-        (unsigned long)__svamem_priv_text_start, *__svamem_priv_text_pte);
-  sva_mm_flush_tlb(__svamem_priv_text_start);
 }
 
 /*
@@ -296,6 +250,59 @@ page_desc_t * getPageDescPtr(unsigned long mapping) {
 
 //   return;
 // }
+
+/* map/unmap privilege sections */
+void SVATEXT
+sm_entry_map_priv_page(void) 
+{
+  int level;
+  if (!mmuIsInitialized)
+    return;
+  MMULock_Acquire();
+  if (!__svamem_priv_text_pte) {
+    __svamem_priv_text_pte = get_pgeVaddr((unsigned long)__svamem_priv_text_start, &level);
+    if (level != 1){ /* won't happen */
+      printk("[map] pteVal=0x%lx, level=%d\n", 
+              *__svamem_priv_text_pte, level);
+      __svamem_priv_text_pte = NULL;
+      MMULock_Release();
+      return;
+    }
+  }
+  /* map the privilege code page */
+  // *__svamem_priv_text_pte |= PG_V;
+  printk("[map] priv_text start VA=0x%lx PTEval=0x%lx.\n",
+        (unsigned long)__svamem_priv_text_start, *__svamem_priv_text_pte);
+  // sva_mm_flush_tlb(__svamem_priv_text_start);
+  MMULock_Release();
+  return;
+}
+
+void SVATEXT
+sm_exit_unmap_priv_page(void)
+{
+  int level;
+  if (!mmuIsInitialized)
+    return;
+  MMULock_Acquire();
+  if (!__svamem_priv_text_pte) {
+    __svamem_priv_text_pte = get_pgeVaddr((unsigned long)__svamem_priv_text_start, &level);
+    if (level != 1){ /* won't happen */
+      printk("[unmap] pteVal=0x%lx, level=%d\n", 
+              *__svamem_priv_text_pte, level); 
+      __svamem_priv_text_pte = NULL;
+      MMULock_Release();
+      return;
+    }
+  }
+  /* unmap the privilege code page */
+  // *__svamem_priv_text_pte &= ~PG_V;
+  printk("[unmap] priv_text start VA=0x%lx PTEval=0x%lx.\n",
+        (unsigned long)__svamem_priv_text_start, *__svamem_priv_text_pte);
+  // sva_mm_flush_tlb(__svamem_priv_text_start);
+  MMULock_Release();
+  return;
+}
 
 /*
  *****************************************************************************
