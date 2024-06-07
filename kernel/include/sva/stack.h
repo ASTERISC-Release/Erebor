@@ -321,8 +321,10 @@ asm( \
   #FUNC ":\n" \
   /* Do whatever's needed on entry to secure area */ \
   SECURE_ENTRY \
+  "call sm_entry_map_priv_page\n" \
   /* Call real version of function */ \
   "call " #FUNC "_secure\n" \
+  "call sm_exit_unmap_priv_page\n" \
   /* Operation complete, go back to unsecure mode */ \
   SECURE_EXIT \
   "ret\n" \

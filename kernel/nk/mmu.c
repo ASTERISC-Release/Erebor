@@ -251,59 +251,6 @@ page_desc_t * getPageDescPtr(unsigned long mapping) {
 //   return;
 // }
 
-/* map/unmap privilege sections */
-void SVATEXT
-sm_entry_map_priv_page(void) 
-{
-  int level;
-  if (!mmuIsInitialized)
-    return;
-  MMULock_Acquire();
-  if (!__svamem_priv_text_pte) {
-    __svamem_priv_text_pte = get_pgeVaddr((unsigned long)__svamem_priv_text_start, &level);
-    if (level != 1){ /* won't happen */
-      printk("[map] pteVal=0x%lx, level=%d\n", 
-              *__svamem_priv_text_pte, level);
-      __svamem_priv_text_pte = NULL;
-      MMULock_Release();
-      return;
-    }
-  }
-  /* map the privilege code page */
-  // *__svamem_priv_text_pte |= PG_V;
-  printk("[map] priv_text start VA=0x%lx PTEval=0x%lx.\n",
-        (unsigned long)__svamem_priv_text_start, *__svamem_priv_text_pte);
-  // sva_mm_flush_tlb(__svamem_priv_text_start);
-  MMULock_Release();
-  return;
-}
-
-void SVATEXT
-sm_exit_unmap_priv_page(void)
-{
-  int level;
-  if (!mmuIsInitialized)
-    return;
-  MMULock_Acquire();
-  if (!__svamem_priv_text_pte) {
-    __svamem_priv_text_pte = get_pgeVaddr((unsigned long)__svamem_priv_text_start, &level);
-    if (level != 1){ /* won't happen */
-      printk("[unmap] pteVal=0x%lx, level=%d\n", 
-              *__svamem_priv_text_pte, level); 
-      __svamem_priv_text_pte = NULL;
-      MMULock_Release();
-      return;
-    }
-  }
-  /* unmap the privilege code page */
-  // *__svamem_priv_text_pte &= ~PG_V;
-  printk("[unmap] priv_text start VA=0x%lx PTEval=0x%lx.\n",
-        (unsigned long)__svamem_priv_text_start, *__svamem_priv_text_pte);
-  // sva_mm_flush_tlb(__svamem_priv_text_start);
-  MMULock_Release();
-  return;
-}
-
 /*
  *****************************************************************************
  * Define helper functions for MMU operations
@@ -347,6 +294,82 @@ page_entry_store (unsigned long *page_entry, page_entry_t newVal) {
    * TODO: Add a check here to make sure the value matches the one passed in. 
    * ENCOS: not sure this is required, but leaving for now.
    */
+}
+
+
+/*
+ * Function: sm_entry_map_priv_page / sm_exit_unmap_priv_page
+ *
+ * Description:
+ *  These functions are a part of the entry/exit gates for the SM. The reason
+ *  is that both PKS/WP only protects memory R/W, but not X. Thus, a malicious
+ *  OS can still chain a gadget and jumps to the SM function to perform a 
+ *  privileged operation. Think about this:
+ *  A malicious OS jumps to _load_cr3 and changes the CR3 mapping. After that,
+ *  the exit gate is mapped away and the OS is no longer restricted by SM.
+ *  
+ *  Therefore, these functions are used to map/unmap the sensitive privilege 
+ *  sections, which contain privileged operations (CR0-CR4 and MSR writing), 
+ *  in the kernel. Only the entry gate can remap them back when legally entering
+ *  the SM.
+ */
+/* map/unmap privilege sections */
+void SVATEXT
+sm_entry_map_priv_page(void) 
+{
+  int level;
+  if (!mmuIsInitialized)
+    return;
+  MMULock_Acquire();
+  if (!__svamem_priv_text_pte) {
+    __svamem_priv_text_pte = get_pgeVaddr((unsigned long)__svamem_priv_text_start, &level);
+    if (level != 1){ /* won't happen */
+      __svamem_priv_text_pte = NULL;
+      MMULock_Release();
+      return;
+    }
+  }
+  /* map the privilege code page */
+  page_entry_store(__svamem_priv_text_pte, *__svamem_priv_text_pte | PG_V);
+  /* Chuqi: check, printk cannot work: 
+   * causes double fault right after
+   * "SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=8, Nodes=1"
+   */
+  // printk("[map] priv_text start VA=0x%lx, PTEaddr=0x%lx, PTEval=0x%lx.\n",
+  //       (unsigned long)__svamem_priv_text_start, __svamem_priv_text_pte,
+  //       *__svamem_priv_text_pte);
+  sva_mm_flush_tlb(__svamem_priv_text_start);
+  MMULock_Release();
+  return;
+}
+
+void SVATEXT
+sm_exit_unmap_priv_page(void)
+{
+  int level;
+  if (!mmuIsInitialized)
+    return;
+  MMULock_Acquire();
+  if (!__svamem_priv_text_pte) {
+    __svamem_priv_text_pte = get_pgeVaddr((unsigned long)__svamem_priv_text_start, &level);
+    if (level != 1){ /* won't happen */
+      __svamem_priv_text_pte = NULL;
+      MMULock_Release();
+      return;
+    }
+  }
+  /* unmap the privilege code page */
+  page_entry_store(__svamem_priv_text_pte, *__svamem_priv_text_pte & ~PG_V);
+  /* Chuqi: check, printk cannot work: 
+   * causes double fault right after
+   * "SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=8, Nodes=1"
+   */
+  // printk("[unmap] priv_text start VA=0x%lx PTEaddr=0x%lx, PTEval=0x%lx.\n",
+  //       (unsigned long)__svamem_priv_text_start, __svamem_priv_text_pte,
+  //       *__svamem_priv_text_pte);
+  sva_mm_flush_tlb(__svamem_priv_text_start);
+  MMULock_Release();
+  return;
 }
 
 /*
