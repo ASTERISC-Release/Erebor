@@ -39,7 +39,7 @@
 #ifndef _STACK_SWITCH_
 #define _STACK_SWITCH_
 
-// #include <stdint.h>
+#include "svamem.h"
 
 //===-- Secure Stack Switching --------------------------------------------===//
 
@@ -330,7 +330,7 @@ asm( \
   ".size " #FUNC ", " #FUNC "_end - " #FUNC "\n" \
 ); \
 RET FUNC ##_secure(__VA_ARGS__); \
-RET FUNC ##_secure(__VA_ARGS__)
+RET SVATEXT FUNC ##_secure(__VA_ARGS__)
 
 #define SECURE_WRAPPER_INTERRUPT(RET, FUNC, ...) \
 asm( \

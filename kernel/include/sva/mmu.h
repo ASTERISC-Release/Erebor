@@ -168,7 +168,6 @@ static const int minRefCountToRemoveMapping = 1;
  * be found.
  */
  // Rahul: Should be ">> 48", for 5-level paging
-// static const uintptr_t secmemOffset = ((SECMEMSTART >> 39) << 3) & vmask;
 static const uintptr_t secmemOffset = ((SECMEMSTART >> 48) << 3) & vmask;
 
 /* Zero mapping is the mapping that eliminates the previous entry */
@@ -330,7 +329,7 @@ get_pagetable (void) {
 static inline unsigned long __sm_read_cr3(void) {
     unsigned long cr3;
     asm volatile("mov %%cr3, %0" : "=r" (cr3));
-    return cr3;
+    return (cr3 & addrmask);
 }
 /*
  *****************************************************************************

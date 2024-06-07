@@ -105,7 +105,7 @@ extern void SM_encos_enclave_protect_memory(unsigned long pa,
 extern int SM_encos_enclave_act(int pid);
 extern int SM_encos_enclave_exit(int pid);
 
-extern void SM_encos_populate_child(int parent_pid, int child_pid);
+extern void SM_encos_vfork_child(int parent_pid, int child_pid);
 
 #endif /* __ASSEMBLY__ */
 #endif /* _SVA_X86_H */

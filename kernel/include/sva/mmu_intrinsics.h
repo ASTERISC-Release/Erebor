@@ -59,6 +59,7 @@
 #define SVA_MMU_INTRINSICS_H
 
 #include "mmu_types.h"
+#include "svamem.h"
 
 /*
  *****************************************************************************
@@ -87,6 +88,9 @@ extern void sva_update_l5_mapping (pgd_t * pgdPtr, page_entry_t val);
 extern void sva_remove_mapping (page_entry_t * ptePtr);
 extern void sva_mmu_init(void);
 extern void sva_clear_page(void* page);
+
+extern void SVATEXT sm_entry_map_priv_page(void);
+extern void SVATEXT sm_exit_unmap_priv_page(void);
 
 /* Key initialization and secure storage allocation */
 extern void * sva_translate(void * entryPoint);

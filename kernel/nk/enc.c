@@ -218,9 +218,6 @@ int is_internalmem)
          */
         for (i = 0; i < nr_pages; i++) {
             page_desc = getPageDescPtr(pa + i * pageSize);
-            // if (page_desc->type != PG_UNUSED)
-            //     panic("The claimed page (PA=0x%lx, type=%d) is not an unused page.\n",
-            //      (pa + i * pageSize), page_desc->type);
             SVA_ASSERT(!pgIsActive(page_desc), "Claimed page (PA=0x%lx, type=%d) is not an unused page.\n",
                  (pa + i * pageSize), page_desc->type); 
             page_desc->type = PG_ENC;
@@ -294,7 +291,7 @@ SM_encos_enclave_exit, int pid)
 }
 
 SECURE_WRAPPER(void,
-SM_encos_populate_child, int parent_pid, int child_pid)
+SM_encos_vfork_child, int parent_pid, int child_pid)
 {
     encos_enclave_entry_t *parent, *child;
     parent = &encos_enclave_table[parent_pid];
@@ -303,12 +300,20 @@ SM_encos_populate_child, int parent_pid, int child_pid)
     if (!parent->enc_id) {
         return;
     }
-    if (child->enc_id) {
-        log_err("Cannot populate child for an existed enclave child pid=%d.\n",
-                 child_pid);
-        panic("GGWP!");
-    }
+    SVA_ASSERT(!child->enc_id, "Cannot vfork child to an existed enclave child pid=%d.\n",
+                child_pid);
+    /* enclave id */
     child->enc_id = parent->enc_id;
+
+    /* 
+     * Check cr3. libOS's vfork should force the child to keep the same cr3 as the parent
+     * and we enforce this case.
+     */
+    SVA_ASSERT(__sm_read_cr3() == parent->enc_CR3, 
+        "vfork parent enclave CR3=0x%lx, child enclave CR3=0x%lx mismatch.\n",
+        parent->enc_CR3, __sm_read_cr3());
+    
+    child->enc_CR3 = parent->enc_CR3;
     child->activate = 0;
 
     log_info("Populated child enc_id=%d pid=%d.\n", parent->enc_id, child_pid);

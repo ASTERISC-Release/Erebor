@@ -32,6 +32,17 @@
 /* Special panic(..) that also prints the outer kernel's stack */
 extern char _svastart[];
 extern char _svaend[];
+
+/* SM functions */
+extern char __svamem_text_start[];
+extern char __svamem_text_end[];
+
+/* sensitive privile function section */
+extern char __svamem_priv_text_start[];
+extern char __svamem_priv_text_end[];
+unsigned long *__svamem_priv_text_pte = NULL;
+
+/* overall kernel functions */
 extern char _stext[];
 extern char _etext[];
 
@@ -116,35 +127,82 @@ _wrmsr(unsigned long msr, uint64_t newval)
 	__asm __volatile("wrmsr" : : "a" (low), "d" (high), "c" (msr));
 }
 
- void _load_cr3(unsigned long data)
+void
+_load_cr3(unsigned long data)
 { 
     __asm __volatile("movq %0,%%cr3" : : "r" (data) : "memory"); 
 }
 
- unsigned long
+unsigned long
 _rcr0(void) {
     unsigned long  data;
     __asm __volatile("movq %%cr0,%0" : "=r" (data));
     return (data);
 }
 
- unsigned long
+unsigned long
 _rcr3(void) {
     unsigned long  data;
     __asm __volatile("movq %%cr3,%0" : "=r" (data));
     return (data);
 }
 
- unsigned long
+unsigned long
 _rcr4(void) {
     unsigned long  data;
     __asm __volatile("movq %%cr4,%0" : "=r" (data));
     return (data);
 }
 
- uint64_t
+uint64_t
 _efer(void) {
     return _rdmsr(MSR_REG_EFER);
+}
+
+/* map/unmap privilege sections */
+void SVATEXT_PRIV
+sm_entry_map_priv_page(void) 
+{
+  int level;
+  if (!mmuIsInitialized)
+    return;
+  if (!__svamem_priv_text_pte) {
+    __svamem_priv_text_pte = get_pgeVaddr((unsigned long)__svamem_priv_text_start, &level);
+    if (level != 1){ /* won't happen */
+      printk("[map] pteVal=0x%lx, level=%d\n", 
+              *__svamem_priv_text_pte, level);
+      __svamem_priv_text_pte = NULL;
+      return;
+    }
+  }
+  /* map the privilege code page */
+  *__svamem_priv_text_pte |= PG_V;
+  printk("[map] priv_text start VA=0x%lx PTEval=0x%lx.\n",
+        (unsigned long)__svamem_priv_text_start, *__svamem_priv_text_pte);
+  sva_mm_flush_tlb(__svamem_priv_text_start);
+  return;
+}
+
+void SVATEXT_PRIV
+sm_exit_unmap_priv_page(void)
+{
+  int level;
+  if (!mmuIsInitialized)
+    return;
+  if (!__svamem_priv_text_pte) {
+    __svamem_priv_text_pte = get_pgeVaddr((unsigned long)__svamem_priv_text_start, &level);
+    if (level != 1){ /* won't happen */
+      printk("[unmap] pteVal=0x%lx, level=%d\n", 
+              *__svamem_priv_text_pte, level); 
+      __svamem_priv_text_pte = NULL;
+      return;
+    }
+  }
+  /* unmap the privilege code page */
+  *__svamem_priv_text_pte &= ~PG_V;
+  printk("[unmap] priv_text start VA=0x%lx PTEval=0x%lx.\n",
+        (unsigned long)__svamem_priv_text_start, *__svamem_priv_text_pte);
+  sva_mm_flush_tlb(__svamem_priv_text_start);
 }
 
 /*
@@ -376,7 +434,7 @@ sm_validate_pt_update (page_entry_t *page_entry, page_entry_t newVal) {
   if (newVal & PG_V) {
     /* If the mapping is to an SVA page then fail */
     SVA_ASSERT (!(isSVAPg(newPG) && (origPA != newPA)), 
-              "Kernel attempted to map an SVA page {target pgEntry_VA=0x%lx, origPTE=0x%lx->newPTE=0x%lx,\n}",
+              "Kernel attempted to remap an SVA page {target pgEntry_VA=0x%lx, origPTE=0x%lx->newPTE=0x%lx,\n}",
               (unsigned long)page_entry, (unsigned long)*page_entry, newVal);
 
     /*
@@ -1762,9 +1820,17 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
   // init_protected_pages((unsigned long) PFN_ALIGN(_stext), (unsigned long) PFN_ALIGN(_etext), 
     // PG_KCODE);
   
-  /* Protect the SVA data pages */
-  LOG_PRINTK("_svastart: 0x%lx, _svaend: 0x%lx\n", __pa(_svastart), __pa(_svaend));
+  /* Protect the SVA data and code pages */
+  LOG_PRINTK("_svastart va=0x%lx pa=0x%lx, _svaend va=0x%lx pa=0x%lx\n", 
+              _svastart, __pa(_svastart), _svaend, __pa(_svaend));
   init_protected_pages((unsigned long) _svastart, (unsigned long) _svaend, PG_SVA);
+
+  LOG_PRINTK("__svamem_text_start va=0x%lx pa=0x%lx, __svamem_text_end va=0x%lx pa=0x%lx\n", 
+            __svamem_text_start, __pa(__svamem_text_start), __svamem_text_end, __pa(__svamem_text_end));
+  init_protected_pages((unsigned long)__svamem_text_start, (unsigned long)__svamem_text_end, PG_SVA);
+
+  LOG_PRINTK("__svamem_priv_text_start va=0x%lx pa=0x%lx, __svamem_priv_text_end va=0x%lx pa=0x%lx\n", 
+            __svamem_priv_text_start, __pa(__svamem_priv_text_start), __svamem_priv_text_end, __pa(__svamem_priv_text_end));
 
   /* Walk the kernel page tables and initialize the sva page_desc */
   unsigned long kpgdPA = (sva_get_current_pgd() << 12);
