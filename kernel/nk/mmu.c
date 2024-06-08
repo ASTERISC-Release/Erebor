@@ -2622,27 +2622,29 @@ static inline unsigned long read_eflags(void) {
     return eflags;
 }
 
-SECURE_WRAPPER(unsigned long, sva_copy_user_generic, void *to, const void *from, unsigned long len) {
+SECURE_WRAPPER(unsigned long, 
+sva_copy_user_generic, 
+void *to, const void *from, unsigned long len) {
   
-  // printk("CR4.SMAP = %d\n", (__read_cr4() >> 21) & 0x1); // SMAP is enabled
-  // printk("EFLAGS: 0x%lx\n", read_eflags());
-  stac();  
-  // asm volatile(__ASM_STAC);
-  /*
-   * If CPU has FSRM feature, use 'rep movs'.
-   * Otherwise, use rep_movs_alternative.
-   */
-  asm volatile(
-    "1:\n\t"
-    ALTERNATIVE("rep movsb",
-          "call rep_movs_alternative", ALT_NOT(X86_FEATURE_FSRM))
-    "2:\n"
-    _ASM_EXTABLE_UA(1b, 2b)
-    :"+c" (len), "+D" (to), "+S" (from), ASM_CALL_CONSTRAINT
-    : : "memory", "rax");
+//   // printk("CR4.SMAP = %d\n", (__read_cr4() >> 21) & 0x1); // SMAP is enabled
+//   // printk("EFLAGS: 0x%lx\n", read_eflags());
+//   stac();  
+//   // asm volatile(__ASM_STAC);
+//   /*
+//    * If CPU has FSRM feature, use 'rep movs'.
+//    * Otherwise, use rep_movs_alternative.
+//    */
+//   asm volatile(
+//     "1:\n\t"
+//     ALTERNATIVE("rep movsb",
+//           "call rep_movs_alternative", ALT_NOT(X86_FEATURE_FSRM))
+//     "2:\n"
+//     _ASM_EXTABLE_UA(1b, 2b)
+//     :"+c" (len), "+D" (to), "+S" (from), ASM_CALL_CONSTRAINT
+//     : : "memory", "rax");
   
-  // asm volatile(__ASM_CLAC);
-  clac();
+//   // asm volatile(__ASM_CLAC);
+//   clac();
 
   return len;
 }
