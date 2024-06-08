@@ -87,6 +87,7 @@ extern void sva_update_l5_mapping (pgd_t * pgdPtr, page_entry_t val);
 extern void sva_remove_mapping (page_entry_t * ptePtr);
 extern void sva_mmu_init(void);
 extern void sva_clear_page(void* page);
+extern unsigned long sva_copy_user_generic(void* to, const void* from, unsigned long len);
 
 /* Key initialization and secure storage allocation */
 extern void * sva_translate(void * entryPoint);
