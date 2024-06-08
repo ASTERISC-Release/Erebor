@@ -166,23 +166,3 @@ int set_page_protection(unsigned long virtual_page, int should_protect)
 #else
 int set_page_protection(unsigned long virtual_page, int should_protect) {}
 #endif
-
-/* Chuqi: useless for now. */
-void pks_set_key(int key, bool restrictAccess, bool restrictWrite) {
-    uint64_t pkrs;
-    rdmsrl(0x6e1, pkrs);
-    uint64_t access = 1ull << (key*2);
-    uint64_t write = 1ull << (key*2 + 1);
-
-    if(restrictAccess)
-        pkrs |= access;
-    else
-        pkrs &= ~access;
-
-    if(restrictWrite)
-        pkrs |= write;
-    else
-        pkrs &= ~write;
-
-    wrmsrl(0x6e1, pkrs);
-}

@@ -930,8 +930,8 @@ void free_init_pages(const char *what, unsigned long begin, unsigned long end)
 		 * writeable and non-executable first.
 		 */
 #ifdef CONFIG_ENCOS_MMU
-		printk("SVA-Untrusted: setting NX then RW (start: %px, pages: %px)\n", 
-		    (void*) begin, 
+		printk("SVA-Untrusted: setting NX then RW (start va=0x%lx pa=0x%lx, pages: %px)\n", 
+		    (unsigned long)begin, (unsigned long)__pa((void*)begin),
 			(void*) ((end - begin) >> PAGE_SHIFT));
 #endif
 

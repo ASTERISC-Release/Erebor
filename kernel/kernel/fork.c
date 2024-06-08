@@ -2935,7 +2935,7 @@ pid_t kernel_clone(struct kernel_clone_args *args)
 	}
 
 #ifdef CONFIG_ENCOS
-	SM_encos_populate_child(current->pid, p->pid);
+	SM_encos_vfork_child(current->pid, p->pid);
 #endif
 
 	if (IS_ENABLED(CONFIG_LRU_GEN) && !(clone_flags & CLONE_VM)) {

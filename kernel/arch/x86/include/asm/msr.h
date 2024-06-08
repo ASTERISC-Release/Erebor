@@ -12,6 +12,9 @@
 #include <uapi/asm/msr.h>
 #include <asm/shared/msr.h>
 
+#ifdef CONFIG_ENCOS
+#include <sva/msr.h>
+#endif
 struct msr_info {
 	u32 msr_no;
 	struct msr reg;
@@ -91,10 +94,14 @@ static __always_inline unsigned long long __rdmsr(unsigned int msr)
 
 static __always_inline void __wrmsr(unsigned int msr, u32 low, u32 high)
 {
+#ifdef CONFIG_ENCOS
+	encos_write_msr(msr, low, high);
+#else
 	asm volatile("1: wrmsr\n"
 		     "2:\n"
 		     _ASM_EXTABLE_TYPE(1b, 2b, EX_TYPE_WRMSR)
 		     : : "c" (msr), "a"(low), "d" (high) : "memory");
+#endif
 }
 
 #define native_rdmsr(msr, val1, val2)			\
@@ -143,7 +150,6 @@ static inline void notrace
 native_write_msr(unsigned int msr, u32 low, u32 high)
 {
 	__wrmsr(msr, low, high);
-
 	if (tracepoint_enabled(write_msr))
 		do_trace_write_msr(msr, ((u64)high << 32 | low), 0);
 }
@@ -153,13 +159,16 @@ static inline int notrace
 native_write_msr_safe(unsigned int msr, u32 low, u32 high)
 {
 	int err;
-
+#ifdef CONFIG_ENCOS
+	err = encos_write_msr_safe(msr, low, high);
+#else
 	asm volatile("1: wrmsr ; xor %[err],%[err]\n"
 		     "2:\n\t"
 		     _ASM_EXTABLE_TYPE_REG(1b, 2b, EX_TYPE_WRMSR_SAFE, %[err])
 		     : [err] "=a" (err)
 		     : "c" (msr), "0" (low), "d" (high)
 		     : "memory");
+#endif
 	if (tracepoint_enabled(write_msr))
 		do_trace_write_msr(msr, ((u64)high << 32 | low), err);
 	return err;

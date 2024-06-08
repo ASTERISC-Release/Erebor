@@ -138,6 +138,15 @@ SECTIONS
 #endif
 		STATIC_CALL_TEXT
 
+#ifdef CONFIG_ENCOS
+		/* Chuqi: SM should occupy a whole number of pages */
+		. = ALIGN(PAGE_SIZE);
+		SVA_TEXT
+		. = ALIGN(PAGE_SIZE);
+		SVA_PRIV_TEXT
+		. = ALIGN(PAGE_SIZE);
+#endif
+
 		ALIGN_ENTRY_TEXT_BEGIN
 #ifdef CONFIG_CPU_SRSO
 		*(.text..__x86.rethunk_untrain)
@@ -416,17 +425,15 @@ SECTIONS
 	. += 0x1000000;
 
 	/* Create the SVA data section (before the init free region!) */
-	. = ALIGN(0x1000000);
+	. = ALIGN(0x1000);
 	.svamem : AT(ADDR(.svamem) - LOAD_OFFSET) {
 		_svastart = .;
 		*(svamem)
 		_svaend = .;
 	}
-
-	/* Buffer zone */
+	//. = ALIGN(PAGE_SIZE);
 	. += 0x1000;
 #endif
-
 
 	/*
 	 * The memory occupied from _text to here, __end_of_kernel_reserve, is

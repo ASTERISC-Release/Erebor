@@ -20,9 +20,7 @@ sudo sh -c "echo never > /sys/kernel/mm/transparent_hugepage/defrag"
 stty intr ^]
 
 # memory (32GB)
-# VMMEM=24510M
-VMMEM=16384M
-# VMMEM=32708M
+VMMEM=24G
 
 # debug
 GDB=""
@@ -31,16 +29,17 @@ if [[ $1 == "debug" ]]; then
     GDB="-s -S"
     echo "Enable GDB debugging."
 fi
+
 # launch the QEMU VM
-# the 'max' version of the emulation provides all 
 # CPU features (including our needed PKS)
 sudo qemu-system-x86_64 \
-    -enable-kvm \
-    -cpu host,-pdpe1gb -smp 8,maxcpus=8 \
+    -accel kvm \
+    -cpu host,-pdpe1gb \
+    -smp 32,maxcpus=32 \
     -m $VMMEM \
     -no-reboot \
     -nographic \
-    -netdev user,id=vmnic,hostfwd=tcp::8001-:22 \
+    -netdev user,id=vmnic,hostfwd=tcp::8000-:22 \
     -device e1000,netdev=vmnic,romfile= \
     -drive file=$VMDISK_TDX,if=none,id=disk0,format=qcow2 \
     -device virtio-scsi-pci,id=scsi0,disable-legacy=on,iommu_platform=true \

@@ -623,6 +623,27 @@
 		*(.static_call.text)					\
 		__static_call_text_end = .;
 
+#ifdef CONFIG_ENCOS
+
+#define SVA_TEXT							\
+		ALIGN_FUNCTION();					\
+		__svamem_text_start = .;			\
+		*(.svamem.text)						\
+		__svamem_text_end = .;
+
+#define SVA_PRIV_TEXT						\
+		ALIGN_FUNCTION();					\
+		__svamem_priv_text_start = .;		\
+		*(.svamem.priv.text)				\
+		__svamem_priv_text_end = .;
+
+#else
+
+#define SVA_TEXT
+#define SVA_PRIV_TEXT
+
+#endif	/* CONFIG_ENCOS */
+
 /* Section used for early init (in .S files) */
 #define HEAD_TEXT  KEEP(*(.head.text))
 

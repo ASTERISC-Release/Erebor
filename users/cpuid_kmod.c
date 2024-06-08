@@ -13,13 +13,6 @@
  * https://stackoverflow.com/questions/22310028/is-there-an-x86-instruction-to-tell-which-core-the-instruction-is-being-run-on
  */
 
-// void CPUID(int code, uint32_t *a, uint32_t *d) {
-//     asm volatile("cpuid"
-//                  : "=a" (*a), "=d" (*d)
-//                  : "a" (code)
-//                  : "ebx", "ecx");
-// }
-
 void get_cpuid(void *dummy)
 {
     /* first try rdtscp */

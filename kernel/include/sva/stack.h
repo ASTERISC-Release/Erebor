@@ -39,7 +39,7 @@
 #ifndef _STACK_SWITCH_
 #define _STACK_SWITCH_
 
-// #include <stdint.h>
+#include "svamem.h"
 
 //===-- Secure Stack Switching --------------------------------------------===//
 
@@ -319,8 +319,12 @@ asm( \
   #FUNC ":\n" \
   /* Do whatever's needed on entry to secure area */ \
   SECURE_ENTRY \
+  /* Call the map gate to remap the privilege section */ \
+  "call sm_entry_map_priv_page\n" \
   /* Call real version of function */ \
   "call " #FUNC "_secure\n" \
+  /* Call the unmap gate to unmap the privilege section */ \
+  "call sm_exit_unmap_priv_page\n" \
   /* Operation complete, go back to unsecure mode */ \
   SECURE_EXIT \
   "ret\n" \
@@ -328,7 +332,7 @@ asm( \
   ".size " #FUNC ", " #FUNC "_end - " #FUNC "\n" \
 ); \
 RET FUNC ##_secure(__VA_ARGS__); \
-RET FUNC ##_secure(__VA_ARGS__)
+RET SVATEXT FUNC ##_secure(__VA_ARGS__)
 
 #define SECURE_WRAPPER_INTERRUPT(RET, FUNC, ...) \
 asm( \

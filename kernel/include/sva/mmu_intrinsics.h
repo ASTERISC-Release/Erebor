@@ -59,6 +59,8 @@
 #define SVA_MMU_INTRINSICS_H
 
 #include "mmu_types.h"
+#include "svamem.h"
+#include "msr.h"
 
 /*
  *****************************************************************************
@@ -67,10 +69,6 @@
  */
 extern void sva_mmu_test (void);
 extern void sva_mm_load_pgtable (void * pg);
-extern void sva_write_cr0 (unsigned long val);
-extern void sva_write_cr4 (unsigned long val);
-extern void sva_load_msr(u_int msr, uint64_t val);
-extern void sva_wrmsr(void);
 extern void sva_declare_l1_page (uintptr_t frame);
 extern void sva_declare_l2_page (uintptr_t frame);
 extern void sva_declare_l3_page (uintptr_t frame);
@@ -88,6 +86,9 @@ extern void sva_remove_mapping (page_entry_t * ptePtr);
 extern void sva_mmu_init(void);
 extern void sva_clear_page(void* page);
 extern unsigned long sva_copy_user_generic(void* to, const void* from, unsigned long len);
+
+extern void SVATEXT sm_entry_map_priv_page(void);
+extern void SVATEXT sm_exit_unmap_priv_page(void);
 
 /* Key initialization and secure storage allocation */
 extern void * sva_translate(void * entryPoint);
