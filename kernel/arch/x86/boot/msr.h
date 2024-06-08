@@ -7,6 +7,9 @@
 #define BOOT_MSR_H
 
 #include <asm/shared/msr.h>
+#ifdef CONFIG_ENCOS
+#include <sva/msr.h>
+#endif
 
 /*
  * The kernel proper already defines rdmsr()/wrmsr(), but they are not for the
@@ -20,7 +23,11 @@ static inline void boot_rdmsr(unsigned int reg, struct msr *m)
 
 static inline void boot_wrmsr(unsigned int reg, const struct msr *m)
 {
+#ifdef CONFIG_ENCOS
+	encos_write_msr_boot(reg, m->l, m->h);
+#else
 	asm volatile("wrmsr" : : "c" (reg), "a"(m->l), "d" (m->h) : "memory");
+#endif
 }
 
 #endif /* BOOT_MSR_H */

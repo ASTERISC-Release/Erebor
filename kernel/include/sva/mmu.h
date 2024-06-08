@@ -276,15 +276,6 @@ void init_mmu(void);
  *****************************************************************************
  */
 
-/* CR0 Flags */
-#define     CR0_WP      0x00010000      /* Write protect enable */
-
-/* CR4 Flags */
-#define     CR4_SMEP    0x00100000      /* SMEP enable */
-
-/* EFER Flags */
-#define     EFER_NXE    0x000000800     /* NXE enable */
-
 /*
  * Function: getVirtual()
  *
@@ -331,12 +322,6 @@ static inline unsigned long __sm_read_cr3(void) {
     asm volatile("mov %%cr3, %0" : "=r" (cr3));
     return (cr3 & addrmask);
 }
-/*
- *****************************************************************************
- * Low level register read/write functions
- *****************************************************************************
- */
-#define MSR_REG_EFER    0xC0000080      /* MSR for EFER register */
 
 // Rahul: Changed the name of rdmsr to avoid conflict with an existing macro
 extern inline uint64_t _rdmsr(uintptr_t msr);
