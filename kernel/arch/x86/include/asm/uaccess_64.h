@@ -129,7 +129,8 @@ static __always_inline __must_check unsigned long
 raw_copy_from_user(void *dst, const void __user *src, unsigned long size)
 {
 #ifdef CONFIG_ENCOS
-	return sva_copy_user_generic(dst, (__force void *)src, size);
+	// return sva_copy_user_generic(dst, (__force void *)src, size);
+	return copy_user_generic(dst, (__force void *)src, size);
 #else
     return copy_user_generic(dst, (__force void *)src, size);
 #endif
@@ -139,7 +140,8 @@ static __always_inline __must_check unsigned long
 raw_copy_to_user(void __user *dst, const void *src, unsigned long size)
 {
 #ifdef CONFIG_ENCOS
-    return sva_copy_user_generic((__force void *)dst, src, size);
+    // return sva_copy_user_generic((__force void *)dst, src, size);
+	return copy_user_generic((__force void *)dst, src, size);
 #else
 	return copy_user_generic((__force void *)dst, src, size);
 #endif
