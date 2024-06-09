@@ -46,8 +46,8 @@ int set_page_protection(unsigned long virtual_page, int should_protect)
     //     level, (unsigned long)page_entry, *(unsigned long*)page_entry, getPageDescPtr(__pa(virtual_page))->type, key);
 
     /*
-     * early exit if the target page is not protected and we 
-     * don't want to protect it.
+     * early exit if the target page is not in the protection
+     * domain and we don't want to protect it.
      * 
      * in PKS version:
      * virtual_page's PTE(key) == 0 && key (to be set) == 0; 

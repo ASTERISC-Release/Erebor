@@ -1091,19 +1091,18 @@ void start_kernel(void)
 
 #ifdef CONFIG_ENCOS_WP
 	/* already instrumented to set 1 << 16 */
+	printk("SET WP IN CR0.\n");
 	native_write_cr0(native_read_cr0());
-#endif
+#endif	/* CONFIG_ENCOS_WP */
 
 #ifdef CONFIG_ENCOS_MMU
 	// Initialize the SVA MMU
-	// sva_mmu_init();
-#endif
-
 	// Test that the secure call works
 	uintptr_t sp;
     asm volatile ("movq %%rsp, %0\n\t": "=r" (sp) :: "memory");
 	printk(KERN_INFO "NORM_stack pointer: %lx\n", sp);
 	sva_mmu_test();
+#endif	/* CONFIG_ENCOS_MMU */
 	/* Chuqi:
 	 * For per-cpu variable initialization, we need to do it 
 	 * within kernel_init_freeable(), after smp_init() is done.

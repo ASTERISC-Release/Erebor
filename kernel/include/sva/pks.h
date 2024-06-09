@@ -36,11 +36,13 @@ static inline void check_protection_available(void)
 static inline int __check_pte_protection(unsigned long *pte)
 {
 #ifdef CONFIG_ENCOS_PKS
+    /* PKS key 0 means the page is unprotected */
     if(((*pte >> 59) & 0xf) == 0)
         return 0;
     return 1;
 #elif defined(CONFIG_ENCOS_WP)
-    if(((*page_entry & PG_RW) == PG_RW))
+    /* PG_RW set means the page is unprotected */
+    if((*pte & PG_RW)) 
         return 0;
     return 1;
 #endif
@@ -55,7 +57,7 @@ static inline void __set_pte_protection(unsigned long *pte, int should_protect)
 {
 #ifdef CONFIG_ENCOS_PKS
     /*
-     * For the PKS version, we always use key=1 for the protected page.
+     * For the PKS version, we always use PTE.key=1 for the protected page.
      * key=0 is reserved for the kernel (unprotected pages).
      */
     if (should_protect)
@@ -64,6 +66,10 @@ static inline void __set_pte_protection(unsigned long *pte, int should_protect)
         /* set the existing key in the PTE to 0 */
         *pte &= (0x87FFFFFFFFFFFFFF);
 #elif defined(CONFIG_ENCOS_WP)
+    /*
+     * For the WP version, we always use PTE.RW=0 for the protected page.
+     * RW=1 means the page is writable to kernel (unprotected pages).
+     */
     if (should_protect)
         *pte &= ~PG_RW;
     else

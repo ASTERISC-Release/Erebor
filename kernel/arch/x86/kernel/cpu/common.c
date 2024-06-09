@@ -416,11 +416,16 @@ void native_write_cr0(unsigned long val)
 	unsigned long bits_missing = 0;
 
 set_register:
-#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_WP)
-	sva_write_cr0(val);
-#else
+// #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_WP)
+// 	sva_write_cr0(val);
+// #else
 	asm volatile("mov %0,%%cr0": "+r" (val) : : "memory");
-#endif
+	/* 
+	 * Chuqi: do NOT use this stupid secure stack for cr0 to
+	 * be slow + slow + slow !!!
+	 * just need this following kernel CR0_WP check.
+	 */
+// #endif
 	if (static_branch_likely(&cr_pinning)) {
 		if (unlikely((val & X86_CR0_WP) != X86_CR0_WP)) {
 			bits_missing = X86_CR0_WP;
