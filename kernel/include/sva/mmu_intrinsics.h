@@ -67,7 +67,7 @@
  * SVA intrinsics implemented in the library
  *****************************************************************************
  */
-extern void sva_mmu_test (void);
+extern void sva_stack_test (void);
 extern void sva_mm_load_pgtable (void * pg);
 extern void sva_declare_l1_page (uintptr_t frame);
 extern void sva_declare_l2_page (uintptr_t frame);

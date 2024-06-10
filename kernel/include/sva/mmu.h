@@ -422,6 +422,12 @@ setMappingReadWrite (page_entry_t mapping) {
   return (mapping | PG_RW); 
 }
 
+static inline unsigned long
+pageEntryToPA (page_entry_t page_entry_val, int is_to_frame) {
+  /* Chuqi: remember to ignore C-bit for AMD-SEV */
+  unsigned long pa = (page_entry_val & PG_FRAME) & (~PG_CBIT);
+  return (!is_to_frame) ? pa : pa >> PAGE_SHIFT;
+}
 
 /*
  *****************************************************************************
