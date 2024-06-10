@@ -761,6 +761,13 @@ static  void
 __do_mmu_update (page_entry_t* pteptr, page_entry_t mapping) {
   unsigned long origPA = pageEntryToPA(*pteptr, /*is_to_frame=*/0);
   unsigned long newPA = pageEntryToPA(mapping, /*is_to_frame=*/0);
+  
+  // todo: debug
+//   if ( (((unsigned long)pteptr >> 12) == 0xffff888180046) ) {
+// 	printk("[__do_mmu_update] pteptr: %px, mapping: %lx, origPA: %lx, newPA: %lx\n", 
+// 		pteptr, mapping, origPA, newPA);
+//   }
+  
   /*
    * If we have a new mapping as opposed to just changing the flags of an
    * existing mapping, then update the SVA meta data for the pages. We know
@@ -813,7 +820,7 @@ __do_mmu_update (page_entry_t* pteptr, page_entry_t mapping) {
  */
 static  void 
 initDeclaredPage (unsigned long frameAddr) {
-  return;
+//   return;
   /*
    * Get the direct map virtual address of the physical address.
    */
@@ -824,14 +831,13 @@ initDeclaredPage (unsigned long frameAddr) {
    * existing page translations which have not been vetted exist within the
    * page.
    */
-  memset (vaddr, 0, X86_PAGE_SIZE);
-
+  memset(vaddr, 0, X86_PAGE_SIZE);
   /*
    * Get a pointer to the page table entry that maps the physical page into the
    * direct map.
    */
-  page_entry_t * page_entry = get_pgeVaddr (vaddr, NULL);
-  if (page_entry) {
+//   page_entry_t * page_entry = get_pgeVaddr (vaddr, NULL);
+//   if (page_entry) {
 	/*
 	 * Chuqi: no need to do so as we already done this at declare.
 	 *
@@ -845,10 +851,10 @@ initDeclaredPage (unsigned long frameAddr) {
 	//   page_entry_store (page_entry, setMappingReadWrite(*page_entry));
 	//   sva_mm_flush_tlb (vaddr);
 	// }
-  } else {
+//   } else {
 	/* debug log. unlikely to happen */
-	log_err("Unfound page table entry for frame=0x%lx\n", frameAddr);
-  }
+	// log_err("Unfound page table entry for frame=0x%lx\n", frameAddr);
+//   }
 
   return;
 }
@@ -1698,10 +1704,12 @@ makePTReadOnly (void) {
 SECURE_WRAPPER(void, sva_mmu_init, void) {
   init_MMULock();
   MMULock_Acquire();
-
   /* Hello World! */
   LOG_PRINTK("[.] Initializing: SECURE memory management unit \n");
 
+  // debug SEV here
+//   printk("VA 0xffff8881800462a8's val=0x%lx.\n", *(unsigned long*)0xffff8881800462a8);
+  
   /* Initialize page descriptor array */
   memset(page_desc, 0, numPageDescEntries * sizeof(page_desc_t));
 
@@ -1723,8 +1731,8 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
 			__svamem_priv_text_start, __pa(__svamem_priv_text_start), __svamem_priv_text_end, __pa(__svamem_priv_text_end));
 
   /* Walk the kernel page tables and initialize the sva page_desc */
-  unsigned long kpgdPA = (sva_get_current_pgd() << 12);
-  printk("sva_mmu_init KPGDPA: %lx\n", kpgdPA);
+  unsigned long kpgdPA = get_pagetable(); //(sva_get_current_pgd() << 12);
+  printk("sva_mmu_init KPGDPA: 0x%lx\n", kpgdPA);
   
   declare_ptp_and_walk_pt_entries(kpgdPA, NP4DEPG, PG_L4);
   
@@ -1743,6 +1751,12 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
 
   LOG_PRINTK("[*] SECURE memory management unit initialized \n");
 
+  // debug SEV here
+    // printk("VA 0xffff8881800462a8's val=0x%lx.\n", *(unsigned long*)0xffff8881800462a8);
+
+  // Chuqi: bad eyesoul dirty SEV clear this pgd for poking address
+//   if (*(unsigned long*)0xffff8881800462a8)
+//   	*(unsigned long*)0xffff8881800462a8 = 0;
   MMULock_Release();
 }
 
@@ -1790,6 +1804,8 @@ void declare_internal(unsigned long frameAddr, int level) {
 SECURE_WRAPPER(void,
 sva_declare_l1_page, unsigned long frameAddr) {
   MMULock_Acquire();
+
+  LOG_DECLARE("Declaring L1 page (%px)\n", (void*) frameAddr);
 
   /* Get the page_desc for the newly declared l4 page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);
@@ -2136,14 +2152,6 @@ sva_remove_page, unsigned long paddr) {
 
 	default:
 	  /* Restore interrupts */
-	  /* 
-	   * ENCOS: (IMPORTANT) Please check this case out. Why are we getting undeclared pages and
-	   * we get many of them if I uncomment these lines.
-	   */
-	  
-	  // if (mmuIsInitialized) {
-	  //   LOG_PRINTK (" (warning) undeclare bad page type: %lx %lx\n", paddr, pgDesc->type);
-	  // }
 	  MMULock_Release();
 	  return;
   }
@@ -2417,8 +2425,8 @@ SECURE_WRAPPER(void, sva_secure_poke,
   struct sva_secure_poke_t* spt) 
 {
   /* Debugging */
-  // LOG_PRINTK("sva_secure_poke (%px, %px, %px, %lx, %px)\n",
-  //   func, addr, src, len, spt);
+//   LOG_PRINTK("sva_secure_poke (%px, %px, %px, %lx, %px)\n",
+//     func, addr, src, len, spt);
 
 	// set_pte_at(poking_mm, poking_addr, ptep, pte);
 	// set_pte_at(spt->poking_mm, poking_addr + PAGE_SIZE, spt->ptep + 1, spt->ptetwo);

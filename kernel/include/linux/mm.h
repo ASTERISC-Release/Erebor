@@ -2777,6 +2777,10 @@ static inline p4d_t *p4d_alloc(struct mm_struct *mm, pgd_t *pgd,
 static inline pud_t *pud_alloc(struct mm_struct *mm, p4d_t *p4d,
 		unsigned long address)
 {
+	// printk("p4d_va=0x%lx p4d->pgd.pgd=0x%lx, p4dval=0x%lx, *p4d=0x%lx, none=%d.\n",
+	// 		(unsigned long)p4d, (unsigned long)(p4d->pgd.pgd), 
+	// 		p4d_val(*p4d), *(unsigned long*)p4d, p4d_none(*p4d));
+
 	return (unlikely(p4d_none(*p4d)) && __pud_alloc(mm, p4d, address)) ?
 		NULL : pud_offset(p4d, address);
 }

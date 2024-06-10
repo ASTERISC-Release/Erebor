@@ -34,6 +34,7 @@ char *__internal_alloc_PTP(void)
     if (avail_index >= N_INTERNAL_PAGES) {
         panic("No free space.\n");
     }
+    // printk("__internal_alloc_PTP va=0x%lx.\n", (unsigned long)internal_split_PTPs[avail_index]);
     return (char *)internal_split_PTPs[avail_index++];
 }
 
@@ -74,6 +75,8 @@ int set_page_protection(unsigned long virtual_page, int should_protect)
      */
     /* Tightly copupling the split page function with pks.c for now */
     if(level == 2) {
+        // printk("pks set_page_protection: START level=%d; entryVA=0x%lx, entry=0x%lx, type: %d, should_protect = %d\n", 
+        // level, (unsigned long)page_entry, *(unsigned long*)page_entry, getPageDescPtr(__pa(virtual_page))->type, should_protect);
         /* allocate a 4KB page as the L1_PTP */
         void *l1_ptp_page = (void *)__internal_alloc_PTP();
         if (!l1_ptp_page) {
@@ -107,8 +110,8 @@ int set_page_protection(unsigned long virtual_page, int should_protect)
         uintptr_t *l1_pte;
         for(int i = 0; i < 512; i++) {
             l1_pte = (uintptr_t *)(l1_ptp_page + i * 8);
-            uintptr_t pte = pfn_pte(((*page_entry + i * PAGE_SIZE) >> 12), ref_prot).pte;
-            // uintptr_t pte = pfn_pte(pageEntryToPA((*page_entry + i * PAGE_SIZE), /*is_to_frame=*/1), ref_prot).pte;
+            // uintptr_t pte = pfn_pte(((*page_entry + i * PAGE_SIZE) >> 12), ref_prot).pte;
+            uintptr_t pte = pfn_pte(pageEntryToPA((*page_entry + i * PAGE_SIZE), /*is_to_frame=*/1), ref_prot).pte;
             // TODO debug print here
             // if(i == ((virtual_page >> (12 - 3)) & 0xfff)) {
             //     printk("[before settings] set page protection: CR3=0x%lx, page (va=0x%lx, pa=0x%lx, entry=0x%lx, entryVA=0x%lx, type=%d) with key=%d (splitted idx=%d)\n", 

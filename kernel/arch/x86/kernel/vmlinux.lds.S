@@ -195,6 +195,23 @@ SECTIONS
 		DATA_DATA
 		CONSTRUCTORS
 
+#ifdef CONFIG_ENCOS
+	/* Buffer zone */
+	// . += 0x1000000;
+	/* Create the SVA data section (before the init free region!) */
+	. = ALIGN(PAGE_SIZE);
+	//.svamem : AT(ADDR(.svamem) - LOAD_OFFSET) {
+	//	_svastart = .;
+	//	*(svamem)
+	//	_svaend = .;
+	//}
+	_svastart = .;
+	*(.svamem.data)
+	_svaend = .;
+	. = ALIGN(PAGE_SIZE);
+	//. += 0x1000;
+#endif
+
 		/* rarely changed data like cpu maps */
 		READ_MOSTLY_DATA(INTERNODE_CACHE_BYTES)
 
@@ -419,21 +436,6 @@ SECTIONS
 		. = ALIGN(PAGE_SIZE);
 		__bss_stop = .;
 	}
-
-#ifdef CONFIG_ENCOS
-	/* Buffer zone */
-	. += 0x1000000;
-
-	/* Create the SVA data section (before the init free region!) */
-	. = ALIGN(0x1000);
-	.svamem : AT(ADDR(.svamem) - LOAD_OFFSET) {
-		_svastart = .;
-		*(svamem)
-		_svaend = .;
-	}
-	//. = ALIGN(PAGE_SIZE);
-	. += 0x1000;
-#endif
 
 	/*
 	 * The memory occupied from _text to here, __end_of_kernel_reserve, is

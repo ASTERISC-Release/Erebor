@@ -1814,13 +1814,21 @@ static pmd_t *walk_to_pmd(struct mm_struct *mm, unsigned long addr)
 	pmd_t *pmd;
 
 	pgd = pgd_offset(mm, addr);
+	// printk("walk_to_pmd: addr=0x%lx pgd=0x%lx.\n",
+	// 			addr, (unsigned long)pgd);
 	p4d = p4d_alloc(mm, pgd, addr);
+	// printk("walk_to_pmd: addr=0x%lx p4d=0x%lx.\n",
+	// 			addr, (unsigned long)p4d);
 	if (!p4d)
 		return NULL;
 	pud = pud_alloc(mm, p4d, addr);
 	if (!pud)
 		return NULL;
+	// printk("walk_to_pmd: addr=0x%lx pud=0x%lx.\n",
+	// 			addr, (unsigned long)pud);
 	pmd = pmd_alloc(mm, pud, addr);
+	// printk("walk_to_pmd: addr=0x%lx pmd=0x%lx.\n",
+	// 			addr, (unsigned long)pmd);
 	if (!pmd)
 		return NULL;
 
@@ -1831,8 +1839,10 @@ static pmd_t *walk_to_pmd(struct mm_struct *mm, unsigned long addr)
 pte_t *__get_locked_pte(struct mm_struct *mm, unsigned long addr,
 			spinlock_t **ptl)
 {
+	// printk("__get_locked_pte: addr=0x%lx.\n", addr);
 	pmd_t *pmd = walk_to_pmd(mm, addr);
-
+	// printk("__get_locked_pte: addr=0x%lx pmd=0x%lx.\n",
+	// 			addr, (unsigned long)pmd);
 	if (!pmd)
 		return NULL;
 	return pte_alloc_map_lock(mm, pmd, addr, ptl);
@@ -5524,6 +5534,7 @@ int __p4d_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
 int __pud_alloc(struct mm_struct *mm, p4d_t *p4d, unsigned long address)
 {
 	pud_t *new = pud_alloc_one(mm, address);
+	// printk("__pud_alloc: pud=0x%lx.\n", (unsigned long)new);
 	if (!new)
 		return -ENOMEM;
 

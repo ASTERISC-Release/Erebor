@@ -2,7 +2,7 @@
 #define _SVAMEM_H_
 
 // asm(".section svamem, \"aw\", @nobits");
-#define SVAMEM __attribute__((section("svamem")))
+#define SVAMEM __attribute__((section(".svamem.data")))
 
 /* General SM text section */
 #define SVATEXT __attribute__((section(".svamem.text")))

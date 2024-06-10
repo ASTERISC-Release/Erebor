@@ -62,7 +62,7 @@ struct hns_mdio_device {
 #define MDIO_WDATA_DATA_M	0xffff
 #define MDIO_WDATA_DATA_S	0
 
-#define MDIO_RDATA_DATA_M	0xffff
+#define MDIO_R_M	0xffff
 #define MDIO_RDATA_DATA_S	0
 
 #define MDIO_STATE_STA_B	0
