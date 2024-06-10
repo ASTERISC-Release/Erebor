@@ -935,12 +935,12 @@ get_pgeVaddr (unsigned long vaddr, int *level) {
   page_entry_t *pge = 0;
   if (level)
 	*level = 0;
-
+  printk("DBG SVA: get_pgeVaddr: vaddr=0x%lx\n", vaddr);
   /* Get the base of the pml4 to traverse */
   unsigned long cr3 = (unsigned long) get_pagetable();
   if ((cr3 & 0xfffffffffffff000u) == 0)
 	return 0;
-
+  printk("DBG SVA: CR3 val=0x%lx\n", cr3);
   /* Get the VA of the pml4e for this vaddr */
   pgd_t *pgd = get_pgdVaddr ((unsigned char *)cr3, vaddr);  
   /* Had trouble with a NULL pointer dereference with pgd = 0; Switching to a fixed 4 level 
@@ -2307,7 +2307,8 @@ sva_update_l2_mapping, pmd_t *pmd, page_entry_t val) {
 /*
  * Updates a level3 mapping 
  */
-SECURE_WRAPPER(void, sva_update_l3_mapping, pud_t * pud, page_entry_t val) {
+SECURE_WRAPPER(void, 
+sva_update_l3_mapping, pud_t * pud, page_entry_t val) {
   MMULock_Acquire();
 
   /* Debugging */
@@ -2337,7 +2338,8 @@ SECURE_WRAPPER(void, sva_update_l3_mapping, pud_t * pud, page_entry_t val) {
 /*
  * Updates a level4 mapping 
  */
-SECURE_WRAPPER( void, sva_update_l4_mapping ,p4d_t * p4d, page_entry_t val) {
+SECURE_WRAPPER(void, 
+sva_update_l4_mapping ,p4d_t * p4d, page_entry_t val) {
   MMULock_Acquire();
 
   /* Debugging */
@@ -2374,7 +2376,8 @@ SECURE_WRAPPER( void, sva_update_l4_mapping ,p4d_t * p4d, page_entry_t val) {
 /*
  * Updates a level5 mapping 
  */
-SECURE_WRAPPER( void, sva_update_l5_mapping, pgd_t * pgd, page_entry_t val) {
+SECURE_WRAPPER(void, 
+sva_update_l5_mapping, pgd_t * pgd, page_entry_t val) {
   MMULock_Acquire();
 
   /* Debugging */
