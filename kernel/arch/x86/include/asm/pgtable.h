@@ -1490,6 +1490,7 @@ static inline p4d_t *user_to_kernel_p4dp(p4d_t *p4dp)
  */
 static inline void clone_pgd_range(pgd_t *dst, pgd_t *src, int count)
 {
+	// chuqi: check this later
 // #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
 // 	sva_memcpy(dst, src, count * sizeof(pgd_t));
 // #else
