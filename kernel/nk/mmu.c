@@ -1756,7 +1756,7 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
   LOG_PRINTK("[*] SECURE memory management unit initialized \n");
 
   // debug SEV here
-    // printk("VA 0xffff8881800462a8's val=0x%lx.\n", *(unsigned long*)0xffff8881800462a8);
+    printk("VA 0xffff8881800462a8's val=0x%lx.\n", *(unsigned long*)0xffff8881800462a8);
 
   // Chuqi: bad eyesoul dirty SEV clear this pgd for poking address
 //   if (*(unsigned long*)0xffff8881800462a8)
