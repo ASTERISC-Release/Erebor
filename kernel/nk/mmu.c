@@ -2512,3 +2512,11 @@ void *to, const void *from, unsigned long len) {
 
   return len;
 }
+
+SECURE_WRAPPER(void,
+sva_memcpy,
+void *dst, void *src, unsigned long len)
+{
+	memcpy(dst, src, len);
+	return;
+}
