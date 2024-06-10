@@ -27,6 +27,8 @@ BRIDGE=""
 SEV_POLICY=""
 SNP_FLAGS="0"
 
+GDB=""
+
 QEMU_INSTALL_DIR="$(pwd)/../host-os/qemu/usr/local/bin/"
 
 usage() {
@@ -56,6 +58,7 @@ usage() {
 	echo " -noauto       do not autostart the guest"
 	echo " -cdrom        CDROM image"
 	echo " -allow-debug  allow debugging the VM"
+	echo " -gdb			 GDB the VM"
 	echo " -bridge       use the specified bridge device for networking"
 	echo " -novirtio     do not use virtio devices"
 	exit 1
@@ -226,6 +229,8 @@ while [ -n "$1" ]; do
 				;;
 		-allow-debug)   ALLOW_DEBUG="1"
 				;;
+		-gdb)  		GDB="1"
+				;;
 		-bridge)	BRIDGE=$2
 				shift
 				;;
@@ -328,6 +333,11 @@ add_opts "-drive if=pflash,format=raw,unit=1,file=${UEFI_BIOS_VARS}"
 	add_opts "-chardev file,id=bios,path=./bios.log"
 	add_opts "-device isa-debugcon,iobase=0x402,chardev=bios"
 }
+
+[ -n "$GDB" ] && {
+	add_opts "-gdb tcp::1234"
+}
+
 
 # add CDROM if specified
 [ -n "${CDROM_FILE}" ] && add_opts "-drive file=${CDROM_FILE},media=cdrom,index=0"
