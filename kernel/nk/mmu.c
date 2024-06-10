@@ -833,16 +833,18 @@ initDeclaredPage (unsigned long frameAddr) {
   page_entry_t * page_entry = get_pgeVaddr (vaddr, NULL);
   if (page_entry) {
 	/*
+	 * Chuqi: no need to do so as we already done this at declare.
+	 *
 	 * Make the direct map entry for the page read-only to ensure that the OS
 	 * goes through SVA to make page table changes.  Also be sure to flush the
 	 * TLBs for the direct map address to ensure that it's made read-only
 	 * right away.
 	 */
-	if (((*page_entry) & PG_PS) == 0) {
-	  // CLEANUP: Need to set to read-only anymore, since we use PKS now
-	  page_entry_store (page_entry, setMappingReadWrite(*page_entry)); // Rahul: Change to read-only once done testing
-	  sva_mm_flush_tlb (vaddr);
-	}
+	// if (((*page_entry) & PG_PS) == 0) {
+	//   // CLEANUP: Need to set to read-only anymore, since we use PKS now
+	//   page_entry_store (page_entry, setMappingReadWrite(*page_entry));
+	//   sva_mm_flush_tlb (vaddr);
+	// }
   } else {
 	/* debug log. unlikely to happen */
 	log_err("Unfound page table entry for frame=0x%lx\n", frameAddr);
@@ -1230,12 +1232,9 @@ declare_ptp_and_walk_pt_entries(unsigned long pageEntry, unsigned long
   page_entry_t pageMapping; 
   page_entry_t pageMapping_masked; 
   page_entry_t *pagePtr;
-  unsigned long nx_mask    = ~(1 << 63);
-  unsigned long cbit_mask  = ~(1 << 51);
 
   /* Store the pte value for the page being traversed */
   pageMapping = (pageEntry);
-//   pageMapping_masked = (((pageEntry & PG_FRAME) & nx_mask) & cbit_mask);
   pageMapping_masked = pageEntryToPA(pageEntry, /*is_to_frame=*/0);
   if (pageMapping_masked > memSize) {
 	LOG_WALK(1, "  \tJUNK (phys ==> %px\n)", pageMapping_masked);
@@ -1608,7 +1607,7 @@ init_protected_pages (unsigned long startVA, unsigned long endVA, enum page_type
 	  }
 	  pgDesc->type = type;
 
-	  /* ENCOS: Set WP/PKS for the virtual address. TODO: complete */
+	  /* ENCOS: Set WP/PKS for the virtual address. */
 	  set_page_protection(page, /*should_protect=*/1);
   }
 }
@@ -1827,11 +1826,6 @@ sva_declare_l1_page, unsigned long frameAddr) {
 	 */
 	pgDesc->pgVaddr = 0;
 
-	/*
-	 * Chuqi: check here
-	 * ENCOS: Added the page protection function here. I believe it's doing nothing
-	 * at the moment. Please fix.
-	 */
 	set_page_protection((unsigned long)__va(frameAddr), /*should_protect=*/1);
 
 	/* 
@@ -1898,7 +1892,6 @@ sva_declare_l2_page, uintptr_t frameAddr) {
 	 */
 	pgDesc->pgVaddr = 0;
 
-	// printk("ENCOS-Internal: Setting page to L2.\n");
 	set_page_protection((unsigned long)__va(frameAddr), /*should_protect=*/1);
 
 	/* 
@@ -2095,6 +2088,7 @@ sva_declare_l5_page, unsigned long frameAddr) {
 	 * Reset the virtual address which can point to this page table page.
 	 */
 	pgDesc->pgVaddr = 0;
+	// Chuqi: ignore, we don't use L5 paging anyways.
 	// set_page_protection((unsigned long)__va(frameAddr), /*should_protect=*/1);
 
 	/* 
