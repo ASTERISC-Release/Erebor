@@ -53,4 +53,6 @@ pushd ../common
     } |& tee -a $CURDIR/build.kern.log
 popd
 
-./copy-source.sh $1 |& tee -a $CURDIR/build.kern.log
+# Execute this script only when we need to build kernel module
+# inside the guest.
+# ./copy-source.sh $1 |& tee -a $CURDIR/build.kern.log
