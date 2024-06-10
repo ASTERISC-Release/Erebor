@@ -584,6 +584,10 @@ sm_validate_pt_update (page_entry_t *page_entry, page_entry_t newVal) {
 
 	  case PG_L4:
 		SVA_ASSERT (isL3Pg(newPG), "SVA: Mapping non-L3 page into L4.");
+		// if (!isL3Pg(newPG)) {
+		// 	printk("SVA: Mapping non-L3 page into L4 PTE=0x%lx origPG type=%d PA=0x%lx, newPG type=0x%d PA=0x%lx.\n",
+		// 		(unsigned long)page_entry, origPG->type, origPA, newPG->type, newPA);
+		// }
 		break;
 
 #if defined (CONFIG_X86_5LEVEL)
@@ -1968,7 +1972,6 @@ sva_declare_l3_page, unsigned long frameAddr) {
   if (pgDesc->type != PG_L3) {
 	/* Mark this page frame as an L3 page frame */
 	pgDesc->type = PG_L3;
-
 	/*
 	 * Reset the virtual address which can point to this page table page.
 	 */
@@ -2511,4 +2514,12 @@ void *to, const void *from, unsigned long len) {
 //   clac();
 
   return len;
+}
+
+SECURE_WRAPPER(void,
+sva_memcpy,
+void *dst, void *src, unsigned long len)
+{
+	memcpy(dst, src, len);
+	return;
 }

@@ -830,8 +830,14 @@ void __init poking_init(void)
 	poking_mm = mm_alloc();
 	BUG_ON(!poking_mm);
 
-	printk("[poking_init] poking_mm=0x%lx, poking_mm->pgd (VA)=0x%lx, poking_mm->pgd.pgd=0x%lx\n",
-		(unsigned long)poking_mm, (unsigned long)poking_mm->pgd, (unsigned long)poking_mm->pgd->pgd);
+	// printk("[poking_init] poking_mm=0x%lx, poking_mm->pgd (VA)=0x%lx, poking_mm->pgd.pgd=0x%lx\n",
+	// 	(unsigned long)poking_mm, (unsigned long)poking_mm->pgd, (unsigned long)poking_mm->pgd->pgd);
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+	/* renew a fresh state of the poking_mm's pgd */
+	poking_mm->pgd->pgd = 0;
+#endif
+
+
 	/* Xen PV guests need the PGD to be pinned. */
 	paravirt_enter_mmap(poking_mm);
 
