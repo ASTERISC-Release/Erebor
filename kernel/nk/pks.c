@@ -108,7 +108,7 @@ int set_page_protection(unsigned long virtual_page, int should_protect)
         for(int i = 0; i < 512; i++) {
             l1_pte = (uintptr_t *)(l1_ptp_page + i * 8);
             uintptr_t pte = pfn_pte(((*page_entry + i * PAGE_SIZE) >> 12), ref_prot).pte;
-            
+            // uintptr_t pte = pfn_pte(pageEntryToPA((*page_entry + i * PAGE_SIZE), /*is_to_frame=*/1), ref_prot).pte;
             // TODO debug print here
             // if(i == ((virtual_page >> (12 - 3)) & 0xfff)) {
             //     printk("[before settings] set page protection: CR3=0x%lx, page (va=0x%lx, pa=0x%lx, entry=0x%lx, entryVA=0x%lx, type=%d) with key=%d (splitted idx=%d)\n", 

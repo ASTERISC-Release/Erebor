@@ -424,7 +424,7 @@ static inline pgd_t *_pgd_alloc(void)
 {
 	pgd_t *new = (pgd_t *)__get_free_pages(GFP_PGTABLE_USER,
 					 PGD_ALLOCATION_ORDER);
-#if 0
+#if 0 /* chuqi: we don't support 5-level paging now */
 	sva_remove_page(__pa(new));
 	sva_declare_l5_page(__pa(new));
 #endif

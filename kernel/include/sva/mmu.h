@@ -314,13 +314,13 @@ get_pagetable (void) {
    * pointer are assumed to be zero, and so they are reserved or used by the
    * hardware.
    */
-  return (unsigned char *)((((uintptr_t)cr3) & 0x000ffffffffff000u));
+  return (unsigned char *)((((uintptr_t)cr3) & (PG_FRAME)) & (~PG_CBIT));
 }
 
 static inline unsigned long __sm_read_cr3(void) {
     unsigned long cr3;
     asm volatile("mov %%cr3, %0" : "=r" (cr3));
-    return (cr3 & addrmask);
+    return ((cr3 & addrmask)) & (~PG_CBIT);
 }
 
 // Rahul: Changed the name of rdmsr to avoid conflict with an existing macro
@@ -426,7 +426,10 @@ static inline unsigned long
 pageEntryToPA (page_entry_t page_entry_val, int is_to_frame) {
   /* Chuqi: remember to ignore C-bit for AMD-SEV */
   unsigned long pa = (page_entry_val & PG_FRAME) & (~PG_CBIT);
-  return (!is_to_frame) ? pa : pa >> PAGE_SHIFT;
+  if (is_to_frame)
+    return pa >> PAGE_SHIFT;
+  else
+    return pa;
 }
 
 /*

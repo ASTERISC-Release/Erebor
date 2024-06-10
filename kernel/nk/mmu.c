@@ -935,12 +935,10 @@ get_pgeVaddr (unsigned long vaddr, int *level) {
   page_entry_t *pge = 0;
   if (level)
 	*level = 0;
-  printk("DBG SVA: get_pgeVaddr: vaddr=0x%lx\n", vaddr);
   /* Get the base of the pml4 to traverse */
   unsigned long cr3 = (unsigned long) get_pagetable();
   if ((cr3 & 0xfffffffffffff000u) == 0)
 	return 0;
-  printk("DBG SVA: CR3 val=0x%lx\n", cr3);
   /* Get the VA of the pml4e for this vaddr */
   pgd_t *pgd = get_pgdVaddr ((unsigned char *)cr3, vaddr);  
   /* Had trouble with a NULL pointer dereference with pgd = 0; Switching to a fixed 4 level 
