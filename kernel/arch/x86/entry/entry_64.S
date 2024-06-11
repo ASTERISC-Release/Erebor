@@ -139,9 +139,13 @@ SYM_INNER_LABEL(entry_SYSCALL_64_after_hwframe, SYM_L_GLOBAL)
 #ifdef CONFIG_ENCOS_PKS
 	movq	$0x6e1, %rcx
 	rdmsr
-	andq	$0xFFFFFFFFFFFFFFF7, %rax  /* allow write access to Key 1 */
+	andq	$0xFFFFFFFFFFFFFFF7, %rax  /* allow permission to Key 1 */
 	wrmsr
-#endif	/* CONFIG_ENCOS_PKS */
+#elif defined(CONFIG_ENCOS_WP)
+	movq 	%cr0, %rax
+	andq 	$0xfffffffffffeffff, %rax  /* disable CR0.WP to allow permission */
+	movq 	%rax, %cr0
+#endif	/* CONFIG_ENCOS_PKS || CONFIG_ENCOS_WP */
 	movq	-8(%rsp), %rax
 	movq	-16(%rsp), %rdx
 	movq	-24(%rsp), %rcx
@@ -438,7 +442,11 @@ SYM_INNER_LABEL(entry_SYSCALL_64_after_hwframe_enclave, SYM_L_GLOBAL)
 	rdmsr
 	andq	$0xFFFFFFFFFFFFFFF7, %rax  /* allow write access to Key 1 */
 	wrmsr
-#endif	/* CONFIG_ENCOS_PKS */
+#elif defined(CONFIG_ENCOS_WP)
+	movq 	%cr0, %rax
+	andq 	$0xfffffffffffeffff, %rax  /* disable CR0.WP to allow permission */
+	movq 	%rax, %cr0
+#endif	/* CONFIG_ENCOS_PKS || CONFIG_ENCOS_WP */
 	movq	-8(%rsp), %rax
 	movq	-16(%rsp), %rdx
 	movq	-24(%rsp), %rcx
@@ -969,7 +977,11 @@ SYM_INNER_LABEL(swapgs_restore_regs_and_return_to_usermode, SYM_L_GLOBAL)
 	rdmsr
 	andq	$0xFFFFFFFFFFFFFFF7, %rax  /* allow write access to Key 1 */
 	wrmsr
-#endif	/* CONFIG_ENCOS_PKS */
+#elif defined(CONFIG_ENCOS_WP)
+	movq 	%cr0, %rax
+	andq 	$0xfffffffffffeffff, %rax  /* disable CR0.WP to allow permission */
+	movq 	%rax, %cr0
+#endif	/* CONFIG_ENCOS_PKS || CONFIG_ENCOS_WP */
 	movq	-8(%rsp), %rax
 	movq	-16(%rsp), %rdx
 	movq	-24(%rsp), %rcx

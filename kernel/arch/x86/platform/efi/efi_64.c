@@ -49,6 +49,9 @@
 #include <asm/pgalloc.h>
 #include <asm/sev.h>
 
+#ifdef CONFIG_ENCOS
+#include <sva/mmu.h>
+#endif
 /*
  * We allocate runtime services regions top-down, starting from -4G, i.e.
  * 0xffff_ffff_0000_0000 and limit EFI VA mapping space to 64G.
@@ -139,13 +142,22 @@ void efi_sync_low_kernel_mappings(void)
 	pud_k = pud_offset(p4d_k, 0);
 
 	num_entries = pud_index(EFI_VA_END);
-	memcpy(pud_efi, pud_k, sizeof(pud_t) * num_entries);
 
+	// dirty fix for sev boot for now
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+	sva_memcpy(pud_efi, pud_k, sizeof(pud_t) * num_entries);
+#else
+	memcpy(pud_efi, pud_k, sizeof(pud_t) * num_entries);
+#endif
 	pud_efi = pud_offset(p4d_efi, EFI_VA_START);
 	pud_k = pud_offset(p4d_k, EFI_VA_START);
 
 	num_entries = PTRS_PER_PUD - pud_index(EFI_VA_START);
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+	sva_memcpy(pud_efi, pud_k, sizeof(pud_t) * num_entries);
+#else
 	memcpy(pud_efi, pud_k, sizeof(pud_t) * num_entries);
+#endif
 }
 
 /*

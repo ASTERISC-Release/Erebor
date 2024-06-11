@@ -44,7 +44,7 @@
  * Let's assume the CVM has only few processes lol.
  * 16384 slots are enough for now.
  */
-#define MAX_GLOB_VM_PROCESS    16384
+#define MAX_GLOB_VM_PROCESS    65536 //16384
 
 /* use a global array, indexed by pid */
 typedef struct encos_enclave_last_claim_mem {
