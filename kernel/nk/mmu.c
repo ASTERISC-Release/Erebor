@@ -1481,8 +1481,9 @@ ptp_check(unsigned long pageEntryPA, unsigned long
 	return;
 
   /* Store the pte value for the page being traversed */
-  pageMapping = (pageEntryPA);
-  pageMapping_masked = (((pageEntryPA & PG_FRAME) & nx_mask) & cbit_mask);
+  pageMapping = pageEntryPA;
+  pageMapping_masked = pageEntryToPA(pageMapping, /*is_to_frame=*/0);
+//   printk("pageEntryPA=%lx, pageMapping=%lx, pageMapping_masked=%lx\n", pageEntryPA, pageMapping, pageMapping_masked);
   if (pageMapping_masked > memSize) {
 	LOG_WALK(1, "  \tJUNK (phys ==> %px\n)", pageMapping_masked);
 	return;

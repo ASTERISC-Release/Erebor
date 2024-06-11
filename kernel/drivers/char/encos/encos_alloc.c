@@ -66,6 +66,15 @@ encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id, bool is_fut
             encos_mem->alloc_type = 1;
             encos_mem->nr_pages = nr_pages;
 
+            /* Chuqi: 
+             * Memory clean is super important here. Because the libOS's all init memory
+             * is from this CMA allocator, all its expected init data section should be zeroed.
+             * 
+             * I observed the stupid spinlock init problem in AMD SEV due to didn't clear 
+             * the memory.
+             */
+            memset((void *)encos_mem->virt_kern, 0, nr_pages * PAGE_SIZE);
+
             // debug assert
             ENCOS_ASSERT((page + 1) == virt_to_page((void *)encos_mem->virt_kern + PAGE_SIZE), 
                 "page+1=0x%lx, virt_to_page=0x%lx.\n", 
@@ -79,16 +88,16 @@ encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id, bool is_fut
         }
     }
     /* buddy allocator */
-    encos_mem->virt_kern = (unsigned long)__get_free_pages(
-                                GFP_KERNEL | __GFP_RETRY_MAYFAIL, order);
-    if (!encos_mem->virt_kern) {
-        kfree(encos_mem);
-        goto fail;
-    }
-    encos_mem->phys = (unsigned long)virt_to_phys((void *)encos_mem->virt_kern);
-    encos_mem->length = length;
-    encos_mem->alloc_type = 0;
-    encos_mem->nr_pages = nr_pages;
+    // encos_mem->virt_kern = (unsigned long)__get_free_pages(
+    //                             GFP_KERNEL | __GFP_RETRY_MAYFAIL, order);
+    // if (!encos_mem->virt_kern) {
+    //     kfree(encos_mem);
+    //     goto fail;
+    // }
+    // encos_mem->phys = (unsigned long)virt_to_phys((void *)encos_mem->virt_kern);
+    // encos_mem->length = length;
+    // encos_mem->alloc_type = 0;
+    // encos_mem->nr_pages = nr_pages;
 succ:
     /* 
      * For enclave internal memory, we add them to the list.
@@ -179,8 +188,8 @@ encos_mem_t *encos_shmem_alloc(unsigned long length, unsigned long enc_id)
     encos_shmem_hash_entry_t *shmem_entry;
     int owner_pid = current->pid;
 
-    /* do an untrusted entry free. bad code. useless :( */
-    free_enclave_ut(owner_pid);
+    // /* do an untrusted entry free. bad code. useless :( */
+    // free_enclave_ut(owner_pid);
 
     shmem_chunk = encos_alloc(length, /*enc_id=*/enc_id, /*is_futex=*/false,
                               /*add_to_memlist=*/false);

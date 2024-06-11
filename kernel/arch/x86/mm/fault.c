@@ -1160,7 +1160,7 @@ bool fault_in_kernel_space(unsigned long address)
 static inline unsigned long read_cr3(void) {
     unsigned long cr3;
     asm volatile("mov %%cr3, %0" : "=r" (cr3));
-    return cr3;
+    return (cr3 & ~(1ull << 51)); // cbit debug
 }
 
 /*

@@ -151,7 +151,7 @@ SM_sched_in_userspace_prepare, struct pt_regs* regs)
     return;
 }
 EXPORT_SYMBOL(SM_sched_in_userspace_prepare);
-#endif
+#endif  /* CONFIG_ENCOS_SYSCALL_STACK */
 
 /* empty security monitor call */
 SECURE_WRAPPER(void, 

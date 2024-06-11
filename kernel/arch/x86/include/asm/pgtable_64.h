@@ -123,7 +123,7 @@ static inline pte_t native_ptep_get_and_clear(pte_t *xp)
 	return ret;	
 #else
 	return native_make_pte(xchg(&xp->pte, 0));
-#endif /* CONFIG_ENCOS && CONFIG_ENCOS_PKS */
+#endif /* CONFIG_ENCOS && CONFIG_ENCOS_MMU */
 #else
 	/* native_local_ptep_get_and_clear,
 	   but duplicated because of cyclic dependency */
