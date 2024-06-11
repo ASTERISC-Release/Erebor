@@ -2,3 +2,4 @@ vmdisk/
 *.log
 *.fd
 *.qcow2
+*.txt
