@@ -12,6 +12,14 @@ its use in implementing intra-kernel isolation through software emulation (QEMU)
 3. Finally, run the VM using `run-vm.s`.
     - Once the VM starts, you can run `cpuid | grep PKS` to check if PKS is available. 
 
+## Init the repo
+
+```bash
+git fetch
+git checkout arch-x86
+git submodule update --init --recursive
+```
+
 ## Useful Links
 
 - QEMU documentation for full-system emulation
