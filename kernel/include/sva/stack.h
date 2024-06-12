@@ -262,6 +262,8 @@ extern const uintptr_t SyscallSecureStackBase;
   "addq SecureStackBase, %rax\n"                                               \
   /* Save initial stack pointer in rcx */                                      \
   "movq %rsp, %rcx\n"                                                          \
+  /* Switch to secure stack! */                                                \
+  "movq %rax, %rsp\n"                                                          \
   /* Save original stack pointer for later restoration */                      \
   "pushq %rcx\n"                                                               \
   /* Restore spilled registers from original stack (rcx) */                    \
