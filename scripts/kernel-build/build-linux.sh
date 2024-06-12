@@ -5,17 +5,45 @@ pushd ../
     source .env
 popd
 
-INSTALL_CVM=""
 
-if [[ $1 == "native" ]]; then
-    LINUXFOLDER=$LINUXFOLDER_NATIVE
-elif [[ $1 == "tdx" ]]; then
-    INSTALL_CVM="tdx"
-fi
+INSTALL_CVM=""
+native=0
+
+# Function to display help message
+usage() {
+  echo "Usage: $0 [-n] [-c CVM]"
+  exit 1
+}
+
+# Parse command line arguments
+while getopts ":nc:" opt; do
+  case $opt in
+    n)
+      native=1
+      ;;
+    c)
+      INSTALL_CVM="$OPTARG"
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      usage
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      usage
+      ;;
+  esac
+done
+# Shift off the options and optional --.
+shift $((OPTIND - 1))
 
 log_info "Build CVM=$INSTALL_CVM"
 
 # Check that the folder exists
+if [ $native -eq 1 ]; then
+    LINUXFOLDER=$LINUXFOLDER_NATIVE
+fi
+
 if [ ! -f "../.env" ] || [ ! -d $LINUXFOLDER ]; then
     echo "Linux folder: $LINUXFOLDER"
     echo "Please get a kernel source first using ./obtain-linux.sh"
@@ -45,14 +73,23 @@ if [[ $INSTALL_CVM == "tdx" ]]; then
     export VMDISK_TDX
 fi
 
+# prepare sub-script params
+params=""
+if [ $native -eq 1 ]; then
+  params="$params -n"
+fi
+if [ -n "$INSTALL_CVM" ]; then
+  params="$params -c $INSTALL_CVM"
+fi
+
 # Install the kernel modules and image
 pushd ../common
     {
-        ./install-modules.sh $INSTALL_CVM
-        ./install-image.sh $INSTALL_CVM
+        ./install-modules.sh $params
+        ./install-image.sh $params
     } |& tee -a $CURDIR/build.kern.log
 popd
 
 # Execute this script only when we need to build kernel module
 # inside the guest.
-# ./copy-source.sh $1 |& tee -a $CURDIR/build.kern.log
+# ./copy-source.sh $@ |& tee -a $CURDIR/build.kern.log
