@@ -198,10 +198,10 @@ encos_mem_t *encos_shmem_alloc(unsigned long length, unsigned long enc_id)
         return NULL;
     }
 
-#ifdef ENCOS_DEBUG
-    log_info("Allocated shmem chunk succeed for owner_pid=%d, enc_id=%lu.\n",
-              owner_pid, enc_id);
-#endif 
+// #ifdef ENCOS_DEBUG
+//     log_info("Allocated shmem chunk succeed for owner_pid=%d, enc_id=%lu.\n",
+//               owner_pid, enc_id);
+// #endif 
 
     /* insert the entry to hash table */
     shmem_entry = (encos_shmem_hash_entry_t *)

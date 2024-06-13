@@ -174,7 +174,7 @@ SM_encos_enclave_assign, void)
         panic("GGWP!");
     }
 
-    log_info("Assigned enc_id=%d for pid=%d.\n", enc_id, pid);
+    // log_info("Assigned enc_id=%d for pid=%d.\n", enc_id, pid);
 
     encos_enclave_table[pid].enc_id = enc_id;
     encos_enclave_table[pid].activate = 0;
@@ -199,8 +199,8 @@ int is_internalmem)
     encos_enclave_entry_t *entry = current_enclave_entry();
     /* set up its CR3 */
     SVA_ASSERT(entry->enc_CR3, "The current enclave did not declare its CR3.\n");
-    log_info("[pid=%d,enc_id=%d] Start claiming memory.{uva=0x%lx -> pa=0x%lx, nr_pages=%lu} is_internal=%d.\n", 
-                current->pid, entry->enc_id, uva, pa, nr_pages, is_internalmem);
+    // log_info("[pid=%d,enc_id=%d] Start claiming memory.{uva=0x%lx -> pa=0x%lx, nr_pages=%lu} is_internal=%d.\n", 
+    //             current->pid, entry->enc_id, uva, pa, nr_pages, is_internalmem);
     /* Chuqi: 
      * for enclave internal memory, we should mark and
      * check their page table entries & page descriptors
@@ -268,7 +268,7 @@ SM_encos_enclave_act, int pid)
     }
     entry->activate = 1;
 
-    log_info("Activated enc_id=%d pid=%d.\n", entry->enc_id, pid);
+    // log_info("Activated enc_id=%d pid=%d.\n", entry->enc_id, pid);
     return entry->enc_id;
 }
 
@@ -285,7 +285,7 @@ SM_encos_enclave_exit, int pid)
     entry->enc_id = 0;
     entry->activate = 0;
 
-    log_info("Exited enc_id=%d pid=%d.\n", entry->enc_id, pid);
+    // log_info("Exited enc_id=%d pid=%d.\n", entry->enc_id, pid);
 
     return 0;
 }
@@ -316,7 +316,7 @@ SM_encos_vfork_child, int parent_pid, int child_pid)
     child->enc_CR3 = parent->enc_CR3;
     child->activate = 0;
 
-    log_info("Populated child enc_id=%d pid=%d.\n", parent->enc_id, child_pid);
+    // log_info("Populated child enc_id=%d pid=%d.\n", parent->enc_id, child_pid);
 }
 
 /* ===================================================
@@ -388,10 +388,10 @@ void *target_stack,
 unsigned int size)
 {
     /* TODO: we don't obfuscate anything right now */
-    printk("[pid=%d] pt_regs=0x%lx. orig_ax=0x%lx, copy_to_stack=0x%lx, cpy_size=%u.\n", 
-                current->pid,
-                (unsigned long)regs, regs->orig_ax, 
-                (unsigned long)target_stack, (unsigned int)sizeof(struct pt_regs));
+    // printk("[pid=%d] pt_regs=0x%lx. orig_ax=0x%lx, copy_to_stack=0x%lx, cpy_size=%u.\n", 
+    //             current->pid,
+    //             (unsigned long)regs, regs->orig_ax, 
+    //             (unsigned long)target_stack, (unsigned int)sizeof(struct pt_regs));
     /* Chuqi todo: mask and restore sensitive information */
     memcpy(target_stack, regs, sizeof(struct pt_regs));
     return;

@@ -68,6 +68,7 @@
  *****************************************************************************
  */
 extern void sva_stack_test (void);
+extern void bench_encos_write_msrl(unsigned int msr, unsigned long val);
 extern void sva_mm_load_pgtable (void * pg);
 extern void sva_declare_l1_page (uintptr_t frame);
 extern void sva_declare_l2_page (uintptr_t frame);
