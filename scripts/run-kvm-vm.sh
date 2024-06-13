@@ -39,7 +39,7 @@ sudo qemu-system-x86_64 -enable-kvm \
                 -smp 8,maxcpus=8\
                 -m $VMMEM \
                 -nographic -no-reboot \
-                -netdev user,id=vmnic,hostfwd=tcp::8000-:22\
+                -netdev user,id=vmnic,hostfwd=tcp::8001-:22\
                 -device e1000,netdev=vmnic,romfile= \
                 -drive file=$VMDISK,if=none,id=disk0,format=qcow2 \
                 -device virtio-scsi-pci,id=scsi0,disable-legacy=on,iommu_platform=true \
