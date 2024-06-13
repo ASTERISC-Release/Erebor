@@ -92,4 +92,4 @@ popd
 
 # Execute this script only when we need to build kernel module
 # inside the guest.
-# ./copy-source.sh $@ |& tee -a $CURDIR/build.kern.log
+#./copy-source.sh $@ |& tee -a $CURDIR/build.kern.log
