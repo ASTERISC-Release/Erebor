@@ -1119,16 +1119,14 @@ fini:
 /*
  * Function: sva_write_cr0
  *
- * Description:
- *  SVA Intrinsic to write a value in cr0. We need to make sure write protection
- *  is enabled. 
+ * Chuqi: this is only for performance test now.
  */
 SECURE_WRAPPER(void,
 sva_write_cr0, unsigned long val) {
-	val |= CR0_WP;
+	// val |= CR0_WP;
 	_load_cr0(val);
-	NK_ASSERT_PERF ((val & CR0_WP), "SVA: attempt to clear the CR0.WP bit: %x.",
-		val);
+	// NK_ASSERT_PERF ((val & CR0_WP), "SVA: attempt to clear the CR0.WP bit: %x.",
+	// 	val);
 }
 
 /*
@@ -1157,6 +1155,22 @@ SECURE_WRAPPER(void, sva_write_cr4, unsigned long val) {
 // void
 // sva_load_msr(u_int msr, uint64_t val) 
 void encos_write_msrl(unsigned int msr, unsigned long val)
+{
+
+  if(msr == MSR_REG_EFER) {
+	  val |= EFER_NXE;
+  }
+  _wrmsr(msr, val);
+  /*
+	* ENCOS: the outer kernel will always execute the below security checks.
+	*/
+  SVA_ASSERT(!((msr == MSR_REG_EFER) && !(val & EFER_NXE)),
+		  "ENCOS: attempt to clear the EFER.NXE bit: %x.", val);
+  SVA_ASSERT(msr != MSR_REG_PKRS, "ENCOS: OS attempts to write to PKRS.");
+}
+
+SECURE_WRAPPER(void, bench_encos_write_msrl,
+unsigned int msr, unsigned long val)
 {
 
   if(msr == MSR_REG_EFER) {

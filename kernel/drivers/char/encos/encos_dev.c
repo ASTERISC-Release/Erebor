@@ -26,6 +26,8 @@
 #include <linux/encos.h>
 #include "encos_alloc.h"
 
+// chuqi: micro perf
+#include "encos_perf.h"
 
 struct miscdevice *misc;
 struct mutex encos_dev_mlock;
@@ -252,6 +254,7 @@ static struct file_operations encos_dev_ops = {
     .mmap = encos_mmap,
 };
 
+
 static int __init encos_dev_init(void)
 {
     int rvl;
@@ -282,6 +285,9 @@ static int __init encos_dev_init(void)
     /* finish */
     log_info("Initialized dev: %s (mode=%d).\n",
              ENCOS_DEV_NAME, misc->mode);
+
+    /* perf_test */
+    encos_micro_perf();
     return 0;
 }
 
