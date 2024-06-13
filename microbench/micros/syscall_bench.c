@@ -25,5 +25,15 @@ int main(void)
     avg /= N_TIMES;
     printf("SYSCALL SYS_NI avg cycle=%lu, syscall ret=%d\n", 
             avg, ret);
+
+    /* hypercall overhead */
+    avg = 0;
+    for (i = 0; i < N_TIMES; i++) {
+        tsc = rdtscp();
+        ret = (int)hypercall_3(__NR_VMCALL_ni, 0, 0, 0);
+        avg += (rdtscp() - tsc);
+    }
+    avg /= N_TIMES;
+    printf("HYPERCALL VMCALL_NI avg cycle: %llu\n", avg);
     return 0;
 }

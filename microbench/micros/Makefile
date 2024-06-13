@@ -10,6 +10,9 @@ UL_OBJ = $(patsubst %.c, %.o, $(UL_SRC))
 obj-m += smc_bench.o
 CFLAGS_smc_bench.o := -Wall -I$(PWD)/	
 
+obj-m += cr_msr_bench.o
+CFLAGS_cr_msr_bench.o := -Wall -I$(PWD)/
+
 EXEC := syscall_bench
 
 all: $(EXEC)
