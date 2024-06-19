@@ -35,7 +35,7 @@ fi
 sudo qemu-system-x86_64 \
     -accel kvm \
     -cpu host,-pdpe1gb \
-    -smp 32,maxcpus=32 \
+    -smp 8,maxcpus=8 \
     -m $VMMEM \
     -no-reboot \
     -nographic \

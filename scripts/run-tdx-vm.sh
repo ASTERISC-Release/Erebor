@@ -48,22 +48,12 @@ PROCESS_NAME=td
 VMMVM=24G
 
 #stty intr ^]
-
-# -name ${PROCESS_NAME},process=${PROCESS_NAME},debug-threads=on \
-# approach 1 : talk to QGS directly
-
-# -netdev user,id=nic0_td,hostfwd=tcp::${SSH_PORT}-:22 \
-# -device virtio-net-pci,netdev=nic0_td \
-# -drive file=${VMDISK_TDX},if=none,id=virtio-disk0 \
-# -device virtio-blk-pci,drive=virtio-disk0 \
-# ${QUOTE_ARGS} \
-		   
 QUOTE_ARGS="-device vhost-vsock-pci,guest-cid=3"
 qemu-system-x86_64 -D /tmp/tdx-guest-td.log \
 		   -accel kvm \
 		   -m $VMMVM \
            -cpu host,-pdpe1gb \
-           -smp 32,maxcpus=32 \
+           -smp 8,maxcpus=8 \
 		   -name ${PROCESS_NAME},process=${PROCESS_NAME}\
 		   -object tdx-guest,id=tdx \
 		   -machine q35,kernel_irqchip=split,confidential-guest-support=tdx,hpet=off \

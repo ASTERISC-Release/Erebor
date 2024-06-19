@@ -443,13 +443,13 @@ void __no_profile native_write_cr4(unsigned long val)
 	unsigned long bits_changed = 0;
 
 set_register:
-#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_PKS)
+// #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_PKS)
 	/* secure write cr4 */
-	sva_write_cr4(val);
-#else
-	// val |= (1 << 24);
+	// sva_write_cr4(val);
+// #else
+	val |= (1 << 24);
 	asm volatile("mov %0,%%cr4": "+r" (val) : : "memory");
-#endif
+// #endif
 	if (static_branch_likely(&cr_pinning)) {
 		if (unlikely((val & cr4_pinned_mask) != cr4_pinned_bits)) {
 			bits_changed = (val & cr4_pinned_mask) ^ cr4_pinned_bits;
