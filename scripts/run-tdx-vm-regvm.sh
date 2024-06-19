@@ -59,7 +59,7 @@ qemu-system-x86_64 -D /tmp/tdx-guest-td.log \
 		   -accel kvm \
 		   -m $VMMVM \
            -cpu host,-pdpe1gb \
-           -smp 32,maxcpus=32 \
+           -smp 8,maxcpus=8 \
 		   -name ${PROCESS_NAME},process=${PROCESS_NAME}\
 		   -machine q35,kernel_irqchip=split,hpet=off \
 		   -bios ${TDVF_FIRMWARE} \
