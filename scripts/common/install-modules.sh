@@ -2,10 +2,12 @@
 
 pushd ../ && source .env && popd
 
-log_info "Executing install-modules.sh $@"
+PARAMS="$@"
+log_info "Executing install-modules.sh ${PARAMS}"
 
 # Load the disk
-./load-vmdisk.sh $@
+./load-vmdisk.sh ${PARAMS}
+log_info "HELLO params: ${PARAMS}"
 
 INSTALL_CVM=""
 native=0
@@ -41,10 +43,16 @@ if [ $native -eq 1 ]; then
     LINUXFOLDER=$LINUXFOLDER_NATIVE
 fi
 
+INSTALL_CVM=$(echo "$INSTALL_CVM" | xargs)
+
 if [[ $INSTALL_CVM == "tdx" ]]; then
   VMDISK=$VMDISK_TDX
   VMDISKMOUNT=$VMDISKMOUNT_TDX
+  echo "vmdisk_tdx=$VMDISK_TDX"
+  echo "VMDISK=$VMDISK"
+  echo "VMDISKMOUNT=$VMDISKMOUNT_TDX"
 fi
+
 
 # Solving Linux versioning issues
 IFS='.'
@@ -64,4 +72,4 @@ pushd $LINUXFOLDER
 popd
 
 # Unload the disk
-./unload-vmdisk.sh $@
+./unload-vmdisk.sh ${PARAMS}
