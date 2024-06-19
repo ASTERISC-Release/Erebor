@@ -1,7 +1,8 @@
 #!/bin/bash -e
 
 # Set up the required environment variables
-./load-vmdisk.sh $@
+PARAMS="$@"
+./load-vmdisk.sh $PARAMS
 
 pushd ../ && source .env && popd
 
@@ -59,4 +60,4 @@ sudo mkdir $VMDISKMOUNT/lib/modules/$LINUXVERSION/build
 sudo rsync -av --info=progress2 $LINUXFOLDER/* $VMDISKMOUNT/lib/modules/$LINUXVERSION/build
 # sudo cp -r $LINUXFOLDER/* $VMDISKMOUNT/lib/modules/$LINUXVERSION/build
 
-./unload-vmdisk.sh $@
+./unload-vmdisk.sh $PARAMS

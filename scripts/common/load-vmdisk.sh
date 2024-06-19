@@ -3,6 +3,8 @@
 # source environment variables
 pushd ../ && source .env && popd
 
+PARAMS="$@"
+
 INSTALL_CVM=""
 native=0
 # Function to display help message
@@ -37,14 +39,16 @@ if [ $native -eq 1 ]; then
     LINUXFOLDER=$LINUXFOLDER_NATIVE
 fi
 
+INSTALL_CVM=$(echo "$INSTALL_CVM" | xargs)
 if [[ $INSTALL_CVM == "tdx" ]]; then
   VMDISK=$VMDISK_TDX
   VMDISKMOUNT=$VMDISKMOUNT_TDX
 fi
 
 # unload first, if disk was loaded
-./unload-vmdisk.sh $@ || true
+./unload-vmdisk.sh ${PARAMS} || true
 
+log_info "load-vmdisk.sh ${PARAMS} (install_CVM=${INSTALL_CVM})"
 log_info "Mounting VMDISK=$VMDISKMOUNT"
 
 # install the nbd module
@@ -65,7 +69,7 @@ sudo fdisk /dev/nbd0 -l
 # mount the simple drives
 sudo mount /dev/nbd0p1 $VMDISKMOUNT
 # tdx ubuntu 24.04 image has to mount the /boot separately
-if [[ $1 == "tdx" ]]; then
+if [[ $INSTALL_CVM == "tdx" ]]; then
 	sudo mount /dev/nbd0p16 $VMDISKMOUNT/boot || true
 fi
 sudo mount /dev/nbd0p15 $VMDISKMOUNT/boot/efi || true

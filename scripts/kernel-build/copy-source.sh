@@ -13,6 +13,8 @@ usage() {
   exit 1
 }
 
+PARAMS="$@"
+
 # Parse command line arguments
 while getopts ":nc:" opt; do
   case $opt in
@@ -59,5 +61,5 @@ export LINUXVERSION
 
 # Install the kernel modules and image
 pushd ../common
-    ./copy-build-source.sh $@
+    ./copy-build-source.sh $PARAMS
 popd

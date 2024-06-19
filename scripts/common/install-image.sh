@@ -2,10 +2,11 @@
 
 pushd ../ && source .env && popd
 
-log_info "Executing install-image.sh $@"
+PARAMS="$@"
+log_info "Executing install-image.sh ${PARAMS}"
 
 # Load the vm image (if not currently loaded)
-./load-vmdisk.sh $@
+./load-vmdisk.sh ${PARAMS}
 
 INSTALL_CVM=""
 native=0
@@ -46,6 +47,16 @@ if [[ $INSTALL_CVM == "tdx" ]]; then
   VMDISKMOUNT=$VMDISKMOUNT_TDX
 fi
 
+INSTALL_CVM=$(echo "$INSTALL_CVM" | xargs) # check later what happened
+
+if [[ $INSTALL_CVM == "tdx" ]]; then
+  VMDISK=$VMDISK_TDX
+  VMDISKMOUNT=$VMDISKMOUNT_TDX
+  echo "vmdisk_tdx=$VMDISK_TDX"
+  echo "VMDISK=$VMDISK"
+  echo "VMDISKMOUNT=$VMDISKMOUNT_TDX"
+fi
+
 # Install the kernel to the vm image
 pushd $LINUXFOLDER
   log_info "Installing image in $VMDISKMOUNT/boot"
@@ -71,4 +82,4 @@ sudo chroot $VMDISKMOUNT sudo update-initramfs -c -k $LINUXVERSION || true
 # sudo chroot $VMDISKMOUNT sudo update-grub || true
 
 # Unload the vm image
-./unload-vmdisk.sh $@
+./unload-vmdisk.sh ${PARAMS}

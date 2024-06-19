@@ -15,6 +15,8 @@ usage() {
   exit 1
 }
 
+PARAMS="$@"
+
 # Parse command line arguments
 while getopts ":nc:" opt; do
   case $opt in
@@ -73,23 +75,15 @@ if [[ $INSTALL_CVM == "tdx" ]]; then
     export VMDISK_TDX
 fi
 
-# prepare sub-script params
-params=""
-if [ $native -eq 1 ]; then
-  params="$params -n"
-fi
-if [ -n "$INSTALL_CVM" ]; then
-  params="$params -c $INSTALL_CVM"
-fi
 
 # Install the kernel modules and image
 pushd ../common
     {
-        ./install-modules.sh $params
-        ./install-image.sh $params
+        ./install-modules.sh "$PARAMS"
+        ./install-image.sh "$PARAMS"
     } |& tee -a $CURDIR/build.kern.log
 popd
 
 # Execute this script only when we need to build kernel module
 # inside the guest.
-#./copy-source.sh $@ |& tee -a $CURDIR/build.kern.log
+#./copy-source.sh $PARAMS |& tee -a $CURDIR/build.kern.log

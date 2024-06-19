@@ -3,6 +3,8 @@
 # source environment variables
 pushd ../ && source .env && popd
 
+PARAMS="$@"
+
 INSTALL_CVM=""
 native=0
 # Function to display help message
@@ -37,10 +39,15 @@ if [ $native -eq 1 ]; then
     LINUXFOLDER=$LINUXFOLDER_NATIVE
 fi
 
+INSTALL_CVM=$(echo "$INSTALL_CVM" | xargs)
 if [[ $INSTALL_CVM == "tdx" ]]; then
   VMDISK=$VMDISK_TDX
   VMDISKMOUNT=$VMDISKMOUNT_TDX
 fi
+
+#debug 
+log_info "unload-vmdisk.sh ${PARAMS} (install_CVM=${INSTALL_CVM})"
+log_info "Unmounting VMDISK=$VMDISKMOUNT"
 
 # check if folder is empty
 if [ -z "$(ls -A $VMDISKMOUNT)" ]; 
@@ -49,17 +56,16 @@ then
    exit
 fi
 
-log_info "Unmounting VMDISK=$VMDISKMOUNT"
 
 # unmount the disk
 sudo umount $VMDISKMOUNT/boot/efi || true
-if [[ $1 == "tdx" ]]; then
+if [[ $INSTALL_CVM == "tdx" ]]; then
 	sudo umount $VMDISKMOUNT/boot || true
 fi
 sudo umount $VMDISKMOUNT/dev/pts || true
 sudo umount $VMDISKMOUNT/dev || true
 # tdx ubuntu 24.04
-if [[ $1 == "tdx" ]]; then
+if [[ $INSTALL_CVM == "tdx" ]]; then
 	sudo umount $VMDISKMOUNT/sys/firmware/efi/efivars || true
 fi
 sudo umount $VMDISKMOUNT/sys || true
