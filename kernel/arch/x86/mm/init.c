@@ -528,12 +528,14 @@ static void add_pfn_range_mapped(unsigned long start_pfn, unsigned long end_pfn)
 bool pfn_range_is_mapped(unsigned long start_pfn, unsigned long end_pfn)
 {
 	int i;
-
+	// printk("in pfn_range_is_mapped\n");
 	for (i = 0; i < nr_pfn_mapped; i++)
 		if ((start_pfn >= pfn_mapped[i].start) &&
-		    (end_pfn <= pfn_mapped[i].end))
-			return true;
-
+		    (end_pfn <= pfn_mapped[i].end)) {
+				// printk("return true;");
+				return true;
+			}
+	// printk("return false;");
 	return false;
 }
 
@@ -852,7 +854,7 @@ void __init poking_init(void)
 	 * section, which might cause allocation to fail.
 	 */
 	
-#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU) && defined(CONFIG_ENCOS_WP)
 	/* renew a fresh state of the poking_mm's pgdval */
 	// chuqi: dirty fix here for SEV now.
 	pgd_offset(poking_mm, poking_addr)->pgd = 0;
@@ -952,6 +954,7 @@ void free_init_pages(const char *what, unsigned long begin, unsigned long end)
 
 		free_reserved_area((void *)begin, (void *)end,
 				   POISON_FREE_INITMEM, what);
+		printk("Debug: After free_reserved_area\n");
 	}
 }
 
@@ -967,6 +970,8 @@ void free_kernel_image_pages(const char *what, void *begin, void *end)
 	unsigned long len_pages = (end_ul - begin_ul) >> PAGE_SHIFT;
 
 	free_init_pages(what, begin_ul, end_ul);
+
+	printk("debug: after free_init_pages\n");
 
 	/*
 	 * PTI maps some of the kernel into userspace.  For performance,
@@ -1010,6 +1015,7 @@ void __init free_initrd_mem(unsigned long start, unsigned long end)
 	 * So here We can do PAGE_ALIGN() safely to get partial page to be freed
 	 */
 	free_init_pages("initrd", start, PAGE_ALIGN(end));
+	printk("Debug: free_initrd_mem: After free_init_pages\n");
 }
 #endif
 

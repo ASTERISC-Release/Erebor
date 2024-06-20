@@ -1002,6 +1002,7 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
 static int should_split_large_page(pte_t *kpte, unsigned long address,
 				   struct cpa_data *cpa)
 {
+	printk("Debug: should_split_large_page\n");
 	int do_split;
 
 	if (cpa->force_split)
@@ -1185,6 +1186,7 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
 static int split_large_page(struct cpa_data *cpa, pte_t *kpte,
 			    unsigned long address)
 {
+	printk("Debug: split_large_page\n");
 	struct page *base;
 
 	if (!debug_pagealloc_enabled())
@@ -1644,6 +1646,7 @@ static int __change_page_attr(struct cpa_data *cpa, int primary)
 
 	address = __cpa_addr(cpa, cpa->curpage);
 repeat:
+	// printk("check 29\n");
 	kpte = _lookup_address_cpa(cpa, address, &level);
 	if (!kpte)
 		return __cpa_process_fault(cpa, address, primary);
@@ -1663,17 +1666,21 @@ repeat:
 
 		cpa_inc_4k_install();
 		/* Hand in lpsize = 0 to enforce the protection mechanism */
+		// printk("check 30\n");
 		new_prot = static_protections(new_prot, address, pfn, 1, 0,
 					      CPA_PROTECT);
 
+		// printk("check 31\n");
 		new_prot = verify_rwx(old_prot, new_prot, address, pfn, 1);
 
+		// printk("check 32\n");
 		new_prot = pgprot_clear_protnone_bits(new_prot);
 		/*
 		 * We need to keep the pfn from the existing PTE,
 		 * after all we're only going to change it's attributes
 		 * not the memory it points to
 		 */
+		// printk("check 33\n");
 		new_pte = pfn_pte(pfn, new_prot);
 		cpa->pfn = pfn;
 		/*
@@ -1687,6 +1694,7 @@ repeat:
 		if (pte_val(old_pte) != pte_val(new_pte)) {
 #endif
 			set_pte_atomic(kpte, new_pte);
+			// printk("check 34\n");
 			cpa->flags |= CPA_FLUSHTLB;
 		}
 		cpa->numpages = 1;
@@ -1724,22 +1732,27 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int primary);
  */
 static int cpa_process_alias(struct cpa_data *cpa)
 {
+	// printk("check 45\n");
 	struct cpa_data alias_cpa;
 	unsigned long laddr = (unsigned long)__va(cpa->pfn << PAGE_SHIFT);
 	unsigned long vaddr;
 	int ret;
 
-	if (!pfn_range_is_mapped(cpa->pfn, cpa->pfn + 1))
+	if (!pfn_range_is_mapped(cpa->pfn, cpa->pfn + 1)) {
+		printk("!pfn_range_is_mapped\n");
 		return 0;
+	}
 
 	/*
 	 * No need to redo, when the primary call touched the direct
 	 * mapping already:
 	 */
+	// printk("check 46\n");
 	vaddr = __cpa_addr(cpa, cpa->curpage);
+	// printk("check 47\n");
 	if (!(within(vaddr, PAGE_OFFSET,
 		    PAGE_OFFSET + (max_pfn_mapped << PAGE_SHIFT)))) {
-
+		printk("check 50\n");
 		alias_cpa = *cpa;
 		alias_cpa.vaddr = &laddr;
 		alias_cpa.flags &= ~(CPA_PAGES_ARRAY | CPA_ARRAY);
@@ -1754,6 +1767,7 @@ static int cpa_process_alias(struct cpa_data *cpa)
 		cpa->force_flush_all = 1;
 
 		ret = __change_page_attr_set_clr(&alias_cpa, 0);
+		printk("check 51\n");
 		if (ret)
 			return ret;
 	}
@@ -1766,6 +1780,7 @@ static int cpa_process_alias(struct cpa_data *cpa)
 	 */
 	if (!within(vaddr, (unsigned long)_text, _brk_end) &&
 	    __cpa_pfn_in_highmap(cpa->pfn)) {
+		printk("check 52\n");
 		unsigned long temp_cpa_vaddr = (cpa->pfn << PAGE_SHIFT) +
 					       __START_KERNEL_map - phys_base;
 		alias_cpa = *cpa;
@@ -1788,9 +1803,9 @@ static int cpa_process_alias(struct cpa_data *cpa)
 		 * return value.
 		 */
 		__change_page_attr_set_clr(&alias_cpa, 0);
+		printk("check 53\n");
 	}
 #endif
-
 	return 0;
 }
 
@@ -1800,12 +1815,16 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int primary)
 	unsigned long rempages = numpages;
 	int ret = 0;
 
+	printk("Debug: __change_page_attr_set_clr\n");
+
 	/*
 	 * No changes, easy!
 	 */
 	if (!(pgprot_val(cpa->mask_set) | pgprot_val(cpa->mask_clr)) &&
 	    !cpa->force_split)
 		return ret;
+
+	printk("check 17\n");
 
 	while (rempages) {
 		/*
@@ -1827,7 +1846,9 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int primary)
 			goto out;
 
 		if (primary && !(cpa->flags & CPA_NO_CHECK_ALIAS)) {
+			// printk("cpa_process_alias\n");
 			ret = cpa_process_alias(cpa);
+			// printk("cpa_process_alias done\n");
 			if (ret)
 				goto out;
 		}
@@ -1843,6 +1864,7 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int primary)
 	}
 
 out:
+	printk("check 18\n");
 	/* Restore the original numpages */
 	cpa->numpages = numpages;
 	return ret;
@@ -2186,6 +2208,7 @@ int set_memory_global(unsigned long addr, int numpages)
  */
 static int __set_memory_enc_pgtable(unsigned long addr, int numpages, bool enc)
 {
+	printk("Debug: __set_memory_enc_pgtable\n");
 	pgprot_t empty = __pgprot(0);
 	struct cpa_data cpa;
 	int ret;
@@ -2213,7 +2236,9 @@ static int __set_memory_enc_pgtable(unsigned long addr, int numpages, bool enc)
 	if (!x86_platform.guest.enc_status_change_prepare(addr, numpages, enc))
 		return -EIO;
 
+	printk("check 14\n");
 	ret = __change_page_attr_set_clr(&cpa, 1);
+	printk("check 15\n");
 
 	/*
 	 * After changing the encryption attribute, we need to flush TLBs again
@@ -2235,9 +2260,10 @@ static int __set_memory_enc_pgtable(unsigned long addr, int numpages, bool enc)
 
 static int __set_memory_enc_dec(unsigned long addr, int numpages, bool enc)
 {
+	printk("check 11\n");
 	if (cc_platform_has(CC_ATTR_MEM_ENCRYPT))
 		return __set_memory_enc_pgtable(addr, numpages, enc);
-
+	printk("check 12\n");
 	return 0;
 }
 
