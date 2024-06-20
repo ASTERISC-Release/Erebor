@@ -1631,7 +1631,10 @@ init_protected_pages (unsigned long startVA, unsigned long endVA, enum page_type
 	  pgDesc->type = type;
 
 	  /* ENCOS: Set WP/PKS for the virtual address. */
+// #if defined(ENCOS)
+	//   printk("set_page_protection va = %lx\n", page);
 	  set_page_protection(page, /*should_protect=*/1);
+// #endif
   }
 }
 
@@ -1725,6 +1728,7 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
   MMULock_Acquire();
   /* Hello World! */
   LOG_PRINTK("[.] Initializing: SECURE memory management unit \n");
+  printk("Debug\n");
 
   // debug SEV here
 //   printk("VA 0xffff8881800462a8's val=0x%lx.\n", *(unsigned long*)0xffff8881800462a8);
@@ -1741,6 +1745,7 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
   LOG_PRINTK("_svastart va=0x%lx pa=0x%lx, _svaend va=0x%lx pa=0x%lx\n", 
 			  _svastart, __pa(_svastart), _svaend, __pa(_svaend));
   init_protected_pages((unsigned long) _svastart, (unsigned long) _svaend, PG_SVA);
+  printk("Done\n");
 
   LOG_PRINTK("__svamem_text_start va=0x%lx pa=0x%lx, __svamem_text_end va=0x%lx pa=0x%lx\n", 
 			__svamem_text_start, __pa(__svamem_text_start), __svamem_text_end, __pa(__svamem_text_end));
@@ -1753,7 +1758,7 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
   unsigned long kpgdPA = get_pagetable(); //(sva_get_current_pgd() << 12);
   printk("sva_mmu_init KPGDPA: 0x%lx\n", kpgdPA);
   
-  declare_ptp_and_walk_pt_entries(kpgdPA, NP4DEPG, PG_L4);
+  declare_ptp_and_walk_pt_entries(kpgdPA, NPGDEPG, PG_L5);
   
   /* Now load the initial value of the cr3 to complete kernel init */
   /* ENCOS: Complete. */

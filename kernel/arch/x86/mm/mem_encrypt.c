@@ -78,11 +78,15 @@ static void print_mem_encrypt_feature_info(void)
 /* Architecture __weak replacement functions */
 void __init mem_encrypt_init(void)
 {
+	printk("check 6\n");
 	if (!cc_platform_has(CC_ATTR_MEM_ENCRYPT))
 		return;
 
+	printk("check 7\n");
 	/* Call into SWIOTLB to update the SWIOTLB DMA buffers */
 	swiotlb_update_mem_attributes();
+	printk("check 8\n");
 
 	print_mem_encrypt_feature_info();
+	printk("check 9\n");
 }

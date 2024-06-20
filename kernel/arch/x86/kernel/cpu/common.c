@@ -2415,6 +2415,7 @@ void __init arch_cpu_finalize_init(void)
 	fpu__init_cpu();
 
 	alternative_instructions();
+	printk("Debug: After Altrenative Instructions\n");
 
 	if (IS_ENABLED(CONFIG_X86_64)) {
 		/*
@@ -2430,6 +2431,8 @@ void __init arch_cpu_finalize_init(void)
 	} else {
 		fpu__init_check_bugs();
 	}
+	
+	printk("Check 4\n");
 
 	/*
 	 * This needs to be called before any devices perform DMA
@@ -2440,4 +2443,5 @@ void __init arch_cpu_finalize_init(void)
 	 * hypercalls work when the SWIOTLB bounce buffers are decrypted.
 	 */
 	mem_encrypt_init();
+	printk("Check 5\n");
 }

@@ -1656,13 +1656,16 @@ void __init alternative_instructions(void)
 		free_init_pages("SMP alternatives",
 				(unsigned long)__smp_locks,
 				(unsigned long)__smp_locks_end);
+		printk("Debug; SMP alternatives: after free_init_pages\n");
 	}
 #endif
-
+	printk("Check1\n");
 	restart_nmi();
 	alternatives_patched = 1;
+	printk("Check2\n");
 
 	alt_reloc_selftest();
+	printk("Check3\n");
 }
 
 /**

@@ -260,7 +260,9 @@ void __init swiotlb_update_mem_attributes(void)
 	if (!mem->nslabs || mem->late_alloc)
 		return;
 	bytes = PAGE_ALIGN(mem->nslabs << IO_TLB_SHIFT);
+	printk("check 10\n");
 	set_memory_decrypted((unsigned long)mem->vaddr, bytes >> PAGE_SHIFT);
+	printk("check 11\n");
 }
 
 static void swiotlb_init_io_tlb_pool(struct io_tlb_pool *mem, phys_addr_t start,
