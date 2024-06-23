@@ -885,6 +885,11 @@ void start_kernel(void)
 	// extern char _etext[]; 
 	// sva_mmu_init((uintptr_t)init_top_pgt, 512, (uintptr_t)read_cr3(), (uintptr_t)_stext, (uintptr_t)_etext);
 
+	if(pgtable_l5_enabled())
+		printk("L5 paging enabled\n");
+	else
+		printk("L4 paging enabled\n");
+
 	set_task_stack_end_magic(&init_task);
 	smp_setup_processor_id();
 	debug_objects_early_init();

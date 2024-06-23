@@ -426,11 +426,11 @@ static inline pgd_t *_pgd_alloc(void)
 					 PGD_ALLOCATION_ORDER);
 	// printk("pgd_alloc: pgd VA=0x%lx, pgd->pgd=0x%lx\n", 
 	// 			(unsigned long)new, (unsigned long)new->pgd);
-#if 0 /* chuqi: check, we don't support 5-level paging now. actually to add back this soon */
+// #if 0 /* chuqi: check, we don't support 5-level paging now. actually to add back this soon */
 	sva_remove_page(__pa(new));
 	/* chuqi: to add back l4 pgd declare */
 	sva_declare_l4_page(__pa(new));
-#endif
+// #endif
 	return new;	
 }
 
