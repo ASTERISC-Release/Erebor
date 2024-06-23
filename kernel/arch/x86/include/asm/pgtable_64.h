@@ -205,11 +205,11 @@ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
 	// Rahul: Skipping for now, since 5-level pagin is enabled
 	pgd = pti_set_user_pgtbl((pgd_t *)p4dp, pgd);
 // Chuqi: Actually should check later and add back
-// #if !defined(__EARLY_BOOT) && defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
-// 	sva_update_l4_mapping(p4dp, (native_make_p4d(native_pgd_val(pgd))).pgd.pgd  );
-// #else
+#if !defined(__EARLY_BOOT) && defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+	sva_update_l4_mapping(p4dp, (native_make_p4d(native_pgd_val(pgd))).pgd.pgd  );
+#else
 	WRITE_ONCE(*p4dp, native_make_p4d(native_pgd_val(pgd)));
-// #endif
+#endif
 }
 
 static inline void native_p4d_clear(p4d_t *p4d)

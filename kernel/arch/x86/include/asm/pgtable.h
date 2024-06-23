@@ -25,7 +25,7 @@
 #include <linux/page_table_check.h>
 
 #ifdef CONFIG_ENCOS
-#include <sva/mmu.h>
+#include <sva/mmu_intrinsics.h>
 #endif
 
 extern pgd_t early_top_pgt[PTRS_PER_PGD];
@@ -1491,22 +1491,22 @@ static inline p4d_t *user_to_kernel_p4dp(p4d_t *p4dp)
 static inline void clone_pgd_range(pgd_t *dst, pgd_t *src, int count)
 {
 	// chuqi: check this later
-// #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
-// 	sva_memcpy(dst, src, count * sizeof(pgd_t));
-// #else
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+	sva_memcpy(dst, src, count * sizeof(pgd_t));
+#else
 	memcpy(dst, src, count * sizeof(pgd_t));
-// #endif	/* CONFIG_ENCOS */
+#endif	/* CONFIG_ENCOS */
 #ifdef CONFIG_PAGE_TABLE_ISOLATION
 	if (!static_cpu_has(X86_FEATURE_PTI))
 		return;
 	/* Clone the user space pgd as well */
-// #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
-// 	sva_memcpy(kernel_to_user_pgdp(dst), kernel_to_user_pgdp(src),
-// 	       count * sizeof(pgd_t));
-// #else
+#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
+	sva_memcpy(kernel_to_user_pgdp(dst), kernel_to_user_pgdp(src),
+	       count * sizeof(pgd_t));
+#else
 	memcpy(kernel_to_user_pgdp(dst), kernel_to_user_pgdp(src),
 	       count * sizeof(pgd_t));
-// #endif	/* CONFIG_ENCOS */
+#endif	/* CONFIG_ENCOS */
 #endif
 }
 

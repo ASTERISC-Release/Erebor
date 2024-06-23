@@ -231,6 +231,7 @@ page_desc_t * getPageDescPtr(unsigned long mapping) {
   if(frameIndex  >= numPageDescEntries) {
 	/* Basically, this is to deal with the kernel's junk mappings */
 	// LOG_PRINTK("[PANIC]: SVA: getPageDescPtr: %lx %lx %lx\n", mapping, frameIndex, numPageDescEntries);
+	printk("Out of bounds mapping = 0x%lx, frameIndex = %lx\n", mapping, frameIndex);
 	return NULL;
   }
   return page_desc + frameIndex;
@@ -583,7 +584,7 @@ sm_validate_pt_update (page_entry_t *page_entry, page_entry_t newVal) {
 		break;
 
 	  case PG_L4:
-		SVA_ASSERT (isL3Pg(newPG), "SVA: Mapping non-L3 page into L4.");
+		// SVA_ASSERT (isL3Pg(newPG), "SVA: Mapping non-L3 page into L4.");
 		// if (!isL3Pg(newPG)) {
 		// 	printk("SVA: Mapping non-L3 page into L4 PTE=0x%lx origPG type=%d PA=0x%lx, newPG type=0x%d PA=0x%lx.\n",
 		// 		(unsigned long)page_entry, origPG->type, origPA, newPG->type, newPA);
@@ -1437,6 +1438,11 @@ declare_ptp_and_walk_pt_entries(unsigned long pageEntry, unsigned long
 
 	LOG_WALK(5, "%sPagePtr in loop: %px, val: 0x%lx\n", indent, nextEntry, *nextEntry);
 
+	// Skipping the address range that seems to be reserved for TDX
+	if(nextEntry >= 0xffff888640000000 && nextEntry <= 0xffff888663b00000) {
+		skipAssert = true;
+		continue;
+	}
 	/* 
 	 * If this entry is valid then recurse the page pointed to by this page
 	 * table entry.
@@ -1758,7 +1764,7 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
   unsigned long kpgdPA = get_pagetable(); //(sva_get_current_pgd() << 12);
   printk("sva_mmu_init KPGDPA: 0x%lx\n", kpgdPA);
   
-  declare_ptp_and_walk_pt_entries(kpgdPA, NPGDEPG, PG_L5);
+  declare_ptp_and_walk_pt_entries(kpgdPA, NP4DEPG, PG_L4);
   
   /* Now load the initial value of the cr3 to complete kernel init */
   /* ENCOS: Complete. */
@@ -1804,7 +1810,8 @@ void declare_internal(unsigned long frameAddr, int level) {
   /* Setup metadata tracking for this new page */
   pgDesc->type = level;
 
-  set_page_protection((unsigned long)__va(frameAddr), /*should_protect=*/1);
+  if(mmuIsInitialized) // not adding this if condition leads to a panic with early page tables
+	set_page_protection((unsigned long)__va(frameAddr), /*should_protect=*/1);
 
   /*
    * Reset the virtual address which can point to this page table page.
@@ -1833,8 +1840,10 @@ sva_declare_l1_page, unsigned long frameAddr) {
 
   /* Get the page_desc for the newly declared l4 page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);
-  if(!pgDesc) return;
-
+  if(!pgDesc) {
+	MMULock_Release();
+	return;
+  }
   /*
    * Make sure that this is already an L1 page, an unused page, or a kernel
    * data page.
@@ -1900,8 +1909,10 @@ sva_declare_l2_page, uintptr_t frameAddr) {
 
   /* Get the page_desc for the newly declared l2 page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);
-  if(!pgDesc) return;
-
+  if(!pgDesc) {
+	MMULock_Release();
+	return;
+  }
   /*
    * Make sure that this is already an L2 page, an unused page, or a kernel
    * data page.
@@ -1969,7 +1980,10 @@ sva_declare_l3_page, unsigned long frameAddr) {
 
   /* Get the page_desc for the newly declared l4 page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);
-  if(!pgDesc) return;
+  if(!pgDesc) {
+	MMULock_Release();
+	return;
+  }
 
   /*
    * Make sure that this is already an L3 page, an unused page, or a kernel
@@ -2034,8 +2048,10 @@ sva_declare_l4_page, unsigned long frameAddr) {
 
   /* Get the page_desc for the newly declared l4 page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);
-  if(!pgDesc) return;
-
+  if(!pgDesc) {
+	MMULock_Release();
+	return;
+  }
   /*
    * Make sure that this is already an L4 page, an unused page, or a kernel
    * data page.
@@ -2097,8 +2113,10 @@ sva_declare_l5_page, unsigned long frameAddr) {
 
   /* Get the page_desc for the newly declared l4 page frame */
   page_desc_t *pgDesc = getPageDescPtr(frameAddr);
-  if(!pgDesc) return;
-
+  if(!pgDesc) {
+	MMULock_Release();
+	return;
+  }
   /*
    * Make sure that this is already an L4 page, an unused page, or a kernel
    * data page.
@@ -2126,7 +2144,7 @@ sva_declare_l5_page, unsigned long frameAddr) {
 	 */
 	pgDesc->pgVaddr = 0;
 	// Chuqi: ignore, we don't use L5 paging anyways.
-	// set_page_protection((unsigned long)__va(frameAddr), /*should_protect=*/1);
+	set_page_protection((unsigned long)__va(frameAddr), /*should_protect=*/1);
 
 	/* 
 	 * Initialize the page data and page entry. Note that we pass a general
@@ -2160,7 +2178,7 @@ sva_remove_page, unsigned long paddr) {
 	MMULock_Release();
 	return;
   }
-  // set_page_protection((unsigned long)__va(paddr), /*should_protect=*/0);
+  set_page_protection((unsigned long)__va(paddr), /*should_protect=*/0);
   /*
    * Make sure that this is a page table page.  We don't want the system
    * software to trick us.
@@ -2230,6 +2248,8 @@ sva_remove_pages, unsigned long paddr, unsigned int order) {
 SECURE_WRAPPER(void,
 sva_remove_mapping, page_entry_t *pteptr) {
   MMULock_Acquire();
+//   if(mmuIsInitialized)
+		// set_page_protection((unsigned long)*pteptr, /*should_protect=*/0);
   __update_mapping (pteptr, ZERO_MAPPING);
   MMULock_Release();
 }
@@ -2540,6 +2560,8 @@ SECURE_WRAPPER(void,
 sva_memcpy,
 void *dst, void *src, unsigned long len)
 {
+	MMULock_Acquire();
 	memcpy(dst, src, len);
+	MMULock_Release();
 	return;
 }

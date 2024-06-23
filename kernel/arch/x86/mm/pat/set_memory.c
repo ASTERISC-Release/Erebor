@@ -1752,7 +1752,6 @@ static int cpa_process_alias(struct cpa_data *cpa)
 	// printk("check 47\n");
 	if (!(within(vaddr, PAGE_OFFSET,
 		    PAGE_OFFSET + (max_pfn_mapped << PAGE_SHIFT)))) {
-		printk("check 50\n");
 		alias_cpa = *cpa;
 		alias_cpa.vaddr = &laddr;
 		alias_cpa.flags &= ~(CPA_PAGES_ARRAY | CPA_ARRAY);
@@ -1767,7 +1766,6 @@ static int cpa_process_alias(struct cpa_data *cpa)
 		cpa->force_flush_all = 1;
 
 		ret = __change_page_attr_set_clr(&alias_cpa, 0);
-		printk("check 51\n");
 		if (ret)
 			return ret;
 	}
@@ -1780,7 +1778,6 @@ static int cpa_process_alias(struct cpa_data *cpa)
 	 */
 	if (!within(vaddr, (unsigned long)_text, _brk_end) &&
 	    __cpa_pfn_in_highmap(cpa->pfn)) {
-		printk("check 52\n");
 		unsigned long temp_cpa_vaddr = (cpa->pfn << PAGE_SHIFT) +
 					       __START_KERNEL_map - phys_base;
 		alias_cpa = *cpa;
@@ -1803,7 +1800,6 @@ static int cpa_process_alias(struct cpa_data *cpa)
 		 * return value.
 		 */
 		__change_page_attr_set_clr(&alias_cpa, 0);
-		printk("check 53\n");
 	}
 #endif
 	return 0;
@@ -1815,7 +1811,6 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int primary)
 	unsigned long rempages = numpages;
 	int ret = 0;
 
-	printk("Debug: __change_page_attr_set_clr\n");
 
 	/*
 	 * No changes, easy!
@@ -1824,7 +1819,6 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int primary)
 	    !cpa->force_split)
 		return ret;
 
-	printk("check 17\n");
 
 	while (rempages) {
 		/*
@@ -1864,7 +1858,6 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int primary)
 	}
 
 out:
-	printk("check 18\n");
 	/* Restore the original numpages */
 	cpa->numpages = numpages;
 	return ret;
@@ -2236,9 +2229,7 @@ static int __set_memory_enc_pgtable(unsigned long addr, int numpages, bool enc)
 	if (!x86_platform.guest.enc_status_change_prepare(addr, numpages, enc))
 		return -EIO;
 
-	printk("check 14\n");
 	ret = __change_page_attr_set_clr(&cpa, 1);
-	printk("check 15\n");
 
 	/*
 	 * After changing the encryption attribute, we need to flush TLBs again
@@ -2260,10 +2251,8 @@ static int __set_memory_enc_pgtable(unsigned long addr, int numpages, bool enc)
 
 static int __set_memory_enc_dec(unsigned long addr, int numpages, bool enc)
 {
-	printk("check 11\n");
 	if (cc_platform_has(CC_ATTR_MEM_ENCRYPT))
 		return __set_memory_enc_pgtable(addr, numpages, enc);
-	printk("check 12\n");
 	return 0;
 }
 

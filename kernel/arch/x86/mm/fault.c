@@ -1177,7 +1177,8 @@ do_kern_addr_fault(struct pt_regs *regs, unsigned long hw_error_code,
 	 * have no user pages in the kernel portion of the address
 	 * space, so do not expect them here.
 	 */
-#ifdef CONFIG_ENCOS
+#if 0
+// #ifdef CONFIG_ENCOS
 	printk("Hello! Fault address = %lx, error code: %lx\n", 
 								address, hw_error_code);
 	unsigned long page_nr_mask = 0x0000000FFFFFF000;

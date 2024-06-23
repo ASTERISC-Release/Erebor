@@ -31,6 +31,7 @@ char *__internal_alloc_PTP(void)
     // if (mmuIsInitialized) {
     //     return (char *)__get_free_pages(GFP_ATOMIC, 0);   
     // }
+    // printk("internal_alloc index = %d\n", avail_index);
     if (avail_index >= N_INTERNAL_PAGES) {
         panic("No free space.\n");
     }
@@ -75,6 +76,7 @@ int set_page_protection(unsigned long virtual_page, int should_protect)
      */
     /* Tightly copupling the split page function with pks.c for now */
     if(level == 2) {
+        // printk("set_page_protection - L2 split\n");
         // printk("pks set_page_protection: START level=%d; entryVA=0x%lx, entry=0x%lx, type: %d, should_protect = %d\n", 
         // level, (unsigned long)page_entry, *(unsigned long*)page_entry, getPageDescPtr(__pa(virtual_page))->type, should_protect);
         /* allocate a 4KB page as the L1_PTP */
@@ -101,10 +103,14 @@ int set_page_protection(unsigned long virtual_page, int should_protect)
         pgDescL2->type = PG_L2;
 
         /* get the correct PTE flags for the L1 mappings */
-        pgprot_t ref_prot;
+        pgprot_t ref_prot, l2_pgprot;
 		ref_prot = pmd_pgprot(*(pmd_t *)page_entry);
+        l2_pgprot = ref_prot;
+        // printk("ref_prot 1 = %lx\n", pgprot_val(ref_prot));
 		ref_prot = pgprot_large_2_4k(ref_prot);
         ref_prot = pgprot_clear_protnone_bits(ref_prot);
+
+        // printk("ref_prot 2 = %lx\n", pgprot_val(ref_prot));
 
         /* add mappings from the allocated L1_PTP to the 512x(4KB) pages */
         uintptr_t *l1_pte;

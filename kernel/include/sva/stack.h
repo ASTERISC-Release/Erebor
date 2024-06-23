@@ -304,11 +304,6 @@ extern const uintptr_t SyscallSecureStackBase;
 #endif
 
 #define SECURE_INTERRUPT_REDIRECT                                              \
-  DISABLE_INTERRUPTS                                                           \
-  ENABLE_PKS_PROTECTION                                                        \
-  ENABLE_WP                                                                    \
-  ENABLE_INTERRUPTS                                                            \
-
 
 //===-- Wrapper macro for marking Secure Entrypoints ----------------------===//
 
@@ -322,11 +317,9 @@ asm( \
   /* Do whatever's needed on entry to secure area */ \
   SECURE_ENTRY \
   /* Call the map gate to remap the privilege section */ \
-  "call sm_entry_map_priv_page\n" \
   /* Call real version of function */ \
   "call " #FUNC "_secure\n" \
   /* Call the unmap gate to unmap the privilege section */ \
-  "call sm_exit_unmap_priv_page\n" \
   /* Operation complete, go back to unsecure mode */ \
   SECURE_EXIT \
   "ret\n" \

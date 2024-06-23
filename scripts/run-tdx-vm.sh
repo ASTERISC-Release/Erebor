@@ -53,7 +53,7 @@ qemu-system-x86_64 -D /tmp/tdx-guest-td.log \
 		   -accel kvm \
 		   -m $VMMVM \
            -cpu host,-pdpe1gb,-la57 \
-           -smp 8,maxcpus=8 \
+           -smp 1,maxcpus=1 \
 		   -name ${PROCESS_NAME},process=${PROCESS_NAME}\
 		   -object tdx-guest,id=tdx \
 		   -machine q35,kernel_irqchip=split,confidential-guest-support=tdx,hpet=off \
