@@ -1086,19 +1086,11 @@ void start_kernel(void)
 #ifdef CONFIG_ENCOS
 	check_protection_available();
 
-#ifdef CONFIG_ENCOS_PKS
 	/* already instrumented to 1 << 24 */
 	printk("SET PKS IN CR4.\n");
 	native_write_cr4(native_read_cr4() | (1 << 24) );
 	/* Disable write access for key 1 */
 	wrmsrl(0x6e1, 0x8);
-#endif	/* CONFIG_ENCOS_PKS */
-
-#ifdef CONFIG_ENCOS_WP
-	/* already instrumented to set 1 << 16 */
-	printk("SET WP IN CR0.\n");
-	native_write_cr0(native_read_cr0());
-#endif	/* CONFIG_ENCOS_WP */
 
 #ifdef CONFIG_ENCOS_STACK
 	// Initialize the SVA MMU

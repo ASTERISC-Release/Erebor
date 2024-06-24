@@ -16,37 +16,22 @@
 
 static inline void check_protection_available(void)
 {
-#ifdef CONFIG_ENCOS_PKS
     if (cpu_feature_enabled(X86_FEATURE_PKS)) {
         log_info("Protection Key, Supervisor (PKS) feature check: passed.\n");
         return;
     }
     else
         panic("PKS is not available.\n");
-#endif
 
-#ifdef CONFIG_ENCOS_WP
-    /* for write protection we assume its always available */
-    log_info("Write Protection (WP) feature check: passed.\n");
-    return;
-#endif
     return;
 }
 
 static inline int __check_pte_protection(unsigned long *pte)
 {
-#ifdef CONFIG_ENCOS_PKS
     /* PKS key 0 means the page is unprotected */
     if(((*pte >> 59) & 0xf) == 0)
         return 0;
     return 1;
-#elif defined(CONFIG_ENCOS_WP)
-    /* PG_RW set means the page is unprotected */
-    if((*pte & PG_RW)) 
-        return 0;
-    return 1;
-#endif
-    return 0;
 }
 
 /* Chuqi: 
@@ -55,26 +40,26 @@ static inline int __check_pte_protection(unsigned long *pte)
  */
 static inline void __set_pte_protection(unsigned long *pte, int should_protect)
 {
-#ifdef CONFIG_ENCOS_PKS
+// #ifdef CONFIG_ENCOS_PKS
     /*
      * For the PKS version, we always use PTE.key=1 for the protected page.
      * key=0 is reserved for the kernel (unprotected pages).
      */
     if (should_protect)
-        *pte |= (1ull << 59);
+        *pte |= (0ull << 59);
     else
         /* set the existing key in the PTE to 0 */
         *pte &= (0x87FFFFFFFFFFFFFF);
-#elif defined(CONFIG_ENCOS_WP)
-    /*
-     * For the WP version, we always use PTE.RW=0 for the protected page.
-     * RW=1 means the page is writable to kernel (unprotected pages).
-     */
-    if (should_protect)
-        *pte &= ~PG_RW;
-    else
-        *pte |= PG_RW;
-#endif
+// #elif defined(CONFIG_ENCOS_WP)
+//     /*
+//      * For the WP version, we always use PTE.RW=0 for the protected page.
+//      * RW=1 means the page is writable to kernel (unprotected pages).
+//      */
+//     if (should_protect)
+//         *pte &= ~PG_RW;
+//     else
+//         *pte |= PG_RW;
+// #endif
 }
 
 extern int set_page_protection(uintptr_t virtual_page, int should_protect);
