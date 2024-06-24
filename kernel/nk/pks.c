@@ -46,10 +46,6 @@ int set_page_protection(unsigned long virtual_page, int should_protect)
     page_entry_t *page_entry = get_pgeVaddr(virtual_page, &level);
     // printk("pks set_page_protection: START level=%d; entryVA=0x%lx, entry=0x%lx, type: %d, key = %d\n", 
     //     level, (unsigned long)page_entry, *(unsigned long*)page_entry, getPageDescPtr(__pa(virtual_page))->type, key);
-// #if !defined(CONFIG_ENCOS_PKS) && !defined(CONFIG_ENCOS_WP)
-//     /* no protection feature is used, just return */
-//     return 0;
-// #endif
     /*
      * early exit if the target page is not in the protection
      * domain and we don't want to protect it.

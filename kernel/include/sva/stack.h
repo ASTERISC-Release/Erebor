@@ -112,8 +112,6 @@ extern const uintptr_t SyscallSecureStackBase;
 
 //===-- PKS-Protect Control ---------------------------------------------===//
 
-#if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_PKS)
-
 #define ENABLE_PKS_PROTECTION                                                  \
   /* Save scratch register to stack */                                         \
   "movq %rax, -8(%rsp)\n"                                                      \
@@ -156,18 +154,6 @@ extern const uintptr_t SyscallSecureStackBase;
 
 #define WR_PKSMSR                                                              \
   "wrmsr\n"                                                                    \
-
-#else 
-
-#define ENABLE_PKS_PROTECTION                                                  \
-
-#define DISABLE_PKS_PROTECTION                                                 \
-
-#define RD_PKSMSR                                                              \
-
-#define WR_PKSMSR                                                              \
-
-#endif  /* CONFIG_ENCOS && CONFIG_ENCOS_PKS */
 
 #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_WP)
 
