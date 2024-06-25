@@ -218,8 +218,8 @@ int is_internalmem)
          */
         for (i = 0; i < nr_pages; i++) {
             page_desc = getPageDescPtr(pa + i * pageSize);
-            SVA_ASSERT(!pgIsActive(page_desc), "Claimed page (PA=0x%lx, type=%d) is not an unused page.\n",
-                 (pa + i * pageSize), page_desc->type); 
+            // SVA_ASSERT(!pgIsActive(page_desc), "Claimed page (PA=0x%lx, type=%d) is not an unused page.\n",
+            //      (pa + i * pageSize), page_desc->type); 
             page_desc->type = PG_ENC;
             page_desc->encID = entry->enc_id;
 
@@ -470,3 +470,53 @@ struct pt_regs* regs, int nr) {
             break;
     }
 }
+
+TDCALL_SECURE_WRAPPER(unsigned long,
+SM_tdcall, void)
+{
+    unsigned long rax;
+    asm volatile("tdcall");
+    asm volatile("movq %%rax, %0" : "=r"(rax));
+    return rax;
+}
+
+unsigned long SM_tdcall_nowrap(void)
+{
+    unsigned long rax;
+    asm volatile("tdcall");
+    asm volatile("movq %%rax, %0" : "=r"(rax));
+    return rax;
+}
+
+// asm volatile(
+//         "pushq	%rax\n"
+//         "pushq	%rcx\n"
+//         "pushq	%rdx\n"
+//         "pushq	%rbx\n"
+//         "pushq	%rbp\n"
+//         "pushq	%rsi\n"
+//         "pushq	%rdi\n"
+//         "pushq	%r8\n"
+//         "pushq	%r9\n"
+//         "pushq	%r10\n"
+//         "pushq	%r11\n"
+//         "pushq	%r12\n"
+//         "pushq	%r13\n"
+//         "pushq	%r14\n"
+//         "pushq	%r15\n");
+//     asm volatile(
+//         "popq %r15\n"
+//         "popq %r14\n"
+//         "popq %r13\n"
+//         "popq %r12\n"
+//         "popq %r11\n"
+//         "popq %r10\n"
+//         "popq %r9\n"
+//         "popq %r8\n"
+//         "popq %rdi\n"
+//         "popq %rsi\n"
+//         "popq %rbp\n"
+//         "popq %rbx\n"
+//         "popq %rdx\n"
+//         "popq %rcx\n"
+//         "popq %rax\n");

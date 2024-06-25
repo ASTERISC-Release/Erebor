@@ -90,6 +90,11 @@ char SyscallSecureStack[pageSize*NCPU] __attribute__((aligned(0x1000))) SVAMEM;
 const uintptr_t SyscallSecureStackBase = (uintptr_t) SyscallSecureStack + pageSize;
 
 
+
+char TDCallSecureStack[pageSize*NCPU] __attribute__((aligned(0x1000)));
+const uintptr_t TDCallSecureStackBase = (uintptr_t) TDCallSecureStack + pageSize;
+
+
 #undef NKDEBUGG
 #define NKDEBUGG(fname, fmt, args...) /* nothing: it's a placeholder */
 

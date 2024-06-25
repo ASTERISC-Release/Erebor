@@ -11,6 +11,9 @@
 
 .extern SM_printvalues(void *rdi, void *rsi, void *rdx);
 
+.extern SM_tdcall(void);
+.extern SM_tdcall_nowrap(void);
+
 .extern sm_validate_syscall_stack(unsigned long sys_rsp);
 
 .extern SM_encos_syscall_enter(struct pt_regs *regs, int nr);
