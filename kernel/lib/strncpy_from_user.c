@@ -11,6 +11,7 @@
 
 #include <asm/byteorder.h>
 #include <asm/word-at-a-time.h>
+#include <sva/enc.h>
 
 #ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 #define IS_UNALIGNED(src, dst)	0
@@ -135,7 +136,7 @@ long strncpy_from_user(char *dst, const char __user *src, long count)
 
 		kasan_check_write(dst, count);
 		check_object_size(dst, count, false);
-		printk("stac31");
+		if(stac_bool) if(stac_bool) stac_map[31]++;
 		if (user_read_access_begin(src, max)) {
 			retval = do_strncpy_from_user(dst, src, count, max);
 			user_read_access_end();

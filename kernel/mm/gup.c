@@ -24,6 +24,7 @@
 #include <asm/tlbflush.h>
 
 #include "internal.h"
+#include <sva/enc.h>
 
 struct follow_page_context {
 	struct dev_pagemap *pgmap;
@@ -1861,7 +1862,7 @@ size_t fault_in_writeable(char __user *uaddr, size_t size)
 
 	if (unlikely(size == 0))
 		return 0;
-	printk("stac49");
+	if(stac_bool) if(stac_bool) stac_map[49]++;
 	if (!user_write_access_begin(uaddr, size))
 		return size;
 	if (!PAGE_ALIGNED(uaddr)) {
@@ -1972,7 +1973,7 @@ size_t fault_in_readable(const char __user *uaddr, size_t size)
 
 	if (unlikely(size == 0))
 		return 0;
-	printk("stac35");
+	if(stac_bool) if(stac_bool) stac_map[35]++;
 	if (!user_read_access_begin(uaddr, size))
 		return size;
 	if (!PAGE_ALIGNED(uaddr)) {

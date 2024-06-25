@@ -25,11 +25,13 @@
 #include "sva/svamem.h"
 #include "sva/x86.h"
 #include "sva/pks.h"
-#include "sva/idt.h"
 #include "sva/enc.h"
 
 #include <asm/smap.h>
+#include <asm/text-patching.h>
+#include <linux/kasan.h>
 
+#define offset_in_page(p)	((unsigned long)(p) & ~PAGE_MASK)
 
 /* Special panic(..) that also prints the outer kernel's stack */
 extern char _svastart[];

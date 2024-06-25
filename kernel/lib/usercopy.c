@@ -4,6 +4,7 @@
 #include <linux/instrumented.h>
 #include <linux/uaccess.h>
 #include <linux/nospec.h>
+#include <sva/enc.h>
 
 /* out-of-line parts */
 
@@ -69,7 +70,7 @@ int check_zeroed_user(const void __user *from, size_t size)
 
 	from -= align;
 	size += align;
-	printk("stac34");
+	if(stac_bool) if(stac_bool) stac_map[34]++;
 	if (!user_read_access_begin(from, size))
 		return -EFAULT;
 

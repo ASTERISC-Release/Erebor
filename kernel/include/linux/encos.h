@@ -14,7 +14,9 @@
 #define   ENCOS_DISABLE_KDBG            _IOW('m', 3, unsigned int)
 #define   ENCOS_ENCLAVE_ACT             _IOW('m', 4, unsigned int)
 #define   ENCOS_ENCLAVE_EXIT            _IOW('m', 5, unsigned int)
-#define         HHKR_MMAP_FREEBACK_WL   _IOW('m', 7, unsigned int)
+#define   HHKR_MMAP_FREEBACK_WL         _IOW('m', 7, unsigned int)
+#define   ENCOS_STAC_ENABLE             _IOW('m', 8, unsigned int)
+#define   ENCOS_STAC_STATS              _IOW('m', 9, unsigned int)
 
 
 #define log_info(fmt, arg...) \

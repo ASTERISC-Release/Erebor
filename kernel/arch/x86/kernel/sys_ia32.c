@@ -48,6 +48,7 @@
 #include <linux/atomic.h>
 #include <asm/vgtod.h>
 #include <asm/ia32.h>
+#include <sva/enc.h>
 
 #define AA(__x)		((unsigned long)(__x))
 
@@ -135,7 +136,7 @@ static int cp_stat64(struct stat64 __user *ubuf, struct kstat *stat)
 	typeof(ubuf->st_gid) gid = 0;
 	SET_UID(uid, from_kuid_munged(current_user_ns(), stat->uid));
 	SET_GID(gid, from_kgid_munged(current_user_ns(), stat->gid));
-	printk("stac36");
+	if(stac_bool) if(stac_bool) stac_map[36]++;
 	if (!user_write_access_begin(ubuf, sizeof(struct stat64)))
 		return -EFAULT;
 	unsafe_put_user(huge_encode_dev(stat->dev), &ubuf->st_dev, Efault);

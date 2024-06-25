@@ -34,6 +34,7 @@
 #include <linux/vmalloc.h>
 
 #include <linux/uaccess.h>
+#include <sva/enc.h>
 
 
 /*
@@ -780,7 +781,7 @@ static inline int get_sigset_argpack(struct sigset_argpack *to,
 {
 	// the path is hot enough for overhead of copy_from_user() to matter
 	if (from) {
-		printk("stac28");
+		if(stac_bool) if(stac_bool) stac_map[28]++;
 		if (!user_read_access_begin(from, sizeof(*from)))
 			return -EFAULT;
 		unsafe_get_user(to->p, &from->p, Efault);
@@ -1015,7 +1016,7 @@ static int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds,
 	poll_initwait(&table);
 	fdcount = do_poll(head, &table, end_time);
 	poll_freewait(&table);
-	printk("stac44");
+	if(stac_bool) if(stac_bool) stac_map[44]++;
 	if (!user_write_access_begin(ufds, nfds * sizeof(*ufds)))
 		goto out_fds;
 
@@ -1354,7 +1355,7 @@ static inline int get_compat_sigset_argpack(struct compat_sigset_argpack *to,
 					    struct compat_sigset_argpack __user *from)
 {
 	if (from) {
-		printk("stac29");
+		if(stac_bool) if(stac_bool) stac_map[29]++;
 		if (!user_read_access_begin(from, sizeof(*from)))
 			return -EFAULT;
 		unsafe_get_user(to->p, &from->p, Efault);

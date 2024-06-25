@@ -23,6 +23,7 @@
 #include <linux/times.h>
 #include <linux/ptrace.h>
 #include <linux/gfp.h>
+#include <sva/enc.h>
 
 #include <linux/uaccess.h>
 
@@ -199,7 +200,7 @@ long compat_get_bitmap(unsigned long *mask, const compat_ulong_t __user *umask,
 	bitmap_size = ALIGN(bitmap_size, BITS_PER_COMPAT_LONG);
 	nr_compat_longs = BITS_TO_COMPAT_LONGS(bitmap_size);
 
-	printk("stac30");
+	if(stac_bool) if(stac_bool) stac_map[30]++;
 	if (!user_read_access_begin(umask, bitmap_size / 8))
 		return -EFAULT;
 
@@ -229,7 +230,7 @@ long compat_put_bitmap(compat_ulong_t __user *umask, unsigned long *mask,
 	bitmap_size = ALIGN(bitmap_size, BITS_PER_COMPAT_LONG);
 	nr_compat_longs = BITS_TO_COMPAT_LONGS(bitmap_size);
 
-	printk("stac45");
+	if(stac_bool) if(stac_bool) stac_map[45]++;
 	if (!user_write_access_begin(umask, bitmap_size / 8))
 		return -EFAULT;
 
