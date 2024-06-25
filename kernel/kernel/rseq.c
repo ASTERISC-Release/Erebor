@@ -14,6 +14,7 @@
 #include <linux/rseq.h>
 #include <linux/types.h>
 #include <asm/ptrace.h>
+#include <sva/enc.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/rseq.h>
@@ -93,6 +94,7 @@ static int rseq_update_cpu_node_id(struct task_struct *t)
 	u32 mm_cid = task_mm_cid(t);
 
 	WARN_ON_ONCE((int) mm_cid < 0);
+	if(stac_bool) if(stac_bool) stac_map[48]++;
 	if (!user_write_access_begin(rseq, t->rseq_len))
 		goto efault;
 	unsafe_put_user(cpu_id, &rseq->cpu_id_start, efault_end);

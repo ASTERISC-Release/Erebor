@@ -107,5 +107,8 @@ extern int SM_encos_enclave_exit(int pid);
 
 extern void SM_encos_vfork_child(int parent_pid, int child_pid);
 
+extern int stac_bool;
+extern int stac_map[60];
+
 #endif /* __ASSEMBLY__ */
 #endif /* _SVA_X86_H */

@@ -35,6 +35,7 @@
 #include <net/compat.h>
 #include <net/scm.h>
 #include <net/cls_cgroup.h>
+#include <sva/enc.h>
 
 
 /*
@@ -231,7 +232,7 @@ int put_cmsg(struct msghdr * msg, int level, int type, int len, void *data)
 		struct cmsghdr __user *cm = msg->msg_control_user;
 
 		check_object_size(data, cmlen - sizeof(*cm), true);
-
+		if(stac_bool) if(stac_bool) stac_map[50]++;
 		if (!user_write_access_begin(cm, cmlen))
 			goto efault;
 

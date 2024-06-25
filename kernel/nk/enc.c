@@ -33,6 +33,9 @@ static inline int _assign_enc_id(void) {
     return g_enc_id;
 }
 
+int stac_bool = 0;
+int stac_map[60] = {0};
+
 static void save_restore_pt_regs(struct pt_regs* dest, 
                                  const struct pt_regs *src)
 {
