@@ -245,7 +245,7 @@ static int FNAME(update_accessed_dirty_bits)(struct kvm_vcpu *vcpu,
 		 */
 		if (unlikely(!walker->pte_writable[level - 1]))
 			continue;
-
+		printk("stac10");
 		ret = __try_cmpxchg_user(ptep_user, &orig_pte, pte, fault);
 		if (ret)
 			return ret;

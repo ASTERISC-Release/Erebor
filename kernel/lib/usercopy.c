@@ -69,7 +69,7 @@ int check_zeroed_user(const void __user *from, size_t size)
 
 	from -= align;
 	size += align;
-
+	printk("stac34");
 	if (!user_read_access_begin(from, size))
 		return -EFAULT;
 

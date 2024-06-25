@@ -48,6 +48,7 @@ do {								\
 static __always_inline int arch_futex_atomic_op_inuser(int op, int oparg, int *oval,
 		u32 __user *uaddr)
 {
+	printk("stac14");
 	if (!user_access_begin(uaddr, sizeof(u32)))
 		return -EFAULT;
 
@@ -83,7 +84,7 @@ static inline int futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 						u32 oldval, u32 newval)
 {
 	int ret = 0;
-
+	printk("stac15");
 	if (!user_access_begin(uaddr, sizeof(u32)))
 		return -EFAULT;
 	asm volatile("\n"

@@ -73,7 +73,7 @@ EXPORT_SYMBOL_GPL(copy_mc_to_kernel);
 unsigned long __must_check copy_mc_to_user(void *dst, const void *src, unsigned len)
 {
 	unsigned long ret;
-
+	printk("stac09");
 	if (copy_mc_fragile_enabled) {
 		__uaccess_begin();
 		ret = copy_mc_fragile(dst, src, len);

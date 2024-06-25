@@ -259,6 +259,7 @@ int ia32_setup_frame(struct ksignal *ksig, struct pt_regs *regs)
 			restorer = &frame->retcode;
 	}
 
+	printk("stac16");
 	if (!user_access_begin(frame, sizeof(*frame)))
 		return -EFAULT;
 
@@ -320,7 +321,7 @@ int ia32_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 	};
 
 	frame = get_sigframe(ksig, regs, sizeof(*frame), &fp);
-
+	printk("stac17");
 	if (!user_access_begin(frame, sizeof(*frame)))
 		return -EFAULT;
 

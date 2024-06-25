@@ -1861,6 +1861,7 @@ size_t fault_in_writeable(char __user *uaddr, size_t size)
 
 	if (unlikely(size == 0))
 		return 0;
+	printk("stac49");
 	if (!user_write_access_begin(uaddr, size))
 		return size;
 	if (!PAGE_ALIGNED(uaddr)) {
@@ -1971,6 +1972,7 @@ size_t fault_in_readable(const char __user *uaddr, size_t size)
 
 	if (unlikely(size == 0))
 		return 0;
+	printk("stac35");
 	if (!user_read_access_begin(uaddr, size))
 		return size;
 	if (!PAGE_ALIGNED(uaddr)) {

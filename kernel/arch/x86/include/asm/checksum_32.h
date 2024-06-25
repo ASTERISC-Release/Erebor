@@ -45,7 +45,7 @@ static inline __wsum csum_and_copy_from_user(const void __user *src,
 					     void *dst, int len)
 {
 	__wsum ret;
-
+	printk("stac12");
 	might_sleep();
 	if (!user_access_begin(src, len))
 		return 0;
@@ -173,7 +173,7 @@ static inline __wsum csum_and_copy_to_user(const void *src,
 					   int len)
 {
 	__wsum ret;
-
+	printk("stac13");
 	might_sleep();
 	if (!user_access_begin(dst, len))
 		return 0;

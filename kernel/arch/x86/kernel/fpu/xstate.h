@@ -275,6 +275,7 @@ static inline int xsave_to_user_sigframe(struct xregs_state __user *buf)
 	hmask = mask >> 32;
 	xfd_validate_state(fpstate, mask, false);
 
+	printk("stac04");
 	stac();
 	XSTATE_OP(XSAVE, buf, lmask, hmask, err);
 	clac();
@@ -293,7 +294,7 @@ static inline int xrstor_from_user_sigframe(struct xregs_state __user *buf, u64 
 	int err;
 
 	xfd_validate_state(current->thread.fpu.fpstate, mask, true);
-
+	printk("stac05");
 	stac();
 	XSTATE_OP(XRSTOR, xstate, lmask, hmask, err);
 	clac();
