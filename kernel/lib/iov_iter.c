@@ -13,6 +13,7 @@
 #include <net/checksum.h>
 #include <linux/scatterlist.h>
 #include <linux/instrumented.h>
+#include <sva/enc.h>
 
 /* covers ubuf and kbuf alike */
 #define iterate_buf(i, n, base, len, off, __p, STEP) {		\
@@ -1337,7 +1338,7 @@ static __noclone int copy_compat_iovec_from_user(struct iovec *iov,
 		(const struct compat_iovec __user *)uvec;
 	int ret = -EFAULT, i;
 
-	printk("stac25");
+	if(stac_bool) if(stac_bool) stac_map[25]++;
 	if (!user_access_begin(uiov, nr_segs * sizeof(*uiov)))
 		return -EFAULT;
 
@@ -1368,7 +1369,7 @@ static __noclone int copy_iovec_from_user(struct iovec *iov,
 {
 	int ret = -EFAULT;
 
-	printk("stac26");
+	if(stac_bool) if(stac_bool) stac_map[26]++;
 	if (!user_access_begin(uiov, nr_segs * sizeof(*uiov)))
 		return -EFAULT;
 

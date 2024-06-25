@@ -6,6 +6,7 @@
 #include <linux/bitops.h>
 
 #include <asm/word-at-a-time.h>
+#include <sva/enc.h>
 
 /*
  * Do a strnlen, return length of string *with* final '\0'.
@@ -109,7 +110,7 @@ long strnlen_user(const char __user *str, long count)
 		if (max > count)
 			max = count;
 
-		printk("stac33");
+		if(stac_bool) if(stac_bool) stac_map[33]++;
 		if (user_read_access_begin(str, max)) {
 			retval = do_strnlen_user(str, count, max);
 			user_read_access_end();

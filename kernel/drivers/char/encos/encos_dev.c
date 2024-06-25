@@ -98,6 +98,16 @@ static long encos_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
         case ENCOS_DISABLE_KDBG:
             encos_kdbg_enabled = 0;
             break;
+        
+        case ENCOS_STAC_ENABLE:
+            stac_bool = 1;
+            break;
+
+        case ENCOS_STAC_STATS:
+            printk("-------------STAC STATS-------------\n");
+            for(int i = 0; i < 60; i++)
+                printk("Func[%d] -> %d\n", i, stac_map[i]);
+            break;
     }
     return (long)rvl;
 }

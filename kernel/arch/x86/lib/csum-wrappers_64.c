@@ -8,6 +8,7 @@
 #include <linux/export.h>
 #include <linux/uaccess.h>
 #include <asm/smap.h>
+#include <sva/enc.h>
 
 /**
  * csum_and_copy_from_user - Copy and checksum from user space.
@@ -26,7 +27,7 @@ csum_and_copy_from_user(const void __user *src, void *dst, int len)
 	__wsum sum;
 
 	might_sleep();
-	printk("stac22");
+	if(stac_bool) if(stac_bool) stac_map[22]++;
 	if (!user_access_begin(src, len))
 		return 0;
 	sum = csum_partial_copy_generic((__force const void *)src, dst, len);
@@ -51,7 +52,7 @@ csum_and_copy_to_user(const void *src, void __user *dst, int len)
 	__wsum sum;
 
 	might_sleep();
-	printk("stac23");
+	if(stac_bool) if(stac_bool) stac_map[23]++;
 	if (!user_access_begin(dst, len))
 		return 0;
 	sum = csum_partial_copy_generic(src, (void __force *)dst, len);

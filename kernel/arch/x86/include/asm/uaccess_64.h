@@ -13,7 +13,8 @@
 #include <asm/page.h>
 
 #ifdef CONFIG_ENCOS
-#include <sva/mmu_intrinsics.h>
+// #include <sva/mmu_intrinsics.h>
+#include <sva/enc.h>
 #endif
 
 #ifdef CONFIG_ADDRESS_MASKING
@@ -105,10 +106,13 @@ static inline bool __access_ok(const void __user *ptr, unsigned long size)
 __must_check unsigned long
 rep_movs_alternative(void *to, const void *from, unsigned len);
 
+
+#include <sva/enc.h>
+
 static __always_inline __must_check unsigned long
 copy_user_generic(void *to, const void *from, unsigned long len)
 {
-	printk("stac01");
+	if(stac_bool) if(stac_bool) stac_map[1]++;
 	stac();
 	/*
 	 * If CPU has FSRM feature, use 'rep movs'.
@@ -155,7 +159,7 @@ static inline int
 __copy_from_user_inatomic_nocache(void *dst, const void __user *src,
 				  unsigned size)
 {
-	printk("stac02");
+	if(stac_bool) if(stac_bool) stac_map[2]++;
 	long ret;
 	kasan_check_write(dst, size);
 	stac();
@@ -180,7 +184,7 @@ rep_stos_alternative(void __user *addr, unsigned long len);
 
 static __always_inline __must_check unsigned long __clear_user(void __user *addr, unsigned long size)
 {
-	printk("stac03");
+	if(stac_bool) if(stac_bool) stac_map[3]++;
 	might_fault();
 	stac();
 

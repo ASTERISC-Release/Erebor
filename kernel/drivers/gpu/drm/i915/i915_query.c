@@ -11,6 +11,7 @@
 #include "i915_query.h"
 #include "gt/intel_engine_user.h"
 #include <uapi/drm/i915_drm.h>
+#include <sva/enc.h>
 
 static int copy_query_item(void *query_hdr, size_t query_sz,
 			   u32 total_length,
@@ -206,7 +207,7 @@ static int copy_perf_config_registers_or_number(const struct i915_oa_reg *kernel
 	}
 
 	*user_n_regs = kernel_n_regs;
-	printk("stac37");
+	if(stac_bool) if(stac_bool) stac_map[37]++;
 	if (!user_write_access_begin(p, 2 * sizeof(u32) * kernel_n_regs))
 		return -EFAULT;
 

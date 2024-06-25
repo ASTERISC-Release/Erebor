@@ -20,6 +20,8 @@
 #include <asm/sigframe.h>
 #include <asm/signal.h>
 
+#include <sva/enc.h>
+
 /*
  * If regs->ss will cause an IRET fault, change it.  Otherwise leave it
  * alone.  Using this generally makes no sense unless
@@ -178,7 +180,7 @@ int x64_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 	if (setup_signal_shadow_stack(ksig))
 		return -EFAULT;
 
-	printk("stac18");
+	if(stac_bool) if(stac_bool) stac_map[18]++;
 	if (!user_access_begin(frame, sizeof(*frame)))
 		return -EFAULT;
 
@@ -316,7 +318,7 @@ int x32_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 
 	uc_flags = frame_uc_flags(regs);
 
-	printk("stac19");
+	if(stac_bool) if(stac_bool) stac_map[19]++;
 	if (!user_access_begin(frame, sizeof(*frame)))
 		return -EFAULT;
 

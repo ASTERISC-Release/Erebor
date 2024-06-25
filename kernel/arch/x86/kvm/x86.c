@@ -86,6 +86,8 @@
 #include <asm/sgx.h>
 #include <clocksource/hyperv_timer.h>
 
+#include <sva/enc.h>
+
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
@@ -3558,7 +3560,7 @@ static void record_steal_time(struct kvm_vcpu *vcpu)
 		u8 st_preempted = 0;
 		int err = -EFAULT;
 	
-		printk("stac21");
+		if(stac_bool) if(stac_bool) stac_map[21]++;
 		if (!user_access_begin(st, sizeof(*st)))
 			return;
 
@@ -7815,7 +7817,7 @@ static int emulator_cmpxchg_emulated(struct x86_emulate_ctxt *ctxt,
 		goto emul_write;
 
 	hva += offset_in_page(gpa);
-	printk("stac11");
+	if(stac_bool) if(stac_bool) stac_map[11]++;
 	switch (bytes) {
 	case 1:
 		r = emulator_try_cmpxchg_user(u8, hva, old, new);
