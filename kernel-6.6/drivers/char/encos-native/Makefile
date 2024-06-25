@@ -1,0 +1,1 @@
+obj-y += encos_perf.o

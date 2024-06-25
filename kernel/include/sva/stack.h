@@ -57,6 +57,8 @@ extern const uintptr_t SecureStackBase;
 
 extern const uintptr_t SyscallSecureStackBase;
 
+extern const uintptr_t TDCallSecureStackBase;
+
 // TODO: Manage stack per-cpu, do lookup here
 // Use only RAX/RCX registers to accomplish this.
 // (Or spill more in calling context)
@@ -285,7 +287,87 @@ extern const uintptr_t SyscallSecureStackBase;
   "popq %rcx\n"                                                                \
   "popq %rax\n"                                                                \
   /* Restore flags, enabling interrupts if they were before */                 \
-  "popf\n"
+  "popf\n"                                                                     \
+
+
+
+
+
+#define TDCALL_SECURE_ENTRY                                                    \
+  /* Save current flags */                                                     \
+  "pushf\n"                                                                    \
+  /* Disable interrupts */                                                     \
+  "cli\n"                                                                      \
+  /* Spill registers for temporary use */                                      \
+  "movq %rax, -8(%rsp)\n"                                                      \
+  "movq %rdx, -16(%rsp)\n"                                                     \
+  "movq %rcx, -24(%rsp)\n"                                                     \
+  /* CONFIG_ENCOS_PKS */                                                       \
+  /* Write the PKRS MSR ID in rcx */                                           \
+  "movq $0x6e1, %rcx\n"                                                        \
+  /* Get current PKRS value */                                                 \
+  RD_PKSMSR                                                                    \
+  /* Allow access for key 1 */                                                 \
+  "andq $0xFFFFFFFFFFFFFFF3, %rax\n"                                           \
+  /* Update the PKRS value */                                                  \
+  WR_PKSMSR                                                                    \
+  /* CONFIG_ENCOS_WP */                                                        \
+  /* Get current cr0 value */                                                  \
+  "movq %cr0, %rax\n"                                                          \
+  /* Disable WP */                                                             \
+  "andq $0xfffffffffffeffff, %rax\n"                                           \
+  /* Replace cr0 with updated value */                                         \
+  WR_RAX_CR0                                                                   \
+  /* Disable interrupts */                                                     \
+  "cli\n"                                                                      \
+  /* Get the processor ID */                                                   \
+  "rdtscp\n"                                                                   \
+  "andq $0xFFF, %rcx\n"                                                        \
+  /* Find the secure stack offset for the processor ID */                      \
+  "movq %rcx, %rax\n"                                                          \
+  "movq $4096, %rcx\n"                                                         \
+  "mulq %rcx\n"                                                                \
+  "addq TDCallSecureStackBase, %rax\n"                                         \
+  /* Save initial stack pointer in rcx */                                      \
+  "movq %rsp, %rcx\n"                                                          \
+  /* Switch to secure stack! */                                                \
+  "movq %rax, %rsp\n"                                                          \
+  /* Save original stack pointer for later restoration */                      \
+  "pushq %rcx\n"                                                               \
+  /* Restore spilled registers from original stack (rcx) */                    \
+  "movq -8(%rcx), %rax\n"                                                      \
+  "movq -16(%rcx), %rdx\n"                                                     \
+  "movq -24(%rcx), %rcx\n" 
+
+#define TDCALL_SECURE_EXIT                                                     \
+  /* Switch back to original stack */                                          \
+  "movq 0(%rsp), %rsp\n"                                                       \
+  /* Save scratch register to stack */                                         \
+  "pushq %rax\n"                                                               \
+  "pushq %rcx\n"                                                               \
+  "pushq %rdx\n"                                                               \
+  /* CONFIG_ENCOS_PKS */                                                       \
+  /* Write the PKRS MSR ID in rcx */                                           \
+  "movq $0x6e1, %rcx\n"                                                        \
+  /* Get current PKRS value */                                                 \
+  RD_PKSMSR                                                                    \
+  /* Restrict write access for key 1 */                                        \
+  "orq $0x0000000000000008, %rax\n"                                            \
+  /* Update the PKRS value */                                                  \
+  WR_PKSMSR                                                                    \
+  /* CONFIG_ENCOS_WP */                                                        \
+  /* Get current cr0 value */                                                  \
+  "movq %cr0, %rax\n"                                                          \
+  /* Set WP bit in copy */                                                     \
+  "orq $0x10000, %rax\n"                                                       \
+  /* Replace cr0 with updated value */                                         \
+  WR_RAX_CR0                                                                   \
+  /* Restore clobbered register */                                             \
+  "popq %rdx\n"                                                                \
+  "popq %rcx\n"                                                                \
+  "popq %rax\n"                                                                \
+  /* Restore flags, enabling interrupts if they were before */                 \
+  "popf\n"                                                                     \
 
 #endif
 
@@ -308,6 +390,29 @@ asm( \
   /* Call the unmap gate to unmap the privilege section */ \
   /* Operation complete, go back to unsecure mode */ \
   SECURE_EXIT \
+  "ret\n" \
+  #FUNC "_end:\n" \
+  ".size " #FUNC ", " #FUNC "_end - " #FUNC "\n" \
+); \
+RET FUNC ##_secure(__VA_ARGS__); \
+RET SVATEXT FUNC ##_secure(__VA_ARGS__)
+
+
+#define TDCALL_SECURE_WRAPPER(RET, FUNC, ...) \
+asm( \
+  ".text\n" \
+  ".globl " #FUNC "\n" \
+  ".align 16,0x90\n" \
+  ".type " #FUNC ",@function\n" \
+  #FUNC ":\n" \
+  /* Do whatever's needed on entry to secure area */ \
+  TDCALL_SECURE_ENTRY \
+  /* Call the map gate to remap the privilege section */ \
+  /* Call real version of function */ \
+  "call " #FUNC "_secure\n" \
+  /* Call the unmap gate to unmap the privilege section */ \
+  /* Operation complete, go back to unsecure mode */ \
+  TDCALL_SECURE_EXIT \
   "ret\n" \
   #FUNC "_end:\n" \
   ".size " #FUNC ", " #FUNC "_end - " #FUNC "\n" \

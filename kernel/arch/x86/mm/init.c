@@ -238,6 +238,8 @@ static void __init probe_page_size_mask(void)
 #if defined(CONFIG_ENCOS) && defined(CONFIG_ENCOS_MMU)
 	/* remove 2M mapping */
 	page_size_mask &= ~(1 << PG_LEVEL_2M);
+	/* remove 1G mapping */
+	page_size_mask &= ~(1 << PG_LEVEL_1G);
 #endif
 
 	/* Enable PSE if available */

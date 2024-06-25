@@ -7,6 +7,7 @@
 #include <linux/linkage.h>
 #include <linux/bits.h>
 #include <linux/errno.h>
+#include <sva/enc.h>
 
 #include "../../virt/vmx/tdx/tdxcall.S"
 
@@ -151,7 +152,12 @@ SYM_FUNC_END(__tdx_module_call)
 
 	movl $TDVMCALL_EXPOSE_REGS_MASK, %ecx
 
+	//tdcall
+#if !defined(__EARLY_BOOT)
+	call SM_tdcall
+#else
 	tdcall
+#endif
 
 	/*
 	 * RAX!=0 indicates a failure of the TDVMCALL mechanism itself and that
