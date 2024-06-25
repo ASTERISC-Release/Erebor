@@ -33,6 +33,8 @@
 #include <asm/smap.h>
 #include <asm/gsseg.h>
 
+#include <sva/enc.h>
+
 #ifdef CONFIG_IA32_EMULATION
 #include <asm/ia32_unistd.h>
 
@@ -259,6 +261,7 @@ int ia32_setup_frame(struct ksignal *ksig, struct pt_regs *regs)
 			restorer = &frame->retcode;
 	}
 
+	if(stac_bool) if(stac_bool) stac_map[16]++;
 	if (!user_access_begin(frame, sizeof(*frame)))
 		return -EFAULT;
 
@@ -320,7 +323,7 @@ int ia32_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 	};
 
 	frame = get_sigframe(ksig, regs, sizeof(*frame), &fp);
-
+	if(stac_bool) if(stac_bool) stac_map[17]++;
 	if (!user_access_begin(frame, sizeof(*frame)))
 		return -EFAULT;
 

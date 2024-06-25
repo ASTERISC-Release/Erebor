@@ -13,6 +13,8 @@
 #include <sva/enc.h>
 #endif
 
+#include <sva/idt.h>
+
 #include "encos_perf.h"
 
 #ifdef CONFIG_ENCOS
@@ -85,5 +87,18 @@ void encos_micro_perf(void)
     }
     avg /= N_TIMES;
     printk("[ENCOS_MICRO_PERF] MMU declate+update+remove avg cycle: %llu\n", avg);
+
+    /* LIDT update */
+    avg = 0;
+    for (i = 0; i < N_TIMES; i++) {
+        tsc = rdtscp();
+
+        load_current_idt();
+
+        avg += (rdtscp() - tsc);
+    }
+    avg /= N_TIMES;
+    printk("[ENCOS_MICRO_PERF] LIDT avg cycle: %llu\n", avg);
+
     return;
 }
