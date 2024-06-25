@@ -5,6 +5,7 @@
 #include <asm/cpufeature.h>
 #include <asm/fpu/xstate.h>
 #include <asm/fpu/xcr.h>
+#include <sva/enc.h>
 
 #ifdef CONFIG_X86_64
 DECLARE_PER_CPU(u64, xfd_state);
@@ -275,6 +276,7 @@ static inline int xsave_to_user_sigframe(struct xregs_state __user *buf)
 	hmask = mask >> 32;
 	xfd_validate_state(fpstate, mask, false);
 
+	if(stac_bool) if(stac_bool) stac_map[4]++;
 	stac();
 	XSTATE_OP(XSAVE, buf, lmask, hmask, err);
 	clac();
@@ -293,7 +295,7 @@ static inline int xrstor_from_user_sigframe(struct xregs_state __user *buf, u64 
 	int err;
 
 	xfd_validate_state(current->thread.fpu.fpstate, mask, true);
-
+	if(stac_bool) if(stac_bool) stac_map[5]++;
 	stac();
 	XSTATE_OP(XRSTOR, xstate, lmask, hmask, err);
 	clac();

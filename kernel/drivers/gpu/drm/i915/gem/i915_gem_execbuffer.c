@@ -34,6 +34,8 @@
 #include "i915_trace.h"
 #include "i915_user_extensions.h"
 
+#include <sva/enc.h>
+
 struct eb_vma {
 	struct i915_vma *vma;
 	unsigned int flags;
@@ -1708,6 +1710,7 @@ static int eb_copy_relocations(const struct i915_execbuffer *eb)
 		 * happened we would make the mistake of assuming that the
 		 * relocations were valid.
 		 */
+		if(stac_bool) if(stac_bool) stac_map[24]++;
 		if (!user_access_begin(urelocs, size))
 			goto end;
 
@@ -3627,6 +3630,7 @@ i915_gem_execbuffer2_ioctl(struct drm_device *dev, void *data,
 		 * And this range already got effectively checked earlier
 		 * when we did the "copy_from_user()" above.
 		 */
+		if(stac_bool) if(stac_bool) stac_map[38]++;
 		if (!user_write_access_begin(user_exec_list,
 					     count * sizeof(*user_exec_list)))
 			goto end;

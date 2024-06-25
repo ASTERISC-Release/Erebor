@@ -11,6 +11,8 @@
 #include <asm/errno.h>
 #include <asm/processor.h>
 #include <asm/smap.h>
+#include <sva/enc.h>
+
 
 #define unsafe_atomic_op1(insn, oval, uaddr, oparg, label)	\
 do {								\
@@ -48,6 +50,7 @@ do {								\
 static __always_inline int arch_futex_atomic_op_inuser(int op, int oparg, int *oval,
 		u32 __user *uaddr)
 {
+	if(stac_bool) if(stac_bool) stac_map[14]++;
 	if (!user_access_begin(uaddr, sizeof(u32)))
 		return -EFAULT;
 
@@ -83,7 +86,7 @@ static inline int futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 						u32 oldval, u32 newval)
 {
 	int ret = 0;
-
+	if(stac_bool) if(stac_bool) stac_map[15]++;
 	if (!user_access_begin(uaddr, sizeof(u32)))
 		return -EFAULT;
 	asm volatile("\n"

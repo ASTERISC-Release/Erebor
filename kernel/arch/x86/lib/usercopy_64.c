@@ -10,6 +10,7 @@
 #include <linux/uaccess.h>
 #include <linux/highmem.h>
 #include <linux/libnvdimm.h>
+#include <sva/enc.h>
 
 /*
  * Zero Userspace
@@ -47,7 +48,7 @@ long __copy_user_flushcache(void *dst, const void __user *src, unsigned size)
 {
 	unsigned long flushed, dest = (unsigned long) dst;
 	long rc;
-
+	if(stac_bool) if(stac_bool) stac_map[6]++;
 	stac();
 	rc = __copy_user_nocache(dst, src, size);
 	clac();
