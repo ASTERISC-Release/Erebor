@@ -79,7 +79,9 @@ char SecureStack[pageSize*NCPU] __attribute__((aligned(0x1000))) SVAMEM;
  */
 const unsigned long SecureStackBase = (unsigned long) SecureStack + pageSize;
 
-char data_page[4096] __attribute__((aligned(0x1000))) SVAMEM;
+// A dummy page that we map/unmap to emulate performance overhead
+char dummy_page[0x1000] __attribute__((aligned(0x1000)));
+unsigned long* dummy_page_pte = NULL;
 
 /*
  * Chuqi: TODO: protect its memory
@@ -277,7 +279,6 @@ page_entry_store (unsigned long *page_entry, page_entry_t newVal) {
   WRITE_ONCE(*page_entry, newVal);
 }
 
-
 /*
  * Function: sm_entry_map_priv_page / sm_exit_unmap_priv_page
  *
@@ -349,6 +350,51 @@ sm_exit_unmap_priv_page(void)
   //       (unsigned long)__svamem_priv_text_start, __svamem_priv_text_pte,
   //       *__svamem_priv_text_pte);
   sva_mm_flush_tlb(__svamem_priv_text_start);
+  MMULock_Release();
+  return;
+}
+
+
+void
+sm_entry_map_dummy_page(void) 
+{
+  int level;
+  if (!mmuIsInitialized)
+	return;
+  MMULock_Acquire();
+  if (!dummy_page_pte) {
+	dummy_page_pte = get_pgeVaddr((unsigned long)dummy_page, &level);
+	if (level != 1){ /* won't happen */
+	  dummy_page_pte = NULL;
+	  MMULock_Release();
+	  return;
+	}
+  }
+  /* map the privilege code page */
+  page_entry_store(dummy_page_pte, *dummy_page_pte | PG_V);
+  sva_mm_flush_tlb(dummy_page);
+  MMULock_Release();
+  return;
+}
+
+void
+sm_exit_unmap_dummy_page(void)
+{
+  int level;
+  if (!mmuIsInitialized)
+	return;
+  MMULock_Acquire();
+  if (!__svamem_priv_text_pte) {
+	dummy_page_pte = get_pgeVaddr((unsigned long)dummy_page, &level);
+	if (level != 1){ /* won't happen */
+	  dummy_page_pte = NULL;
+	  MMULock_Release();
+	  return;
+	}
+  }
+  /* unmap the dummy page */
+  page_entry_store(dummy_page_pte, *dummy_page_pte & ~PG_V);
+  sva_mm_flush_tlb(dummy_page);
   MMULock_Release();
   return;
 }
