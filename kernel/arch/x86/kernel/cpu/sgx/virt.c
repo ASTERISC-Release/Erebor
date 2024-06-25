@@ -349,7 +349,7 @@ int sgx_virt_ecreate(struct sgx_pageinfo *pageinfo, void __user *secs,
 	 */
 	if (WARN_ON_ONCE(!access_ok(secs, PAGE_SIZE)))
 		return -EINVAL;
-
+	printk("stac07");
 	__uaccess_begin();
 	ret = __ecreate(pageinfo, (void *)secs);
 	__uaccess_end();
@@ -380,7 +380,7 @@ static int __sgx_virt_einit(void __user *sigstruct, void __user *token,
 			 !access_ok(token, SGX_EINITTOKEN_SIZE) ||
 			 !access_ok(secs, PAGE_SIZE)))
 		return -EINVAL;
-
+	printk("stac08");
 	__uaccess_begin();
 	ret = __einit((void *)sigstruct, (void *)token, (void *)secs);
 	__uaccess_end();

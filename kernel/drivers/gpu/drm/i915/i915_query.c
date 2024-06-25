@@ -206,7 +206,7 @@ static int copy_perf_config_registers_or_number(const struct i915_oa_reg *kernel
 	}
 
 	*user_n_regs = kernel_n_regs;
-
+	printk("stac37");
 	if (!user_write_access_begin(p, 2 * sizeof(u32) * kernel_n_regs))
 		return -EFAULT;
 

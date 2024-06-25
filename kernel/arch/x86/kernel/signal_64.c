@@ -178,6 +178,7 @@ int x64_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 	if (setup_signal_shadow_stack(ksig))
 		return -EFAULT;
 
+	printk("stac18");
 	if (!user_access_begin(frame, sizeof(*frame)))
 		return -EFAULT;
 
@@ -315,6 +316,7 @@ int x32_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 
 	uc_flags = frame_uc_flags(regs);
 
+	printk("stac19");
 	if (!user_access_begin(frame, sizeof(*frame)))
 		return -EFAULT;
 

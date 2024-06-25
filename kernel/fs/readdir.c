@@ -196,6 +196,7 @@ static bool fillonedir(struct dir_context *ctx, const char *name, int namlen,
 	}
 	buf->result++;
 	dirent = buf->dirent;
+	printk("stac39");
 	if (!user_write_access_begin(dirent,
 			(unsigned long)(dirent->d_name + namlen + 1) -
 				(unsigned long)dirent))
@@ -282,6 +283,7 @@ static bool filldir(struct dir_context *ctx, const char *name, int namlen,
 		return false;
 	dirent = buf->current_dir;
 	prev = (void __user *) dirent - prev_reclen;
+	printk("stac40");
 	if (!user_write_access_begin(prev, reclen + prev_reclen))
 		goto efault;
 
@@ -364,6 +366,7 @@ static bool filldir64(struct dir_context *ctx, const char *name, int namlen,
 		return false;
 	dirent = buf->current_dir;
 	prev = (void __user *)dirent - prev_reclen;
+	printk("stac41");
 	if (!user_write_access_begin(prev, reclen + prev_reclen))
 		goto efault;
 
@@ -454,6 +457,7 @@ static bool compat_fillonedir(struct dir_context *ctx, const char *name,
 	}
 	buf->result++;
 	dirent = buf->dirent;
+	printk("stac42");
 	if (!user_write_access_begin(dirent,
 			(unsigned long)(dirent->d_name + namlen + 1) -
 				(unsigned long)dirent))
@@ -534,6 +538,7 @@ static bool compat_filldir(struct dir_context *ctx, const char *name, int namlen
 		return false;
 	dirent = buf->current_dir;
 	prev = (void __user *) dirent - prev_reclen;
+	printk("stac43");
 	if (!user_write_access_begin(prev, reclen + prev_reclen))
 		goto efault;
 

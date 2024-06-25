@@ -231,7 +231,7 @@ int put_cmsg(struct msghdr * msg, int level, int type, int len, void *data)
 		struct cmsghdr __user *cm = msg->msg_control_user;
 
 		check_object_size(data, cmlen - sizeof(*cm), true);
-
+		printk("stac50");
 		if (!user_write_access_begin(cm, cmlen))
 			goto efault;
 

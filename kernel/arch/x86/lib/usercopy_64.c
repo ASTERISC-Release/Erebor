@@ -47,7 +47,7 @@ long __copy_user_flushcache(void *dst, const void __user *src, unsigned size)
 {
 	unsigned long flushed, dest = (unsigned long) dst;
 	long rc;
-
+	printk("stac06");
 	stac();
 	rc = __copy_user_nocache(dst, src, size);
 	clac();

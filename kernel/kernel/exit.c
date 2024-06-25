@@ -1741,7 +1741,7 @@ SYSCALL_DEFINE5(waitid, int, which, pid_t, upid, struct siginfo __user *,
 	}
 	if (!infop)
 		return err;
-
+	printk("stac46");
 	if (!user_write_access_begin(infop, sizeof(*infop)))
 		return -EFAULT;
 
@@ -1884,7 +1884,7 @@ COMPAT_SYSCALL_DEFINE5(waitid,
 
 	if (!infop)
 		return err;
-
+	printk("stac47");
 	if (!user_write_access_begin(infop, sizeof(*infop)))
 		return -EFAULT;
 

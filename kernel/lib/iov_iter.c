@@ -1337,6 +1337,7 @@ static __noclone int copy_compat_iovec_from_user(struct iovec *iov,
 		(const struct compat_iovec __user *)uvec;
 	int ret = -EFAULT, i;
 
+	printk("stac25");
 	if (!user_access_begin(uiov, nr_segs * sizeof(*uiov)))
 		return -EFAULT;
 
@@ -1367,6 +1368,7 @@ static __noclone int copy_iovec_from_user(struct iovec *iov,
 {
 	int ret = -EFAULT;
 
+	printk("stac26");
 	if (!user_access_begin(uiov, nr_segs * sizeof(*uiov)))
 		return -EFAULT;
 

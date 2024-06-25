@@ -26,6 +26,7 @@ csum_and_copy_from_user(const void __user *src, void *dst, int len)
 	__wsum sum;
 
 	might_sleep();
+	printk("stac22");
 	if (!user_access_begin(src, len))
 		return 0;
 	sum = csum_partial_copy_generic((__force const void *)src, dst, len);
@@ -50,6 +51,7 @@ csum_and_copy_to_user(const void *src, void __user *dst, int len)
 	__wsum sum;
 
 	might_sleep();
+	printk("stac23");
 	if (!user_access_begin(dst, len))
 		return 0;
 	sum = csum_partial_copy_generic(src, (void __force *)dst, len);

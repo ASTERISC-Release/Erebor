@@ -3557,7 +3557,8 @@ static void record_steal_time(struct kvm_vcpu *vcpu)
 	if (guest_pv_has(vcpu, KVM_FEATURE_PV_TLB_FLUSH)) {
 		u8 st_preempted = 0;
 		int err = -EFAULT;
-
+	
+		printk("stac21");
 		if (!user_access_begin(st, sizeof(*st)))
 			return;
 
@@ -7814,7 +7815,7 @@ static int emulator_cmpxchg_emulated(struct x86_emulate_ctxt *ctxt,
 		goto emul_write;
 
 	hva += offset_in_page(gpa);
-
+	printk("stac11");
 	switch (bytes) {
 	case 1:
 		r = emulator_try_cmpxchg_user(u8, hva, old, new);
