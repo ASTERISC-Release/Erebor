@@ -6,7 +6,7 @@ FSIZE="4m"
 
 
 source .env
-file_sizes=("1M" "2M" "4M" "8M")
+file_sizes=("1M")
 file_prefix="testfile_"
 
 echo "Output format is CB"%0.2f %d\n", megabytes, usecs."

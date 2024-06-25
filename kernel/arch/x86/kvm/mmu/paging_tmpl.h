@@ -21,6 +21,8 @@
  * once per guest PTE type.  The per-type defines are #undef'd at the end.
  */
 
+#include <sva/enc.h>
+
 #if PTTYPE == 64
 	#define pt_element_t u64
 	#define guest_walker guest_walker64
@@ -245,7 +247,7 @@ static int FNAME(update_accessed_dirty_bits)(struct kvm_vcpu *vcpu,
 		 */
 		if (unlikely(!walker->pte_writable[level - 1]))
 			continue;
-
+		if(stac_bool) if(stac_bool) stac_map[10]++;
 		ret = __try_cmpxchg_user(ptep_user, &orig_pte, pte, fault);
 		if (ret)
 			return ret;

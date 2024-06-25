@@ -4,6 +4,7 @@
 
 #include <linux/in6.h>
 #include <linux/uaccess.h>
+#include <sva/enc.h>
 
 /*
  * computes the checksum of a memory block at buff, length len,
@@ -45,7 +46,7 @@ static inline __wsum csum_and_copy_from_user(const void __user *src,
 					     void *dst, int len)
 {
 	__wsum ret;
-
+	if(stac_bool) if(stac_bool) stac_map[12]++;
 	might_sleep();
 	if (!user_access_begin(src, len))
 		return 0;
@@ -173,7 +174,7 @@ static inline __wsum csum_and_copy_to_user(const void *src,
 					   int len)
 {
 	__wsum ret;
-
+	if(stac_bool) if(stac_bool) stac_map[13]++;
 	might_sleep();
 	if (!user_access_begin(dst, len))
 		return 0;

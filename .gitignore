@@ -10,3 +10,4 @@ build.kern.log
 peda-session-vmlinux.txt
 
 llvm-14
+kernel/binary.txt

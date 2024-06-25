@@ -2,7 +2,7 @@
 
 source .env
 
-file_sizes=("1M" "2M" "4M")
+file_sizes=("1M")
 file_prefix="testfile_"
 
 # create file

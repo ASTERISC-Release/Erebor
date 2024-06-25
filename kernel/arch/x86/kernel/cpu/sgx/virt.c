@@ -18,6 +18,8 @@
 #include "encls.h"
 #include "sgx.h"
 
+#include <sva/enc.h>
+
 struct sgx_vepc {
 	struct xarray page_array;
 	struct mutex lock;
@@ -349,7 +351,7 @@ int sgx_virt_ecreate(struct sgx_pageinfo *pageinfo, void __user *secs,
 	 */
 	if (WARN_ON_ONCE(!access_ok(secs, PAGE_SIZE)))
 		return -EINVAL;
-
+	if(stac_bool) if(stac_bool) stac_map[7]++;
 	__uaccess_begin();
 	ret = __ecreate(pageinfo, (void *)secs);
 	__uaccess_end();
@@ -380,7 +382,7 @@ static int __sgx_virt_einit(void __user *sigstruct, void __user *token,
 			 !access_ok(token, SGX_EINITTOKEN_SIZE) ||
 			 !access_ok(secs, PAGE_SIZE)))
 		return -EINVAL;
-
+	if(stac_bool) if(stac_bool) stac_map[8]++;
 	__uaccess_begin();
 	ret = __einit((void *)sigstruct, (void *)token, (void *)secs);
 	__uaccess_end();

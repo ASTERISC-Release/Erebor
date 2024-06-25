@@ -6,5 +6,5 @@ source .env
 echo "Running lmbench lat_sig signal install..."
 $lmbench_sig -P $PARALLEL -W $WARMUP -N $NTIMES install
 
-echo "Running lmbench lat_sig signal catch (handler)..."
-$lmbench_sig -P $PARALLEL -W $WARMUP -N $NTIMES catch
+#echo "Running lmbench lat_sig signal catch (handler)..."
+#$lmbench_sig -P $PARALLEL -W $WARMUP -N $NTIMES catch
