@@ -20,6 +20,11 @@
 
 #include <asm/special_insns.h> /* native_read_cr4 debug */
 
+#ifdef CONFIG_ENCOS_STATS
+#include <sva/sva.h>
+#include <sva/stats.h>
+#endif
+
 #ifndef PAGE_SIZE
 #define PAGE_SIZE   4096
 #endif
@@ -96,6 +101,9 @@ static void __this_pcpu_setup_syscall_stack(void *junk)
 SECURE_WRAPPER(void,
 SM_setup_pcpu_syscall_stack, void)
 {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_SETUP_PCPU_CALL_STACK);
+#endif
     int cpu;
     for_each_online_cpu(cpu) {
         printk(KERN_INFO "CPU %d is online\n", cpu);
@@ -143,6 +151,9 @@ void sm_validate_syscall_stack(unsigned long sys_rsp)
 SECURE_WRAPPER(void, 
 SM_sched_in_userspace_prepare, struct pt_regs* regs)
 {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_SCHED_IN_USERSPACE_PREPARE);
+#endif
     encos_enclave_entry_t *entry = current_enclave_entry();
     if (entry->activate) {
         prepare_u2k_interface(/*is_enclave=*/1);
@@ -168,6 +179,9 @@ EXPORT_SYMBOL(SM_encos_empty);
 SECURE_WRAPPER(int, 
 SM_encos_enclave_assign, void)
 {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_ENCOS_ENCLAVE_ASSIGN);
+#endif
     int pid, enc_id;
     pid = current->pid;
     enc_id = _assign_enc_id();
@@ -195,6 +209,9 @@ SM_encos_enclave_claim_memory, unsigned long uva,
 unsigned long pa, unsigned long nr_pages,
 int is_internalmem)
 {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_ENCOS_ENCLAVE_CLAIM_MEMORY);
+#endif
     int i;
     page_desc_t *page_desc;
     unsigned long kva;
@@ -243,6 +260,9 @@ SECURE_WRAPPER(void,
 SM_encos_enclave_protect_memory, 
 unsigned long pa, unsigned long nr_pages)
 {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_ENCOS_ENCLAVE_PROTECT_MEMORY);
+#endif
     unsigned long kva;
     int i;
     for (i = 0; i < nr_pages; i++) {
@@ -256,6 +276,9 @@ unsigned long pa, unsigned long nr_pages)
 SECURE_WRAPPER(int, 
 SM_encos_enclave_act, int pid)
 {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_ENCOS_ENCLAVE_ACT);
+#endif
     encos_enclave_entry_t *entry;
     entry = &encos_enclave_table[pid];
     /* sanity checks */    
@@ -279,6 +302,9 @@ SM_encos_enclave_act, int pid)
 SECURE_WRAPPER(int, 
 SM_encos_enclave_exit, int pid)
 {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_ENCOS_ENCLAVE_EXIT);
+#endif
     encos_enclave_entry_t *entry;
     entry = &encos_enclave_table[pid];
     /* not an enclave. */
@@ -296,6 +322,9 @@ SM_encos_enclave_exit, int pid)
 SECURE_WRAPPER(void,
 SM_encos_vfork_child, int parent_pid, int child_pid)
 {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_ENCOS_ENCLAVE_VFORK_CHILD);
+#endif
     encos_enclave_entry_t *parent, *child;
     parent = &encos_enclave_table[parent_pid];
     child = &encos_enclave_table[child_pid];
@@ -379,6 +408,9 @@ static inline int SM_mmap_return(unsigned long uva, unsigned long len,
 SECURE_WRAPPER(void, SM_printvalues,
 void *rdi, void *rsi, void *rdx)
 {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_ENCOS_ENCLAVE_PRINTVALUES);
+#endif
     // return;
     printk("rdi=0x%lx, rsi=0x%lx, rdx=0x%lx.\n", 
                 (unsigned long)rdi, (unsigned long)rsi, (unsigned long)rdx);
@@ -390,6 +422,9 @@ struct pt_regs *regs,
 void *target_stack,
 unsigned int size)
 {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_ENCOS_ENCLAVE_SAVE_RESTORE_PT_REG);
+#endif
     /* TODO: we don't obfuscate anything right now */
     // printk("[pid=%d] pt_regs=0x%lx. orig_ax=0x%lx, copy_to_stack=0x%lx, cpy_size=%u.\n", 
     //             current->pid,
@@ -402,6 +437,9 @@ unsigned int size)
 
 SECURE_WRAPPER(void, SM_encos_syscall_enter, 
 struct pt_regs* regs, int nr) {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_ENCOS_SYSCALL_ENTER);
+#endif
     /*
      * Once an enclave is activated, we 
      * intercept its syscalls (enter) into here.
@@ -438,6 +476,9 @@ struct pt_regs* regs, int nr) {
 
 SECURE_WRAPPER(void, SM_encos_syscall_return, 
 struct pt_regs* regs, int nr) {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_ENCOS_SYSCALL_RETURN);
+#endif
     /*
      * Once an enclave is activated, we 
      * intercept its syscalls (ret) into here.
@@ -477,6 +518,9 @@ struct pt_regs* regs, int nr) {
 TDCALL_SECURE_WRAPPER(unsigned long,
 SM_tdcall, void)
 {
+#ifdef CONFIG_ENCOS_STATS
+	// stats_svacall_incr(SVA_TDCALL);
+#endif
     unsigned long rax;
     asm volatile("tdcall");
     asm volatile("movq %%rax, %0" : "=r"(rax));

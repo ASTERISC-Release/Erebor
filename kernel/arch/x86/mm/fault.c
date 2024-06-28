@@ -38,6 +38,10 @@
 #define CREATE_TRACE_POINTS
 #include <asm/trace/exceptions.h>
 
+#ifdef CONFIG_ENCOS_STATS
+#include <sva/stats.h>
+#endif
+
 /*
  * Returns 0 if mmiotrace is disabled, or if the fault is not
  * handled by mmiotrace:
@@ -1557,6 +1561,10 @@ handle_page_fault(struct pt_regs *regs, unsigned long error_code,
 
 DEFINE_IDTENTRY_RAW_ERRORCODE(exc_page_fault)
 {
+#ifdef CONFIG_ENCOS_STATS
+	stats_interrupt_incr(X86_TRAP_PF);
+#endif
+
 	unsigned long address = read_cr2();
 	irqentry_state_t state;
 
