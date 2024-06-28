@@ -4,15 +4,15 @@
 #include <linux/pid.h>
 #include <asm/current.h>
 
-spinlock_t stats_lock;
+// spinlock_t stats_lock;
 stats_t stats;
 
 void stats_init(int process_group_id) {
-    spin_lock_init(&stats_lock);
-    spin_lock(&stats_lock);
+    // spin_lock_init(&stats_lock);
+    // spin_lock(&stats_lock);
     memset(&stats, 0, sizeof(stats_t));
     stats.process_group_id = process_group_id;
-    spin_unlock(&stats_lock);
+    // spin_unlock(&stats_lock);
 }
 
 void stats_syscall_incr(int syscall_no) {
@@ -21,11 +21,11 @@ void stats_syscall_incr(int syscall_no) {
 
     printk("task_name = %s, PID: %d, PGID: %d\n", current->comm, current->pid, task_pgrp(current)->numbers[0].nr);
 
-    // int cpu = smp_processor_id();
+    int cpu = smp_processor_id();
     // int cpu = 0;
-    spin_lock(&stats_lock);    
-    stats.syscall[syscall_no]++;
-    spin_unlock(&stats_lock);    
+    // spin_lock(&stats_lock);    
+    stats.syscall[syscall_no][cpu]++;
+    // spin_unlock(&stats_lock);    
 
 }
 
@@ -34,11 +34,11 @@ void stats_svacall_incr(int svacall_no) {
         return;
 
     printk("task_name = %s, PID: %d, PGID: %d\n", current->comm, current->pid, task_pgrp(current)->numbers[0].nr);
-    // int cpu = smp_processor_id();
+    int cpu = smp_processor_id();
     // int cpu = 0;
-    spin_lock(&stats_lock);    
-    stats.svacall[svacall_no]++;
-    spin_unlock(&stats_lock);    
+    // spin_lock(&stats_lock);    
+    stats.svacall[svacall_no][cpu]++;
+    // spin_unlock(&stats_lock);    
 }
 
 void stats_interrupt_incr(int interrupt_no) {
@@ -47,9 +47,9 @@ void stats_interrupt_incr(int interrupt_no) {
 
     printk("task_name = %s, PID: %d, PGID: %d\n", current->comm, current->pid, task_pgrp(current)->numbers[0].nr);
 
-    // int cpu = smp_processor_id();
+    int cpu = smp_processor_id();
     // int cpu = 0;
-    spin_lock(&stats_lock);    
-    stats.interrupt[interrupt_no]++;
-    spin_unlock(&stats_lock);    
+    // spin_lock(&stats_lock);    
+    stats.interrupt[interrupt_no][cpu]++;
+    // spin_unlock(&stats_lock);    
 }
