@@ -46,6 +46,11 @@ config ENCOS_INTR
 	help
 	  Enclave nested-OS (Exception interposition).
 
+config ENCOS_STATS
+	def_bool y
+	help
+	  Enclave Statistics
+
 config ARCH_HAS_SUBPAGE_FAULTS
 	bool
 	help

@@ -42,6 +42,8 @@
 
 #ifdef CONFIG_X86_64
 
+#include <sva/stats.h>
+
 static __always_inline bool do_syscall_x64(struct pt_regs *regs, int nr)
 {
 	/*
@@ -51,6 +53,9 @@ static __always_inline bool do_syscall_x64(struct pt_regs *regs, int nr)
 	unsigned int unr = nr;
 
 	if (likely(unr < NR_syscalls)) {
+#ifdef CONFIG_ENCOS_STATS
+		stats_syscall_incr(unr);
+#endif
 		unr = array_index_nospec(unr, NR_syscalls);
 		regs->ax = sys_call_table[unr](regs);
 // #ifdef CONFIG_ENCOS
