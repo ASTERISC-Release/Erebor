@@ -65,6 +65,10 @@
 
 #include "local.h"
 
+#ifdef CONFIG_ENCOS_STATS
+#include <sva/stats.h>
+#endif
+
 unsigned int num_processors;
 
 unsigned disabled_cpus;
@@ -1073,6 +1077,9 @@ static void local_apic_timer_interrupt(void)
  */
 DEFINE_IDTENTRY_SYSVEC(sysvec_apic_timer_interrupt)
 {
+#ifdef CONFIG_ENCOS_STATS
+	stats_interrupt_incr(LOCAL_TIMER_VECTOR);
+#endif
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
 	apic_eoi();
