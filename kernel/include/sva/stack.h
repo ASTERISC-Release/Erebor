@@ -228,7 +228,7 @@ extern const uintptr_t TDCallSecureStackBase;
   /* Get current PKRS value */                                                 \
   RD_PKSMSR                                                                    \
   /* Allow access for key 1 */                                                 \
-  "andq $0xFFFFFFFFFFFFFFF3, %rax\n"                                           \
+  "andq $0xFFFFFFFFFFFFFFF0, %rax\n"                                           \
   /* Update the PKRS value */                                                  \
   WR_PKSMSR                                                                    \
   /* CONFIG_ENCOS_WP */                                                        \
@@ -308,7 +308,7 @@ extern const uintptr_t TDCallSecureStackBase;
   /* Get current PKRS value */                                                 \
   RD_PKSMSR                                                                    \
   /* Allow access for key 1 */                                                 \
-  "andq $0xFFFFFFFFFFFFFFF3, %rax\n"                                           \
+  "andq $0xFFFFFFFFFFFFFFF0, %rax\n"                                           \
   /* Update the PKRS value */                                                  \
   WR_PKSMSR                                                                    \
   /* CONFIG_ENCOS_WP */                                                        \
@@ -352,7 +352,7 @@ extern const uintptr_t TDCallSecureStackBase;
   /* Get current PKRS value */                                                 \
   RD_PKSMSR                                                                    \
   /* Restrict write access for key 1 */                                        \
-  "orq $0x0000000000000008, %rax\n"                                            \
+  "orq $0x0000000000000000, %rax\n"                                            \
   /* Update the PKRS value */                                                  \
   WR_PKSMSR                                                                    \
   /* CONFIG_ENCOS_WP */                                                        \

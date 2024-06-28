@@ -69,6 +69,21 @@ static inline void print_insecure_stack(void) {
   printk("-----------------------------------------------"); \
   panic(args)
 
+static int rdtscp_smp_id(void)
+{
+	// use rdtscp to get processor id
+	unsigned int eax, ebx, ecx, edx;
+    __asm__ __volatile__ (
+        "rdtscp"            // Read Time-Stamp Counter and Processor ID
+        : "=a" (eax),       // Store lower 32 bits of TSC in eax
+          "=d" (edx),       // Store upper 32 bits of TSC in edx
+          "=c" (ecx)        // Store processor ID in ecx
+        :                   // No input
+        : "memory"          // Clobber memory
+    );
+    return (ecx & 0xfff);             // Return processor ID
+}
+
 /* 
  * Description: 
  *   This is a pointer to the secure monitor's runtime stack, which is used on
@@ -1106,7 +1121,8 @@ sva_stack_test, void) {
 		:
 		: "memory"
 	);
-  log_info("sva_stack_test, SP=0x%lx.\n", sp);
+  log_info("sva_stack_test, SP=0x%lx., PKRS=0x%lx\n", 
+  				sp, _rdmsr(MSR_REG_PKRS));
 }
 
 /*
@@ -1803,6 +1819,18 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
   /* Protect the SVA data and code pages */
   LOG_PRINTK("_svastart va=0x%lx pa=0x%lx, _svaend va=0x%lx pa=0x%lx\n", 
 			  _svastart, __pa(_svastart), _svaend, __pa(_svaend));
+  
+  // after enter sva_mmu_init, print PKRS
+  LOG_PRINTK("Current smp_id=%d, PKRS=0x%lx\n", 
+				smp_processor_id(), _rdmsr(MSR_REG_PKRS));
+  // maunally change pkrs
+  _wrmsr(MSR_REG_PKRS, 0x0);
+
+  // print it again
+  LOG_PRINTK("Current PKRS=0x%lx\n", _rdmsr(MSR_REG_PKRS));
+  LOG_PRINTK("Current PKRS=0x%lx\n", _rdmsr(MSR_REG_PKRS));
+  LOG_PRINTK("Current PKRS=0x%lx\n", _rdmsr(MSR_REG_PKRS));
+
   init_protected_pages((unsigned long) _svastart, (unsigned long) _svaend, PG_SVA);
   printk("Done\n");
 

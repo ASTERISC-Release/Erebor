@@ -14,15 +14,19 @@ obj-m += cr_msr_bench.o
 CFLAGS_cr_msr_bench.o := -Wall -I$(PWD)/
 
 EXEC := syscall_bench
+EXEC2 := tdreport
 
-all: $(EXEC)
+all: $(EXEC) $(EXEC2)
 
 $(EXEC): syscall_bench.c
+	$(CC) $(CFLAGS) -o $@ $^
+
+$(EXEC2): tdreport.c
 	$(CC) $(CFLAGS) -o $@ $^
 
 module: 
 	make -C /lib/modules/`uname -r`/build M=$(PWD) modules
 
 clean:
-	rm -rf *.o $(EXEC)
+	rm -rf *.o $(EXEC) $(EXEC2)
 	make -C /lib/modules/`uname -r`/build M=$(PWD) clean

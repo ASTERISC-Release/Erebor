@@ -1177,33 +1177,39 @@ do_kern_addr_fault(struct pt_regs *regs, unsigned long hw_error_code,
 	 * have no user pages in the kernel portion of the address
 	 * space, so do not expect them here.
 	 */
-#if 0
+#if 1
 // #ifdef CONFIG_ENCOS
 	printk("Hello! Fault address = %lx, error code: %lx\n", 
 								address, hw_error_code);
-	unsigned long page_nr_mask = 0x0000000FFFFFF000;
-
-	// get page_nr of the physical address
-	int level = 0;
-	unsigned long page_entry = (unsigned long) get_pgeVaddr(address, &level);
-	unsigned long page_nr = (*(unsigned long *)page_entry & page_nr_mask) >> 12;
-	printk("page_entry (VA=0x%lx, PTE value=0x%lx), page_nr=0x%lx, level = %d\n", 
-		page_entry, *(unsigned long *)page_entry, page_nr, level);
-
-	// double check, they should be same
-	if (page_nr != __pa(address) >> 12) {
-		panic("page_nr (0x%lx) != __pa(address) >> 12 (0x%lx)\n", 
-			page_nr, (unsigned long)__pa(address) >> 12);
-	}
-
-	// recursively walk and check if the page_nr is an entry in L5-L2 PTPs
-	page_desc_t *desc = getPageDescPtr(__pa(address));
 	
-	// printk("ptp_check: %lx\n", read_cr3());
-	int isPTP = 0;
-	ptp_check(read_cr3(), 512, PG_L4, page_nr, &isPTP);
-	printk("Check fault_addr page: 0x%lx (pagetype=%d), isPTP=%d", 
-			page_nr, desc->type, isPTP);
+	unsigned long pkrs_val;
+	// read pkrs msr
+	rdmsrl(0x6e1, pkrs_val);
+	printk("PKRS MSR value: %lx\n", pkrs_val);
+
+	// unsigned long page_nr_mask = 0x0000000FFFFFF000;
+
+	// // get page_nr of the physical address
+	// int level = 0;
+	// unsigned long page_entry = (unsigned long) get_pgeVaddr(address, &level);
+	// unsigned long page_nr = (*(unsigned long *)page_entry & page_nr_mask) >> 12;
+	// printk("page_entry (VA=0x%lx, PTE value=0x%lx), page_nr=0x%lx, level = %d\n", 
+	// 	page_entry, *(unsigned long *)page_entry, page_nr, level);
+
+	// // double check, they should be same
+	// if (page_nr != __pa(address) >> 12) {
+	// 	panic("page_nr (0x%lx) != __pa(address) >> 12 (0x%lx)\n", 
+	// 		page_nr, (unsigned long)__pa(address) >> 12);
+	// }
+
+	// // recursively walk and check if the page_nr is an entry in L5-L2 PTPs
+	// page_desc_t *desc = getPageDescPtr(__pa(address));
+	
+	// // printk("ptp_check: %lx\n", read_cr3());
+	// int isPTP = 0;
+	// ptp_check(read_cr3(), 512, PG_L4, page_nr, &isPTP);
+	// printk("Check fault_addr page: 0x%lx (pagetype=%d), isPTP=%d", 
+	// 		page_nr, desc->type, isPTP);
 #endif
 
 	WARN_ON_ONCE(hw_error_code & X86_PF_PK);
