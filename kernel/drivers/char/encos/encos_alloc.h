@@ -16,6 +16,8 @@
 
 extern struct cma *encos_cma;
 
+extern unsigned long enc_priv_mem_size;
+
 typedef struct encos_mem {
     /* enclave id */
     int enc_id;

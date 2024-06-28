@@ -13,6 +13,8 @@ DEFINE_HASHTABLE(encos_shmem_table, 8);
 /**
  * Allocate a memory chunk.
  */
+unsigned long enc_priv_mem_size = 0;
+
 encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id, bool is_futex, bool add_to_memlist)
 {
     struct page *page = NULL;
@@ -46,6 +48,7 @@ encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id, bool is_fut
         encos_mem->length = PAGE_SIZE;
         encos_mem->nr_pages = 1;
         encos_mem->alloc_type = 2;
+        enc_priv_mem_size += PAGE_SIZE; // statistics
         /* PAGE ALIGNED */
         ENCOS_ASSERT((encos_mem->virt_kern & 0xFFF) == 0, 
             "Futex KVA is not page aligned.\n");
@@ -66,6 +69,7 @@ encos_mem_t *encos_alloc(unsigned long length, unsigned long enc_id, bool is_fut
             encos_mem->alloc_type = 1;
             encos_mem->nr_pages = nr_pages;
 
+            enc_priv_mem_size += nr_pages * PAGE_SIZE; // statistics
             /* Chuqi: 
              * Memory clean is super important here. Because the libOS's all init memory
              * is from this CMA allocator, all its expected init data section should be zeroed.

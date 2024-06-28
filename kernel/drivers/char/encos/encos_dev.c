@@ -139,6 +139,10 @@ static long encos_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
                 printk("Func[%d] -> %d\n", i, stac_map[i]);
             break;
         
+        case ENCOS_MEM_NUM_STATS:
+            printk("ENCId=1 mem_size bytes=%lu, kb=%lu, mb=%lu.\n", 
+                    enc_priv_mem_size, enc_priv_mem_size / 1024, enc_priv_mem_size / (1024 * 1024));
+            break;
     }
     return (long)rvl;
 }

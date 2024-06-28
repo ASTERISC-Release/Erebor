@@ -70,7 +70,7 @@ ____rdmsr(unsigned long msr)
 
 void encos_micro_perf(void)
 {
-    int i, ress;
+    int i;
     
     uint64_t tsc, e, avg;
 

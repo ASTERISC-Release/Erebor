@@ -142,7 +142,7 @@ extern const uintptr_t TDCallSecureStackBase;
   /* Get current PKRS value */                                                 \
   "rdmsr\n"                                                                    \
   /* Allow access for key 1 */                                                 \
-  "andq $0xFFFFFFFFFFFFFFF7, %rax\n"                                           \
+  "andq $0xFFFFFFFFFFFFFFF0, %rax\n"                                           \
   /* Update the PKRS value */                                                  \
   "wrmsr\n"                                                                    \
   /* Restore clobbered register */                                             \
@@ -372,6 +372,9 @@ extern const uintptr_t TDCallSecureStackBase;
 #endif
 
 #define SECURE_INTERRUPT_REDIRECT                                              \
+  DISABLE_INTERRUPTS                                                           \
+  DISABLE_PKS_PROTECTION                                                       \
+  ENABLE_INTERRUPTS                                                            \
 
 //===-- Wrapper macro for marking Secure Entrypoints ----------------------===//
 
