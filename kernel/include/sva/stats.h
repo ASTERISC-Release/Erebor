@@ -20,9 +20,9 @@
 
 typedef struct stats {
     int process_group_id;
-    int syscall[NR_SYSCALL];    
-    int interrupt[NR_INTERRUPT];    
-    int svacall[NR_SVACALL];
+    int syscall[NR_SYSCALL][NCPU];    
+    int interrupt[NR_INTERRUPT][NCPU];    
+    int svacall[NR_SVACALL][NCPU];
     int val;
 } stats_t;
 
