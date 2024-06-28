@@ -46,7 +46,7 @@ static inline void __set_pte_protection(unsigned long *pte, int should_protect)
      * key=0 is reserved for the kernel (unprotected pages).
      */
     if (should_protect)
-        *pte |= (1ull << 59);
+        *pte |= (0ull << 59);
     else
         /* set the existing key in the PTE to 0 */
         *pte &= (0x87FFFFFFFFFFFFFF);
