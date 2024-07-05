@@ -29,6 +29,8 @@
 // chuqi: micro perf
 #include "encos_perf.h"
 
+#include <sva/stats.h>
+
 struct miscdevice *misc;
 struct mutex encos_dev_mlock;
 
@@ -99,14 +101,47 @@ static long encos_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             encos_kdbg_enabled = 0;
             break;
         
+        case ENCOS_STATS_INIT:
+            printk("ENCOS_STATS_INIT\n");
+            // copy_from_user the stats struct
+            if(copy_from_user((void*)&stats, (void*)arg, sizeof(stats_t)) != 0) {
+                printk("[Error: stats]: copy_from_user\n");
+            }
+
+            stats_init(stats.process_group_id);
+
+            // testing functionality
+            stats.val = 20;
+
+            // copy_to_user the stats struct
+            if(copy_to_user((void*)arg, (void*)&stats, sizeof(stats_t)) != 0) {
+                printk("[Error: stats]: copy_to_user\n");
+            }
+
+            printk("ENCOS_STATS_INIT_DONE\n");
+            break;
+
+        case ENCOS_STATS_READ:
+            // copy_to_user the stats struct
+            if(copy_to_user((void*)arg, (void*)&stats, sizeof(stats_t)) != 0) {
+                printk("[Error: stats]: copy_to_user\n");
+            }
+
+            break;
+
         case ENCOS_STAC_ENABLE:
-            stac_bool = 1;
+            stac_bool = (stac_bool == 0) ? 1 : 0;
             break;
 
         case ENCOS_STAC_STATS:
             printk("-------------STAC STATS-------------\n");
             for(int i = 0; i < 60; i++)
                 printk("Func[%d] -> %d\n", i, stac_map[i]);
+            break;
+        
+        case ENCOS_MEM_NUM_STATS:
+            printk("ENCId=1 mem_size bytes=%lu, kb=%lu, mb=%lu.\n", 
+                    enc_priv_mem_size, enc_priv_mem_size / 1024, enc_priv_mem_size / (1024 * 1024));
             break;
     }
     return (long)rvl;

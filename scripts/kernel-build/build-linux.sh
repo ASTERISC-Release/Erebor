@@ -58,7 +58,7 @@ CURBRANCH=`git status | head -1 | cut -d ' ' -f3`
 # Build the kernel executable
 pushd $LINUXFOLDER
     # copy the saved config
-    cp $CURDIR/.config.saved.nokvm-perf-nolivepatch-nospec-noloadmod-nohp-no5level-tdx .config
+    cp $CURDIR/.config.saved.nokvm-perf-nolivepatch-nospec-noloadmod-nohp-no5level-tdx-ibt .config
     make -j`nproc`
 popd
 

@@ -15,8 +15,11 @@
 #define   ENCOS_ENCLAVE_ACT             _IOW('m', 4, unsigned int)
 #define   ENCOS_ENCLAVE_EXIT            _IOW('m', 5, unsigned int)
 #define   HHKR_MMAP_FREEBACK_WL         _IOW('m', 7, unsigned int)
-#define   ENCOS_STAC_ENABLE             _IOW('m', 8, unsigned int)
-#define   ENCOS_STAC_STATS              _IOW('m', 9, unsigned int)
+#define   ENCOS_STATS_INIT              _IOW('m', 8, unsigned int)
+#define   ENCOS_STATS_READ              _IOW('m', 9, unsigned int)
+#define   ENCOS_STAC_ENABLE             _IOW('m', 10, unsigned int)
+#define   ENCOS_STAC_STATS              _IOW('m', 11, unsigned int)
+#define   ENCOS_MEM_NUM_STATS           _IOW('m', 12, unsigned int)
 
 
 #define log_info(fmt, arg...) \

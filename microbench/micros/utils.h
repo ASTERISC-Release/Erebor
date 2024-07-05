@@ -1,7 +1,7 @@
 #include <linux/types.h>
 #define N_TIMES     100
 
-static inline uint64_t rdtscp(void) {
+static inline unsigned long rdtscp(void) {
     unsigned int lo, hi;
     asm volatile(
         "rdtscp"
@@ -9,7 +9,7 @@ static inline uint64_t rdtscp(void) {
         :
         : "memory"
     );
-    return ((uint64_t)hi << 32) | lo;
+    return ((unsigned long)hi << 32) | lo;
 }
 
 static inline long syscall_3(long syscall_number, long arg1, long arg2, long arg3) {

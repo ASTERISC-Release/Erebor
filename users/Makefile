@@ -15,13 +15,17 @@ obj-m += pks_kmod.o
 
 EXEC := encos_dev_user
 EXEC2 := mprotect_test
+EXEC3 := memstat
 
-all: $(EXEC) $(EXEC2)
+all: $(EXEC) $(EXEC2) $(EXEC3) 
 
 $(EXEC): encos_dev_user.c
 	$(CC) $(CFLAGS) -o $@ $^
 
 $(EXEC2): mprotect_test.c
+	$(CC) $(CFLAGS) -o $@ $^
+
+$(EXEC3): memstat.c
 	$(CC) $(CFLAGS) -o $@ $^
 
 module: 
@@ -36,5 +40,5 @@ remove:
 	sudo rmmod kmod.ko
 
 clean:
-	rm -rf *.o $(EXEC) $(EXEC2)
+	rm -rf *.o $(EXEC) $(EXEC2) $(EXEC3)
 	make -C /lib/modules/`uname -r`/build M=$(PWD) clean

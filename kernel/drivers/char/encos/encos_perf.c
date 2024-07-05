@@ -23,10 +23,22 @@
 #define MSG "[ENCOS_MICRO_PERF] Mearsuring NATIVE guest CR/WRMSR read/write overhead."
 #endif
 
+// static inline long hypercall_3(unsigned int nr, unsigned long p1,
+// 				  unsigned long p2, unsigned long p3)
+// {
+// 	long ret;
+// 	asm volatile(
+//              "vmcall"
+// 		     : "=a"(ret)
+// 		     : "a"(nr), "b"(p1), "c"(p2), "d"(p3)
+// 		     : "memory");
+// 	return ret;
+// }
 
 void encos_micro_perf(void)
 {
     int i;
+//     int ress;
     uint64_t tsc, avg;
 
     printk(KERN_INFO "%s.\n", MSG);
@@ -100,5 +112,14 @@ void encos_micro_perf(void)
     avg /= N_TIMES;
     printk("[ENCOS_MICRO_PERF] LIDT avg cycle: %llu\n", avg);
 
+    /* hypercall */
+    avg = 0;
+    for (i = 0; i < N_TIMES; i++) {
+        tsc = rdtscp();
+        // ress = hypercall_3(9999, 0, 0, 0);
+        avg += (rdtscp() - tsc);
+    }
+    avg /= N_TIMES;
+//     printk("[ENCOS_MICRO_PERF] Hypercall ret=%d avg cycle: %llu\n", ress, avg);
     return;
 }

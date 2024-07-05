@@ -140,7 +140,7 @@ void main(void)
     printf("TD_report time=%lu\n", end-start);
 	
     if (ret != 0) {
-        printf("TDX_CMD_GET_REPORT0 failed\n");
+        printf("TDX_CMD_GET_REPORT0 failed=%d\n",ret);
     }
 
 #define DEBUG (1)

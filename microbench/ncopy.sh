@@ -7,5 +7,8 @@ if [[ -z $PORT ]]; then
 fi
 
 source ../scripts/.env
+
+USERNAME="tdx"
+
 ssh -p $PORT $USERNAME@localhost "mkdir -p microbench/"
 scp -r -P $PORT ./* $USERNAME@localhost:/home/$USERNAME/microbench

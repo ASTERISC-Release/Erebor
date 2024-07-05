@@ -75,6 +75,10 @@
 
 #include <asm/proto.h>
 
+#ifdef CONFIG_ENCOS_STATS
+#include <sva/stats.h>
+#endif
+
 DECLARE_BITMAP(system_vectors, NR_VECTORS);
 
 __always_inline int is_valid_bugaddr(unsigned long addr)
@@ -192,12 +196,18 @@ static __always_inline void __user *error_get_trap_addr(struct pt_regs *regs)
 
 DEFINE_IDTENTRY(exc_divide_error)
 {
+#ifdef CONFIG_ENCOS_STATS
+	stats_interrupt_incr(X86_TRAP_DE);
+#endif
 	do_error_trap(regs, 0, "divide error", X86_TRAP_DE, SIGFPE,
 		      FPE_INTDIV, error_get_trap_addr(regs));
 }
 
 DEFINE_IDTENTRY(exc_overflow)
 {
+#ifdef CONFIG_ENCOS_STATS
+	stats_interrupt_incr(X86_TRAP_OF);
+#endif
 	do_error_trap(regs, 0, "overflow", X86_TRAP_OF, SIGSEGV, 0, NULL);
 }
 
@@ -207,6 +217,9 @@ void handle_invalid_op(struct pt_regs *regs)
 static inline void handle_invalid_op(struct pt_regs *regs)
 #endif
 {
+#ifdef CONFIG_ENCOS_STATS
+	stats_interrupt_incr(X86_TRAP_UD);
+#endif
 	do_error_trap(regs, 0, "invalid opcode", X86_TRAP_UD, SIGILL,
 		      ILL_ILLOPN, error_get_trap_addr(regs));
 }
@@ -1332,6 +1345,9 @@ static void ve_raise_fault(struct pt_regs *regs, long error_code,
  */
 DEFINE_IDTENTRY(exc_virtualization_exception)
 {
+#ifdef CONFIG_ENCOS_STATS
+	stats_interrupt_incr(X86_TRAP_VE);
+#endif
 	struct ve_info ve;
 
 	/*

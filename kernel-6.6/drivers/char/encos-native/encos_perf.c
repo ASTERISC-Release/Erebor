@@ -47,6 +47,17 @@ static struct file_operations encos_dev_ops = {
 // 	high = newval >> 32;
 // 	__asm __volatile("wrmsr" : : "a" (low), "d" (high), "c" (msr));
 // }
+// static inline long hypercall_3(unsigned int nr, unsigned long p1,
+// 				  unsigned long p2, unsigned long p3)
+// {
+// 	long ret;
+// 	asm volatile(
+//              "vmcall"
+// 		     : "=a"(ret)
+// 		     : "a"(nr), "b"(p1), "c"(p2), "d"(p3)
+// 		     : "memory");
+// 	return ret;
+// }
 
 static uint64_t
 ____rdmsr(unsigned long msr)
@@ -117,6 +128,17 @@ void encos_micro_perf(void)
     }
     avg /= N_TIMES;
     printk("[ENCOS_MICRO_PERF] Read/Write MSR MSR_LSTAR avg cycle: %llu\n", avg);
+
+    /* hypercall */
+    // avg = 0;
+    // for (i = 0; i < N_TIMES; i++) {
+    //     tsc = rdtscp();
+    //     ress = hypercall_3(9999, 0, 0, 0);
+    //     avg += (rdtscp() - tsc);
+    // }
+    // avg /= N_TIMES;
+    // printk("[ENCOS_MICRO_PERF] Hypercall ret=%d avg cycle: %llu\n", ress, avg);
+
     return;
 }
 

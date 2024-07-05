@@ -267,6 +267,10 @@ static void __init probe_page_size_mask(void)
 		direct_gbpages = 0;
 	}
 #ifdef CONFIG_ENCOS
+	/* remove 2M mapping */
+	page_size_mask &= ~(1 << PG_LEVEL_2M);
+	/* remove 1G mapping */
+	page_size_mask &= ~(1 << PG_LEVEL_1G);
 	printk("probe_page_size_mask level-2M=%d level-1G=%d\n",
 		!!(page_size_mask & (1 << PG_LEVEL_2M)),
 		!!(page_size_mask & (1 << PG_LEVEL_1G)));

@@ -142,7 +142,7 @@ extern const uintptr_t TDCallSecureStackBase;
   /* Get current PKRS value */                                                 \
   "rdmsr\n"                                                                    \
   /* Allow access for key 1 */                                                 \
-  "andq $0xFFFFFFFFFFFFFFF7, %rax\n"                                           \
+  "andq $0xFFFFFFFFFFFFFFF0, %rax\n"                                           \
   /* Update the PKRS value */                                                  \
   "wrmsr\n"                                                                    \
   /* Restore clobbered register */                                             \
@@ -214,6 +214,7 @@ extern const uintptr_t TDCallSecureStackBase;
 // More optimized variants
 
 #define SECURE_ENTRY                                                           \
+  "endbr64\n"                                                                   \
   /* Save current flags */                                                     \
   "pushf\n"                                                                    \
   /* Disable interrupts */                                                     \
@@ -228,7 +229,7 @@ extern const uintptr_t TDCallSecureStackBase;
   /* Get current PKRS value */                                                 \
   RD_PKSMSR                                                                    \
   /* Allow access for key 1 */                                                 \
-  "andq $0xFFFFFFFFFFFFFFF3, %rax\n"                                           \
+  "andq $0xFFFFFFFFFFFFFFF0, %rax\n"                                           \
   /* Update the PKRS value */                                                  \
   WR_PKSMSR                                                                    \
   /* CONFIG_ENCOS_WP */                                                        \
@@ -308,7 +309,7 @@ extern const uintptr_t TDCallSecureStackBase;
   /* Get current PKRS value */                                                 \
   RD_PKSMSR                                                                    \
   /* Allow access for key 1 */                                                 \
-  "andq $0xFFFFFFFFFFFFFFF3, %rax\n"                                           \
+  "andq $0xFFFFFFFFFFFFFFF0, %rax\n"                                           \
   /* Update the PKRS value */                                                  \
   WR_PKSMSR                                                                    \
   /* CONFIG_ENCOS_WP */                                                        \
@@ -352,7 +353,7 @@ extern const uintptr_t TDCallSecureStackBase;
   /* Get current PKRS value */                                                 \
   RD_PKSMSR                                                                    \
   /* Restrict write access for key 1 */                                        \
-  "orq $0x0000000000000008, %rax\n"                                            \
+  "orq $0x0000000000000000, %rax\n"                                            \
   /* Update the PKRS value */                                                  \
   WR_PKSMSR                                                                    \
   /* CONFIG_ENCOS_WP */                                                        \
@@ -372,6 +373,9 @@ extern const uintptr_t TDCallSecureStackBase;
 #endif
 
 #define SECURE_INTERRUPT_REDIRECT                                              \
+  DISABLE_INTERRUPTS                                                           \
+  DISABLE_PKS_PROTECTION                                                       \
+  ENABLE_INTERRUPTS                                                            \
 
 //===-- Wrapper macro for marking Secure Entrypoints ----------------------===//
 

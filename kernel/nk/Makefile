@@ -1,2 +1,2 @@
 CFLAGS_mmu.o := -w
-obj-y += mmu.o pks.o idt.o enc.o
+obj-y += mmu.o pks.o idt.o enc.o stats.o

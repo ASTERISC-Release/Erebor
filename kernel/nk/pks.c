@@ -72,10 +72,8 @@ int set_page_protection(unsigned long virtual_page, int should_protect)
      */
     /* Tightly copupling the split page function with pks.c for now */
     if(level == 2) {
-        // printk("set_page_protection - L2 split\n");
-        // printk("pks set_page_protection: START level=%d; entryVA=0x%lx, entry=0x%lx, type: %d, should_protect = %d\n", 
-        // level, (unsigned long)page_entry, *(unsigned long*)page_entry, getPageDescPtr(__pa(virtual_page))->type, should_protect);
         /* allocate a 4KB page as the L1_PTP */
+        // return 0;
         void *l1_ptp_page = (void *)__internal_alloc_PTP();
         if (!l1_ptp_page) {
             printk(KERN_ERR "Failed to allocate memory\n");

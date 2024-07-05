@@ -27,6 +27,11 @@
 #include "sva/pks.h"
 #include "sva/enc.h"
 
+#ifdef CONFIG_ENCOS_STATS
+#include "sva/sva.h"
+#include "sva/stats.h"
+#endif
+
 #include <asm/smap.h>
 #include <asm/text-patching.h>
 #include <linux/kasan.h>
@@ -68,6 +73,21 @@ static inline void print_insecure_stack(void) {
   LOG_PRINTK("_svastart: %lx, _svaend: %lx\n", __pa(_svastart), __pa(_svaend)); \
   printk("-----------------------------------------------"); \
   panic(args)
+
+static int rdtscp_smp_id(void)
+{
+	// use rdtscp to get processor id
+	unsigned int eax, ebx, ecx, edx;
+    __asm__ __volatile__ (
+        "rdtscp"            // Read Time-Stamp Counter and Processor ID
+        : "=a" (eax),       // Store lower 32 bits of TSC in eax
+          "=d" (edx),       // Store upper 32 bits of TSC in edx
+          "=c" (ecx)        // Store processor ID in ecx
+        :                   // No input
+        : "memory"          // Clobber memory
+    );
+    return (ecx & 0xfff);             // Return processor ID
+}
 
 /* 
  * Description: 
@@ -1099,6 +1119,9 @@ get_pteVaddr (pmd_t * pmd, unsigned long vaddr) {
 
 SECURE_WRAPPER(void, 
 sva_stack_test, void) {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_STACK_TEST);
+#endif
   unsigned long sp;
 	asm volatile (
 		"movq %%rsp, %0\n\t"
@@ -1106,7 +1129,8 @@ sva_stack_test, void) {
 		:
 		: "memory"
 	);
-  log_info("sva_stack_test, SP=0x%lx.\n", sp);
+  log_info("sva_stack_test, SP=0x%lx., PKRS=0x%lx\n", 
+  				sp, _rdmsr(MSR_REG_PKRS));
 }
 
 /*
@@ -1125,6 +1149,9 @@ sva_stack_test, void) {
  */
 SECURE_WRAPPER(void,
 sva_mm_load_pgtable, void *pg) {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_MM_LOAD_PAGETABLE);
+#endif
   MMULock_Acquire();
   /* Control Register 0 Value (which is used to enable paging) */
   unsigned int cr0;
@@ -1177,6 +1204,9 @@ fini:
  */
 SECURE_WRAPPER(void,
 sva_write_cr0, unsigned long val) {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_WRITE_CR0);
+#endif
 	// val |= CR0_WP;
 	_load_cr0(val);
 	// NK_ASSERT_PERF ((val & CR0_WP), "SVA: attempt to clear the CR0.WP bit: %x.",
@@ -1191,6 +1221,9 @@ sva_write_cr0, unsigned long val) {
  *  bits are enabled. 
  */
 SECURE_WRAPPER(void, sva_write_cr4, unsigned long val) {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_WRITE_CR4);
+#endif
   val |= (1ul << 24);    /* enable PKS */
   /* Chuqi: to enable SMAP/SMEP */
   // val |= (1 << 20);    /* enable SMEP */
@@ -1210,7 +1243,9 @@ SECURE_WRAPPER(void, sva_write_cr4, unsigned long val) {
 // sva_load_msr(u_int msr, uint64_t val) 
 void encos_write_msrl(unsigned int msr, unsigned long val)
 {
-
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_WRITE_MSRL);
+#endif
   if(msr == MSR_REG_EFER) {
 	  val |= EFER_NXE;
   }
@@ -1226,6 +1261,9 @@ void encos_write_msrl(unsigned int msr, unsigned long val)
 SECURE_WRAPPER(void, bench_encos_write_msrl,
 unsigned int msr, unsigned long val)
 {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_BENCH_ENCOS_WRITE_MSRL);
+#endif
 
   if(msr == MSR_REG_EFER) {
 	  val |= EFER_NXE;
@@ -1783,6 +1821,9 @@ makePTReadOnly (void) {
  *  - etext         : The last virtual address of the text segment.
  */
 SECURE_WRAPPER(void, sva_mmu_init, void) {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_MMU_INIT);
+#endif
   init_MMULock();
   MMULock_Acquire();
   /* Hello World! */
@@ -1803,6 +1844,18 @@ SECURE_WRAPPER(void, sva_mmu_init, void) {
   /* Protect the SVA data and code pages */
   LOG_PRINTK("_svastart va=0x%lx pa=0x%lx, _svaend va=0x%lx pa=0x%lx\n", 
 			  _svastart, __pa(_svastart), _svaend, __pa(_svaend));
+  
+  // after enter sva_mmu_init, print PKRS
+  LOG_PRINTK("Current smp_id=%d, PKRS=0x%lx\n", 
+				smp_processor_id(), _rdmsr(MSR_REG_PKRS));
+  // maunally change pkrs
+  _wrmsr(MSR_REG_PKRS, 0x0);
+
+  // print it again
+  LOG_PRINTK("Current PKRS=0x%lx\n", _rdmsr(MSR_REG_PKRS));
+  LOG_PRINTK("Current PKRS=0x%lx\n", _rdmsr(MSR_REG_PKRS));
+  LOG_PRINTK("Current PKRS=0x%lx\n", _rdmsr(MSR_REG_PKRS));
+
   init_protected_pages((unsigned long) _svastart, (unsigned long) _svaend, PG_SVA);
   printk("Done\n");
 
@@ -1887,6 +1940,9 @@ void declare_internal(unsigned long frameAddr, int level) {
  */
 SECURE_WRAPPER(void,
 sva_declare_l1_page, unsigned long frameAddr) {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_DECLARE_L1);
+#endif
   MMULock_Acquire();
 
   LOG_DECLARE("Declaring L1 page (%px)\n", (void*) frameAddr);
@@ -1956,6 +2012,9 @@ sva_declare_l1_page, unsigned long frameAddr) {
  */
 SECURE_WRAPPER(void, 
 sva_declare_l2_page, uintptr_t frameAddr) {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_DECLARE_L2);
+#endif
   MMULock_Acquire();
 
   LOG_DECLARE("Declaring L2 page (%px)\n", (void*) frameAddr);
@@ -2025,6 +2084,9 @@ sva_declare_l2_page, uintptr_t frameAddr) {
  */
 SECURE_WRAPPER(void,
 sva_declare_l3_page, unsigned long frameAddr) {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_DECLARE_L3);
+#endif
   MMULock_Acquire();
 
   // printk("ENCOS-Internal: Declaring L3 page internally. (frameaddr = %px)\n", 
@@ -2093,6 +2155,9 @@ sva_declare_l3_page, unsigned long frameAddr) {
  */
 SECURE_WRAPPER(void,
 sva_declare_l4_page, unsigned long frameAddr) {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_DECLARE_L4);
+#endif
   MMULock_Acquire();
 
   // printk("ENCOS-Internal: Declaring L4 page internally. (frameaddr = %px)\n", 
@@ -2158,6 +2223,9 @@ sva_declare_l4_page, unsigned long frameAddr) {
  */
 SECURE_WRAPPER(void,
 sva_declare_l5_page, unsigned long frameAddr) {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_DECLARE_L5);
+#endif
   MMULock_Acquire();
 
   // printk("ENCOS-Internal: Declaring L5 page internally. (frameaddr = %px)\n", 
@@ -2223,6 +2291,9 @@ sva_declare_l5_page, unsigned long frameAddr) {
  */
 SECURE_WRAPPER(void,
 sva_remove_page, unsigned long paddr) {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_REMOVE_PAGE);
+#endif
   MMULock_Acquire();
 
   /* Get the page_desc for the page frame */
@@ -2278,6 +2349,9 @@ sva_remove_page, unsigned long paddr) {
 
 SECURE_WRAPPER(void,
 sva_remove_pages, unsigned long paddr, unsigned int order) {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_REMOVE_PAGES);
+#endif
   int nr_pages = 1 << order;
   for (int i = 0; i < nr_pages; i++) {
 	sva_remove_page_secure(paddr + i * pageSize);
@@ -2300,6 +2374,9 @@ sva_remove_pages, unsigned long paddr, unsigned int order) {
  */
 SECURE_WRAPPER(void,
 sva_remove_mapping, page_entry_t *pteptr) {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_REMOVE_MAPPING);
+#endif
   MMULock_Acquire();
 //   if(mmuIsInitialized)
 		// set_page_protection((unsigned long)*pteptr, /*should_protect=*/0);
@@ -2326,6 +2403,9 @@ sva_remove_mapping, page_entry_t *pteptr) {
  */
 SECURE_WRAPPER(int,
 sva_update_l1_mapping, pte_t *pte, page_entry_t val) {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_UPDATE_L1);
+#endif
   MMULock_Acquire();
 
   /* Debugging */
@@ -2364,6 +2444,9 @@ sva_update_l1_mapping, pte_t *pte, page_entry_t val) {
  */
 SECURE_WRAPPER(void,
 sva_update_l2_mapping, pmd_t *pmd, page_entry_t val) {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_UPDATE_L2);
+#endif
   MMULock_Acquire();
 
   /* Debugging */
@@ -2411,6 +2494,9 @@ sva_update_l2_mapping, pmd_t *pmd, page_entry_t val) {
  */
 SECURE_WRAPPER(void, 
 sva_update_l3_mapping, pud_t * pud, page_entry_t val) {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_UPDATE_L3);
+#endif
   MMULock_Acquire();
 
   /* Debugging */
@@ -2442,6 +2528,9 @@ sva_update_l3_mapping, pud_t * pud, page_entry_t val) {
  */
 SECURE_WRAPPER(void, 
 sva_update_l4_mapping ,p4d_t * p4d, page_entry_t val) {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_UPDATE_L4);
+#endif
   MMULock_Acquire();
 
   /* Debugging */
@@ -2480,6 +2569,9 @@ sva_update_l4_mapping ,p4d_t * p4d, page_entry_t val) {
  */
 SECURE_WRAPPER(void, 
 sva_update_l5_mapping, pgd_t * pgd, page_entry_t val) {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_UPDATE_L5);
+#endif
   MMULock_Acquire();
 
   /* Debugging */
@@ -2520,6 +2612,9 @@ SECURE_WRAPPER(void, sva_secure_poke,
   text_poke_f func, void *addr, const void *src, size_t len,
   struct sva_secure_poke_t* spt) 
 {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_SECURE_POKE);
+#endif
   /* Debugging */
 //   LOG_PRINTK("sva_secure_poke (%px, %px, %px, %lx, %px)\n",
 //     func, addr, src, len, spt);
@@ -2558,6 +2653,9 @@ SECURE_WRAPPER(void, sva_secure_poke,
 
 SECURE_WRAPPER(void, sva_clear_page, 
   void *page) {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_COPY_USER);
+#endif
   // if(mmuIsInitialized)
 	// panic("Calling sva_clear_page post system boot\n");
   
@@ -2585,7 +2683,9 @@ static inline unsigned long read_eflags(void) {
 SECURE_WRAPPER(unsigned long, 
 sva_copy_user_generic, 
 void *to, const void *from, unsigned long len) {
-  
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_COPY_USER);
+#endif
 //   // printk("CR4.SMAP = %d\n", (__read_cr4() >> 21) & 0x1); // SMAP is enabled
 //   // printk("EFLAGS: 0x%lx\n", read_eflags());
 //   stac();  
@@ -2613,6 +2713,9 @@ SECURE_WRAPPER(void,
 sva_memcpy,
 void *dst, void *src, unsigned long len)
 {
+#ifdef CONFIG_ENCOS_STATS
+	stats_svacall_incr(SVA_MEMCPY);
+#endif
 	MMULock_Acquire();
 	memcpy(dst, src, len);
 	MMULock_Release();
