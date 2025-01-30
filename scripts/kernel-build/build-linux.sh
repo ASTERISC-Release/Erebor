@@ -58,7 +58,15 @@ CURBRANCH=`git status | head -1 | cut -d ' ' -f3`
 # Build the kernel executable
 pushd $LINUXFOLDER
     # copy the saved config
-    cp $CURDIR/.config.saved.nokvm-perf-nolivepatch-nospec-noloadmod-nohp-no5level-tdx-ibt .config
+    # Chuqi: this for KVM/TDX now
+    cp $CURDIR/.config.saved.nokvm-perf-nolivepatch-nospec-noloadmod-nohp-no5level-tdx .config
+    
+    # Chuqi: to be updated. this also enabled CET.
+    # but likely has to manually config in menuconfig:
+    # CONFIG_UNWINDER_ORC=n
+    # CONFIG_UNWINDER_FRAME_POINTER=y
+    # ((cannot fully automated for now :(
+    #cp $CURDIR/.config-noorc .config
     make -j`nproc`
 popd
 
@@ -84,6 +92,11 @@ pushd ../common
     } |& tee -a $CURDIR/build.kern.log
 popd
 
-# Execute this script only when we need to build kernel module
-# inside the guest.
+# Chuqi:
+# Execute the following command only when we need to build 
+# kernel module (LKM) inside the guest.
+
+# As our guest VM is configured to disable LKM, we don't need 
+# this anymore.
+
 #./copy-source.sh $PARAMS |& tee -a $CURDIR/build.kern.log

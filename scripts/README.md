@@ -62,6 +62,15 @@ As a research prototype and during development, you may encounter VM crash (e.g.
 
 Once the guest VM is started, please login and validate PKS is enabled in the VM (by checking `cpuid | grep PKS`).
 
+## To update:
+
+TBC. do `make menuconfig` to manually set them:
+
+```bash
+CONFIG_UNWINDER_ORC=n
+CONFIG_UNWINDER_FRAME_POINTER=y
+```
+
 ## Build for AMD SEV-ES
 
 > :stop_sign:
