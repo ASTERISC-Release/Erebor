@@ -36,6 +36,10 @@ While Erebor does not require host-side hypervisor/OS changes, we indeed have to
 
 Please `cd host-os` and follow the instructions in [host-os/](host-os/) to set up the host kernel/hypervisor.
 
+## 3. Prepare the environment for the guest (C)VM
+
+Now it is time to prepare the environments for guest CVM (normal VMs in case of **Setting-2**). Please `cd scripts` and follow the instructions in [scripts/](scripts/) to create the build and execution environment for guest CVMs.
+
 ## Useful Links
 
 - QEMU documentation for full-system emulation
