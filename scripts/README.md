@@ -1,6 +1,6 @@
 ## Building for AMD SEV-ES
 
-> [!Deprecated]
+> [!DEPRECATED]
 > Please note that our paper/project no longer supports AMD SEV-ES.
 > The below instructions are deprecated.
 
