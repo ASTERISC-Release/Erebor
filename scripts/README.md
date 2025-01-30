@@ -1,5 +1,9 @@
 ## Building for AMD SEV-ES
 
+> [!Deprecated]
+> Please note that our paper/project no longer supports AMD SEV-ES.
+> The below instructions are deprecated.
+
 - Install a QEMU/OVMF compatible with SEV
 ```
 cd <project-dir>/host-os/qemu
