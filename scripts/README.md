@@ -75,6 +75,7 @@ line-65:
 cp $CURDIR/.config.saved.nokvm-perf-nolivepatch-nospec-noloadmod-nohp-no5level-tdx .config (uncomment this)
 ```
 
+^ Ignore this if there is no issues ;)
 
 ## Build for AMD SEV-ES
 
