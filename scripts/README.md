@@ -30,9 +30,26 @@ An account is created for the guest VM:
  We have to build the VM guest with Erebor's security monitor enabled in the kernel.
 
 ```bash
-cd kernel-build/
-./build-linux.sh -c
+pushd kernel-build/
+    # Yup, use the option -c with no following parameter
+    ./build-linux.sh -c
+popd
 ```
+
+
+[!NOTE]
+If you want to play with the vmdisk image (to mount it to the host filesystem), there is a way:
+
+```bash
+pushd common/
+    # mount the vmdisk
+    ./load-vmdisk.sh -c
+    # unmount the vmdisk
+    ./unload-vmdisk.sh -c
+popd
+```
+
+Once you mounted the vmdisk image to the host filesystem, you should be able to see the mounted content under `vmdisk/mnt/`.
 
 3. Start the guest VM.
 
