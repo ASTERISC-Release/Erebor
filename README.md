@@ -6,11 +6,12 @@ In this repository, we provide steps to deploy and test the functionalities of o
 
 Due to guest CVMs are only available to specific server hardware with Intel TDX support, we provide two settings for ease of deployment:
 
-- 1. **Full CVM-functional testing.** This requires a host Intel server machine with Intel TDX supported. This setting follows the full CVM system model as mentioned in the paper.
-- 2. **Normal VM testing.** This merely requires a host Intel machine (without the need to support Intel TDX). In case of 
+- **Setting-1: Full CVM functional testing.** This requires a host Intel server machine with Intel TDX supported. This setting follows the full CVM system model as mentioned in the paper.
+
+- **Setting-2: Normal VM functional testing.** This merely requires a host Intel machine (without the need to support Intel TDX). Only Xeon 5th servers have Intel TDX support now. This setting uses normal guest VMs to mimic the CVM model, for only functionality tests and development.
 
 > [!IMPORTANT]
-> Please make sure that your Intel machine has Protection Keys Supervisor (PKS) support. Use this [script](https://github.com/Icegrave0391/check-pks) to check whether PKS is supported.
+> Please make sure that your Intel machine has *Protection Keys Supervisor (PKS)* support. Use this [script](https://github.com/Icegrave0391/check-pks) to check whether PKS is supported.
 
 3. Finally, run the VM using `run-vm.s`.
     - Once the VM starts, you can run `cpuid | grep PKS` to check if PKS is available. 
