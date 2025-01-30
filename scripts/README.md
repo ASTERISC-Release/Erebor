@@ -1,6 +1,6 @@
 ## Building for AMD SEV-ES
 
-> [!DEPRECATED]
+> :stop_sign:
 > Please note that our paper/project no longer supports AMD SEV-ES.
 > The below instructions are deprecated.
 
