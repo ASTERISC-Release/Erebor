@@ -37,7 +37,7 @@ popd
 ```
 
 
-[!NOTE]
+> [!NOTE]
 If you want to play with the vmdisk image (to mount it to the host filesystem), there is a way:
 
 ```bash
