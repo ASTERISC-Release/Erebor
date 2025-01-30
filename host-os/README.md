@@ -6,7 +6,7 @@ If you want to deploy **Setting-1** (on a TDX machine with CVM):
 
 Please execute the scripts in this [link](https://github.com/Icegrave0391/TDX-PKS-KVM/tree/main).
 
-If you want to deploy **Setting-2** (on a normal PC with normal-VM):
+If you want to deploy **Setting-2** (on a normal PC with normal-VM; this is recommended for personal testing and development):
 
 ```bash
 # compile and install the kernel
