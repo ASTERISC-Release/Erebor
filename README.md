@@ -10,13 +10,17 @@ Due to guest CVMs are only available to specific server hardware with Intel TDX 
 
 - **Setting-2: Normal VM functional testing.** This merely requires a host Intel machine (without the need to support Intel TDX). Only Xeon 5th servers have Intel TDX support now. This setting uses normal guest VMs to mimic the CVM model, for only functionality tests and development.
 
+**Note:** To deployment on PC for personal testing, please simply use **Setting-2**.
+
 > [!IMPORTANT]
 > Please make sure that your Intel machine has *Protection Keys Supervisor (PKS)* support. Use this [script](https://github.com/Icegrave0391/check-pks) to check whether PKS is supported.
 
 3. Finally, run the VM using `run-vm.s`.
     - Once the VM starts, you can run `cpuid | grep PKS` to check if PKS is available. 
 
-## Init the repo
+## 1. Init the repo
+
+Please run the following shell commands to initialize the source.
 
 ```bash
 # fetch and switch to the latest branch
@@ -25,6 +29,12 @@ git checkout tdx-eval-pks-no-wp
 # fetch all required submodule (gramine)
 git submodule update --init --recursive
 ```
+
+## 2. Prepare the host machine
+
+While Erebor does not require host-side hypervisor/OS changes, we indeed have to patch today's Linux/KVM to support *PKS virtualization* (for both **Setting-1 and Setting-2**) and *PKS for TDX guests* (for **Setting-1**).
+
+Please follow the instructions in [host-os/](host-os/) to set up the host kernel/hypervisor.
 
 ## Useful Links
 
