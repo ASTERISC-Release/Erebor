@@ -1,5 +1,9 @@
 #!/bin/bash
 
+pushd ../scripts/
+    ./pre-req.sh
+popd
+
 # build the PKS-enabled KVM-supported kernel
 LINUX_DIR="linux-pks-kvm"
 
@@ -13,7 +17,7 @@ cp config-pks-kvm ./$LINUX_DIR/.config
 
 # build kernel
 pushd $LINUX_DIR
-make -j`nproc`
-sudo make -j`nproc` INSTALL_MOD_STRIP=1 modules_install 
-sudo make -j`nproc` install
+    make -j`nproc`
+    sudo make -j`nproc` INSTALL_MOD_STRIP=1 modules_install 
+    sudo make -j`nproc` install
 popd
