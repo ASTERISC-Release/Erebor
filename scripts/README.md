@@ -57,6 +57,11 @@ Once you mounted the vmdisk image to the host filesystem, you should be able to 
 ./run-kvm-vm.sh
 ```
 
+> [!WARN]
+As a research prototype and during development, you may encounter VM crash (e.g., kernel panic). In such cases, please simply destroy the VM  (by typing Ctrl+]) and restart again.
+
+Once the guest VM is started, please login and validate PKS is enabled in the VM (by checking `cpuid | grep PKS`).
+
 ## Build for AMD SEV-ES
 
 > :stop_sign:
