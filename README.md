@@ -15,9 +15,6 @@ Due to guest CVMs are only available to specific server hardware with Intel TDX 
 > [!IMPORTANT]
 > Please make sure that your Intel machine has *Protection Keys Supervisor (PKS)* support. Use this [script](https://github.com/Icegrave0391/check-pks) to check whether PKS is supported.
 
-3. Finally, run the VM using `run-vm.s`.
-    - Once the VM starts, you can run `cpuid | grep PKS` to check if PKS is available. 
-
 ## 1. Init the repo
 
 Please run the following shell commands to initialize the source.
