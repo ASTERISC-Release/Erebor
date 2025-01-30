@@ -65,7 +65,9 @@ Once the guest VM is started, please login and validate PKS is enabled in the VM
 > [!WARNING]
 For **@Rahul**:
 The current guest kernel build script enables Intel CET. To support this, I had to modify to configurations as `CONFIG_UNWINDER_ORC=n` and `CONFIG_UNWINDER_FRAME_POINTER=y`.
-I am not sure whether such stack debugging settings would effect normal backtrace for our NK monitor debugging. 
+I am not sure whether such stack debugging settings would effect normal backtrace for our NK monitor debugging.
+>
+> If
 
 ## Build for AMD SEV-ES
 
