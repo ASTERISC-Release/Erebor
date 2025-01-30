@@ -13,7 +13,7 @@ TBC.
 
 ## For Setting-2: Build for Intel normal VMs (non-CVM)
 
-1. Create the guest VM disk image.
+### 1. Create the guest VM disk image.
 
 ```bash
 ./create-vm.sh
@@ -25,7 +25,7 @@ An account is created for the guest VM:
 - Username: `pks`
 - Password: `pks`
 
-2. Build the customized guest VM kernel.
+### 2. Build the customized guest VM kernel.
 
  We have to build the VM guest with Erebor's security monitor enabled in the kernel.
 
@@ -51,7 +51,7 @@ popd
 
 Once you mounted the vmdisk image to the host filesystem, you should be able to see the mounted content under `vmdisk/mnt/`.
 
-3. Start the guest VM.
+### 3. Start the guest VM.
 
 ```bash
 ./run-kvm-vm.sh
