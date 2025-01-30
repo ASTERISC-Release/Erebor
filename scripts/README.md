@@ -67,7 +67,7 @@ For **@Rahul**:
 The current guest kernel build script enables Intel CET. To support this, I had to modify the configurations as `CONFIG_UNWINDER_ORC=n` and `CONFIG_UNWINDER_FRAME_POINTER=y`.
 I am not sure whether such stack debugging settings would effect normal backtrace for our NK monitor debugging.
 >
-> If you indeed have some issue in debugging NK's stacktrace, please edit `kernel-build/build-linux.sh`
+> If you indeed have some issue in debugging NK's stacktrace, please edit `kernel-build/build-linux.sh`:
 ```bash
 line-67:
 # cp $CURDIR/.config-noorc .config (comment this out)
