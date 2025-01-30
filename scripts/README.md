@@ -62,14 +62,10 @@ As a research prototype and during development, you may encounter VM crash (e.g.
 
 Once the guest VM is started, please login and validate PKS is enabled in the VM (by checking `cpuid | grep PKS`).
 
-## To update:
-
-TBC. do `make menuconfig` to manually set them:
-
-```bash
-CONFIG_UNWINDER_ORC=n
-CONFIG_UNWINDER_FRAME_POINTER=y
-```
+> [!WARNING]
+For **@Rahul**:
+The current guest kernel build script enables Intel CET. To support this, I had to modify to configurations as `CONFIG_UNWINDER_ORC=n` and `CONFIG_UNWINDER_FRAME_POINTER=y`.
+I am not sure whether such stack debugging settings would effect normal backtrace for our NK monitor debugging. 
 
 ## Build for AMD SEV-ES
 
