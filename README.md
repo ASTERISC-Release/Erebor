@@ -32,7 +32,7 @@ git submodule update --init --recursive
 
 ## 2. Prepare the host machine
 
-While Erebor does not require host-side hypervisor/OS changes, we indeed have to patch today's Linux/KVM to support *PKS virtualization* (for both **Setting-1 and Setting-2**) and *PKS for TDX guests* (for **Setting-1**).
+While Erebor does not require host-side hypervisor/OS changes, we indeed have to patch today's Linux/KVM to support *PKS virtualization* (for both **Setting-1 and Setting-2**) and support *PKS within TDX's TD guests* (for **Setting-1**).
 
 Please `cd host-os` and follow the instructions in [host-os/](host-os/) to set up the host kernel/hypervisor.
 
