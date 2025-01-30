@@ -25,10 +25,19 @@ An account is created for the guest VM:
 - Username: `pks`
 - Password: `pks`
 
-2. Build the guest kernel (with Erebor's security monitor enabled)
+2. Build the customized guest VM kernel.
+
+ We have to build the VM guest with Erebor's security monitor enabled in the kernel.
 
 ```bash
+cd kernel-build/
+./build-linux.sh -c
+```
 
+3. Start the guest VM.
+
+```bash
+./run-kvm-vm.sh
 ```
 
 ## Build for AMD SEV-ES
