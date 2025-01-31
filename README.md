@@ -40,6 +40,10 @@ Now it is time to prepare the environments for guest CVM (normal VMs in case of 
 
 ## Useful Links
 
+
+- Intel TDX host configuration and guest image preparation
+    - https://github.com/Icegrave0391/tdx
+
 - QEMU documentation for full-system emulation
     - https://www.qemu.org/docs/master/system/index.html 
 
