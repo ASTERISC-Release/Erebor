@@ -58,15 +58,15 @@ CURBRANCH=`git status | head -1 | cut -d ' ' -f3`
 # Build the kernel executable
 pushd $LINUXFOLDER
     # copy the saved config
-    # Chuqi: this for KVM/TDX now
-    cp $CURDIR/.config.saved.nokvm-perf-nolivepatch-nospec-noloadmod-nohp-no5level-tdx .config
     
-    # Chuqi: to be updated. this also enabled CET.
-    # but likely has to manually config in menuconfig:
-    # CONFIG_UNWINDER_ORC=n
-    # CONFIG_UNWINDER_FRAME_POINTER=y
-    # ((cannot fully automated for now :(
-    #cp $CURDIR/.config-noorc .config
+    # Chuqi: this for KVM/TDX now
+
+    # echo "Using config: $CURDIR/.config.saved.nokvm-perf-nolivepatch-nospec-noloadmod-nohp-no5level-tdx"
+    # cp $CURDIR/.config.saved.nokvm-perf-nolivepatch-nospec-noloadmod-nohp-no5level-tdx .config
+    
+    # Chuqi: for CET
+    echo "Using config: $CURDIR/.config-noorc"
+    cp $CURDIR/.config-noorc .config
     make -j`nproc`
 popd
 

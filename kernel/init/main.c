@@ -879,7 +879,7 @@ void start_kernel(void)
 
 	printk("Start Kernel");
 #ifdef CONFIG_ENCOS
-	printk(KERN_EMERG "ENCOS Enabled!");
+	printk(KERN_EMERG "ENCOS Enabled! PKS! CET!");
 #endif
 	// extern char _stext[]; 	
 	// extern char _etext[]; 
