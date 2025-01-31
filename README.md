@@ -10,7 +10,8 @@ Due to guest CVMs are only available to specific server hardware with Intel TDX 
 
 - **Setting-2: Normal VM functional testing.** This merely requires a host Intel machine (without the need to support Intel TDX). Only Xeon 5th servers have Intel TDX support now. This setting uses normal guest VMs to mimic the CVM model, for only functionality tests and development.
 
-**Note:** To deployment on PC for personal testing, please simply use **Setting-2**.
+> [!NOTE] 
+> To deployment on PC for personal testing, please simply use **Setting-2**.
 
 > [!IMPORTANT]
 > Please make sure that your Intel machine has *Protection Keys Supervisor (PKS)* support. Use this [script](https://github.com/Icegrave0391/check-pks) to check whether PKS is supported.
