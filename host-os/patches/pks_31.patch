@@ -1,0 +1,111 @@
+ include/linux/memremap.h | 35 +++++++++++++++++++++++++++++++++++
+ include/linux/sched.h    |  7 +++++++
+ init/init_task.c         |  3 +++
+ mm/memremap.c            | 14 ++++++++++++++
+ 4 files changed, 59 insertions(+)
+
+diff --git a/include/linux/memremap.h b/include/linux/memremap.h
+index 6325f00096ec..1012c6c4c664 100644
+--- a/include/linux/memremap.h
++++ b/include/linux/memremap.h
+@@ -240,8 +240,43 @@ static inline bool devmap_protected(struct page *page)
+ 	return false;
+ }
+ 
++void __pgmap_set_readwrite(struct dev_pagemap *pgmap);
++void __pgmap_set_noaccess(struct dev_pagemap *pgmap);
++
++static inline bool pgmap_check_pgmap_prot(struct page *page)
++{
++	if (!devmap_protected(page))
++		return false;
++
++	/*
++	 * There is no known use case to change permissions in an irq for pgmap
++	 * pages
++	 */
++	lockdep_assert_in_irq();
++	return true;
++}
++
++static inline void pgmap_set_readwrite(struct page *page)
++{
++	if (!pgmap_check_pgmap_prot(page))
++		return;
++	__pgmap_set_readwrite(page->pgmap);
++}
++
++static inline void pgmap_set_noaccess(struct page *page)
++{
++	if (!pgmap_check_pgmap_prot(page))
++		return;
++	__pgmap_set_noaccess(page->pgmap);
++}
++
+ #else
+ 
++static inline void __pgmap_set_readwrite(struct dev_pagemap *pgmap) { }
++static inline void __pgmap_set_noaccess(struct dev_pagemap *pgmap) { }
++static inline void pgmap_set_readwrite(struct page *page) { }
++static inline void pgmap_set_noaccess(struct page *page) { }
++
+ static inline bool pgmap_protection_available(void)
+ {
+ 	return false;
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index d5e3c00b74e1..7da0d2a0ac74 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1498,6 +1498,13 @@ struct task_struct {
+ 	struct callback_head		l1d_flush_kill;
+ #endif
+ 
++#ifdef CONFIG_DEVMAP_ACCESS_PROTECTION
++	/*
++	 * NOTE: pgmap_prot_count is modified within a single thread of
++	 * execution.  So it does not need to be atomic_t.
++	 */
++	u32                             pgmap_prot_count;
++#endif
+ 	/*
+ 	 * New fields for task_struct should be added above here, so that
+ 	 * they are included in the randomized portion of task_struct.
+diff --git a/init/init_task.c b/init/init_task.c
+index 73cc8f03511a..948b32cf8139 100644
+--- a/init/init_task.c
++++ b/init/init_task.c
+@@ -209,6 +209,9 @@ struct task_struct init_task
+ #ifdef CONFIG_SECCOMP_FILTER
+ 	.seccomp	= { .filter_count = ATOMIC_INIT(0) },
+ #endif
++#ifdef CONFIG_DEVMAP_ACCESS_PROTECTION
++	.pgmap_prot_count = 0,
++#endif
+ };
+ EXPORT_SYMBOL(init_task);
+ 
+diff --git a/mm/memremap.c b/mm/memremap.c
+index 215ab9c51917..491bb49255ae 100644
+--- a/mm/memremap.c
++++ b/mm/memremap.c
+@@ -94,6 +94,20 @@ static void devmap_protection_disable(void)
+ 	static_branch_dec(&dev_pgmap_protection_static_key);
+ }
+ 
++void __pgmap_set_readwrite(struct dev_pagemap *pgmap)
++{
++	if (!current->pgmap_prot_count++)
++		pks_set_readwrite(PKS_KEY_PGMAP_PROTECTION);
++}
++EXPORT_SYMBOL_GPL(__pgmap_set_readwrite);
++
++void __pgmap_set_noaccess(struct dev_pagemap *pgmap)
++{
++	if (!--current->pgmap_prot_count)
++		pks_set_noaccess(PKS_KEY_PGMAP_PROTECTION);
++}
++EXPORT_SYMBOL_GPL(__pgmap_set_noaccess);
++
+ #else /* !CONFIG_DEVMAP_ACCESS_PROTECTION */
+ 
+ static void devmap_protection_enable(void) { }

@@ -1,0 +1,98 @@
+diff --git a/arch/x86/include/asm/msr-index.h b/arch/x86/include/asm/msr-index.h
+index ee15311b6be1..e8e33b5ed507 100644
+--- a/arch/x86/include/asm/msr-index.h
++++ b/arch/x86/include/asm/msr-index.h
+@@ -809,6 +809,7 @@
+ 
+ #define MSR_IA32_TSC_DEADLINE		0x000006E0
+ 
++#define MSR_IA32_PKRS			0x000006E1
+ 
+ #define MSR_TSX_FORCE_ABORT		0x0000010F
+ 
+diff --git a/arch/x86/include/asm/pks.h b/arch/x86/include/asm/pks.h
+new file mode 100644
+index 000000000000..8180fc59790b
+--- /dev/null
++++ b/arch/x86/include/asm/pks.h
+@@ -0,0 +1,15 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _ASM_X86_PKS_H
++#define _ASM_X86_PKS_H
++
++#ifdef CONFIG_ARCH_ENABLE_SUPERVISOR_PKEYS
++
++void pks_setup(void);
++
++#else /* !CONFIG_ARCH_ENABLE_SUPERVISOR_PKEYS */
++
++static inline void pks_setup(void) { }
++
++#endif /* CONFIG_ARCH_ENABLE_SUPERVISOR_PKEYS */
++
++#endif /* _ASM_X86_PKS_H */
+diff --git a/arch/x86/include/uapi/asm/processor-flags.h b/arch/x86/include/uapi/asm/processor-flags.h
+index c47cc7f2feeb..21b7783885b3 100644
+--- a/arch/x86/include/uapi/asm/processor-flags.h
++++ b/arch/x86/include/uapi/asm/processor-flags.h
+@@ -132,6 +132,8 @@
+ #define X86_CR4_PKE		_BITUL(X86_CR4_PKE_BIT)
+ #define X86_CR4_CET_BIT		23 /* enable Control-flow Enforcement Technology */
+ #define X86_CR4_CET		_BITUL(X86_CR4_CET_BIT)
++#define X86_CR4_PKS_BIT		24 /* enable Protection Keys for Supervisor */
++#define X86_CR4_PKS		_BITUL(X86_CR4_PKS_BIT)
+ 
+ /*
+  * x86-64 Task Priority Register, CR8
+diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c
+index e342ae4db3c4..4c0623783bd8 100644
+--- a/arch/x86/kernel/cpu/common.c
++++ b/arch/x86/kernel/cpu/common.c
+@@ -60,6 +60,7 @@
+ #include <asm/uv/uv.h>
+ #include <asm/sigframe.h>
+ #include <asm/traps.h>
++#include <asm/pks.h>
+ 
+ #include "cpu.h"
+ 
+@@ -1764,6 +1765,7 @@ static void identify_cpu(struct cpuinfo_x86 *c)
+ 	x86_init_rdrand(c);
+ 	setup_pku(c);
+ 	setup_cet(c);
++	pks_setup();
+ 
+ 	/*
+ 	 * Clear/Set all flags overridden by options, need do it
+diff --git a/arch/x86/mm/pkeys.c b/arch/x86/mm/pkeys.c
+index 7c90b2188c5f..f904376570f4 100644
+--- a/arch/x86/mm/pkeys.c
++++ b/arch/x86/mm/pkeys.c
+@@ -6,6 +6,7 @@
+ #include <linux/debugfs.h>		/* debugfs_create_u32()		*/
+ #include <linux/mm_types.h>             /* mm_struct, vma, etc...       */
+ #include <linux/pkeys.h>                /* PKEY_*                       */
++#include <linux/pks-keys.h>
+ #include <uapi/asm-generic/mman-common.h>
+ 
+ #include <asm/cpufeature.h>             /* boot_cpu_has, ...            */
+@@ -209,3 +210,19 @@ u32 pkey_update_pkval(u32 pkval, u8 pkey, u32 accessbits)
+ 	pkval &= ~(PKEY_ACCESS_MASK << shift);
+ 	return pkval | accessbits << shift;
+ }
++
++#ifdef CONFIG_ARCH_ENABLE_SUPERVISOR_PKEYS
++
++/*
++ * PKS is independent of PKU and either or both may be supported on a CPU.
++ */
++void pks_setup(void)
++{
++	if (!cpu_feature_enabled(X86_FEATURE_PKS))
++		return;
++
++	wrmsrl(MSR_IA32_PKRS, PKS_INIT_VALUE);
++	cr4_set_bits(X86_CR4_PKS);
++}
++
++#endif /* CONFIG_ARCH_ENABLE_SUPERVISOR_PKEYS */

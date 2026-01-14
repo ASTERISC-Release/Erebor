@@ -1,0 +1,32 @@
+ include/linux/pks-keys.h | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/pks-keys.h b/include/linux/pks-keys.h
+index c914afecb2d3..4e63c8061e55 100644
+--- a/include/linux/pks-keys.h
++++ b/include/linux/pks-keys.h
+@@ -60,17 +60,22 @@
+ 
+ /* PKS_KEY_DEFAULT must be 0 */
+ #define PKS_KEY_DEFAULT		0
+-#define PKS_KEY_MAX		PKS_NEW_KEY(PKS_KEY_DEFAULT, 1)
++#define PKS_KEY_PGMAP_PROTECTION \
++		PKS_NEW_KEY(PKS_KEY_DEFAULT, CONFIG_DEVMAP_ACCESS_PROTECTION)
++#define PKS_KEY_MAX		PKS_NEW_KEY(PKS_KEY_PGMAP_PROTECTION, 1)
+ 
+ /* PKS_KEY_DEFAULT_INIT must be RW */
+ #define PKS_KEY_DEFAULT_INIT	PKS_DECLARE_INIT_VALUE(PKS_KEY_DEFAULT, RW, 1)
++#define PKS_KEY_PGMAP_INIT	PKS_DECLARE_INIT_VALUE(PKS_KEY_PGMAP_PROTECTION, \
++					AD, CONFIG_DEVMAP_ACCESS_PROTECTION)
+ 
+ #define PKS_ALL_AD_MASK \
+ 	GENMASK(PKS_NUM_PKEYS * PKR_BITS_PER_PKEY, \
+ 		PKS_KEY_MAX * PKR_BITS_PER_PKEY)
+ 
+ #define PKS_INIT_VALUE ((PKS_ALL_AD & PKS_ALL_AD_MASK) | \
+-			PKS_KEY_DEFAULT_INIT \
++			PKS_KEY_DEFAULT_INIT | \
++			PKS_KEY_PGMAP_INIT \
+ 			)
+ 
+ #endif /* CONFIG_ARCH_ENABLE_SUPERVISOR_PKEYS */

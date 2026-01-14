@@ -1,0 +1,17 @@
+qemu-7.1.0.tar.xz
+qemu-7.1.0/
+build.kern.log
+
+*.swp
+.vscode
+
+#gdb
+.gdb_history
+peda-session-vmlinux.txt
+
+llvm-14
+kernel/binary.txt
+
+files
+
+kernel/drivers/firmware/efi

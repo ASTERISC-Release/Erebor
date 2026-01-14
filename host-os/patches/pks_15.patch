@@ -1,0 +1,45 @@
+
+diff --git a/Documentation/core-api/protection-keys.rst b/Documentation/core-api/protection-keys.rst
+index 3af92e1cbffd..78904d98519b 100644
+--- a/Documentation/core-api/protection-keys.rst
++++ b/Documentation/core-api/protection-keys.rst
+@@ -147,7 +147,7 @@ Changing permissions of individual keys
+ ---------------------------------------
+ 
+ .. kernel-doc:: include/linux/pks.h
+-        :identifiers: pks_set_readwrite
++        :identifiers: pks_set_readwrite pks_set_noaccess
+ 
+ MSR details
+ ~~~~~~~~~~~
+diff --git a/include/linux/pks.h b/include/linux/pks.h
+index 8b705a937b19..9f18f8b4cbb1 100644
+--- a/include/linux/pks.h
++++ b/include/linux/pks.h
+@@ -10,6 +10,18 @@
+ 
+ void pks_update_protection(u8 pkey, u8 protection);
+ 
++/**
++ * pks_set_noaccess() - Disable all access to the domain
++ * @pkey: the pkey for which the access should change.
++ *
++ * Disable all access to the domain specified by pkey.  This is not a global
++ * update and only affects the current running thread.
++ */
++static inline void pks_set_noaccess(u8 pkey)
++{
++	pks_update_protection(pkey, PKEY_DISABLE_ACCESS);
++}
++
+ /**
+  * pks_set_readwrite() - Make the domain Read/Write
+  * @pkey: the pkey for which the access should change.
+@@ -24,6 +36,7 @@ static inline void pks_set_readwrite(u8 pkey)
+ 
+ #else /* !CONFIG_ARCH_ENABLE_SUPERVISOR_PKEYS */
+ 
++static inline void pks_set_noaccess(u8 pkey) {}
+ static inline void pks_set_readwrite(u8 pkey) {}
+ 
+ #endif /* CONFIG_ARCH_ENABLE_SUPERVISOR_PKEYS */

@@ -1,0 +1,89 @@
+---
+ arch/x86/include/asm/kvm_host.h |  2 ++
+ arch/x86/kvm/kvm_cache_regs.h   |  7 +++++++
+ arch/x86/kvm/vmx/vmx.c          | 11 +++++++++++
+ arch/x86/kvm/vmx/vmx.h          |  3 ++-
+ 4 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
+index e0c0f0e1f754..f5455bada8cd 100644
+--- a/arch/x86/include/asm/kvm_host.h
++++ b/arch/x86/include/asm/kvm_host.h
+@@ -180,6 +180,7 @@ enum kvm_reg {
+ 	VCPU_EXREG_SEGMENTS,
+ 	VCPU_EXREG_EXIT_INFO_1,
+ 	VCPU_EXREG_EXIT_INFO_2,
++	VCPU_EXREG_PKRS,
+ };
+ 
+ enum {
+@@ -638,6 +639,7 @@ struct kvm_vcpu_arch {
+ 	unsigned long cr8;
+ 	u32 host_pkru;
+ 	u32 pkru;
++	u32 pkrs;
+ 	u32 hflags;
+ 	u64 efer;
+ 	u64 apic_base;
+diff --git a/arch/x86/kvm/kvm_cache_regs.h b/arch/x86/kvm/kvm_cache_regs.h
+index 3febc342360c..2b2540ca584f 100644
+--- a/arch/x86/kvm/kvm_cache_regs.h
++++ b/arch/x86/kvm/kvm_cache_regs.h
+@@ -177,6 +177,13 @@ static inline u64 kvm_read_edx_eax(struct kvm_vcpu *vcpu)
+ 		| ((u64)(kvm_rdx_read(vcpu) & -1u) << 32);
+ }
+ 
++static inline u32 kvm_read_pkrs(struct kvm_vcpu *vcpu)
++{
++	if (!kvm_register_is_available(vcpu, VCPU_EXREG_PKRS))
++		static_call(kvm_x86_cache_reg)(vcpu, VCPU_EXREG_PKRS);
++	return vcpu->arch.pkrs;
++}
++
+ static inline void enter_guest_mode(struct kvm_vcpu *vcpu)
+ {
+ 	vcpu->arch.hflags |= HF_GUEST_MASK;
+diff --git a/arch/x86/kvm/vmx/vmx.c b/arch/x86/kvm/vmx/vmx.c
+index 04d170c4b61e..395b2deb76aa 100644
+--- a/arch/x86/kvm/vmx/vmx.c
++++ b/arch/x86/kvm/vmx/vmx.c
+@@ -2258,6 +2258,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
+ static void vmx_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
+ {
+ 	unsigned long guest_owned_bits;
++	u64 ia32_pkrs;
+ 
+ 	kvm_register_mark_available(vcpu, reg);
+ 
+@@ -2292,6 +2293,16 @@ static void vmx_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
+ 		vcpu->arch.cr4 &= ~guest_owned_bits;
+ 		vcpu->arch.cr4 |= vmcs_readl(GUEST_CR4) & guest_owned_bits;
+ 		break;
++	case VCPU_EXREG_PKRS:
++		/*
++		 * The high 32 bits of PKRS are reserved and attempting to write
++		 * non-zero value will cause #GP. KVM intentionally drops those
++		 * bits.
++		 */
++		ia32_pkrs = vmcs_read64(GUEST_IA32_PKRS);
++		WARN_ON_ONCE(ia32_pkrs >> 32);
++		vcpu->arch.pkrs = ia32_pkrs;
++		break;
+ 	default:
+ 		KVM_BUG_ON(1, vcpu->kvm);
+ 		break;
+diff --git a/arch/x86/kvm/vmx/vmx.h b/arch/x86/kvm/vmx/vmx.h
+index 9c6bfcd84008..661df9584b12 100644
+--- a/arch/x86/kvm/vmx/vmx.h
++++ b/arch/x86/kvm/vmx/vmx.h
+@@ -499,7 +499,8 @@ BUILD_CONTROLS_SHADOW(secondary_exec, SECONDARY_VM_EXEC_CONTROL)
+ 				(1 << VCPU_EXREG_CR3) |         \
+ 				(1 << VCPU_EXREG_CR4) |         \
+ 				(1 << VCPU_EXREG_EXIT_INFO_1) | \
+-				(1 << VCPU_EXREG_EXIT_INFO_2))
++				(1 << VCPU_EXREG_EXIT_INFO_2) | \
++				(1 << VCPU_EXREG_PKRS))
+ 
+ static inline struct kvm_vmx *to_kvm_vmx(struct kvm *kvm)
+ {
+-- 

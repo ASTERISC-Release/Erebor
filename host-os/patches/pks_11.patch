@@ -1,0 +1,69 @@
+diff --git a/Documentation/core-api/protection-keys.rst b/Documentation/core-api/protection-keys.rst
+index d501bd27ee29..fe63acf5abbe 100644
+--- a/Documentation/core-api/protection-keys.rst
++++ b/Documentation/core-api/protection-keys.rst
+@@ -136,3 +136,9 @@ PKS Key Allocation
+ ------------------
+ .. kernel-doc:: include/linux/pks-keys.h
+         :doc: PKS_KEY_ALLOCATION
++
++Adding pages to a pkey protected domain
++---------------------------------------
++
++.. kernel-doc:: arch/x86/include/asm/pgtable_types.h
++        :doc: PKS_KEY_ASSIGNMENT
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+index 40497a9020c6..e1d4535b525e 100644
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -71,6 +71,22 @@
+ 			 _PAGE_PKEY_BIT2 | \
+ 			 _PAGE_PKEY_BIT3)
+ 
++/**
++ * DOC: PKS_KEY_ASSIGNMENT
++ *
++ * The following macros are used to set a pkey value in a supervisor PTE.
++ *
++ * .. code-block:: c
++ *
++ *         #define _PAGE_KEY(pkey)
++ *         #define PAGE_KERNEL_PKEY(pkey)
++ */
++#ifdef CONFIG_ARCH_ENABLE_SUPERVISOR_PKEYS
++#define _PAGE_PKEY(pkey)	(_AT(pteval_t, pkey) << _PAGE_BIT_PKEY_BIT0)
++#else
++#define _PAGE_PKEY(pkey)	(_AT(pteval_t, 0))
++#endif
++
+ #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
+ #define _PAGE_KNL_ERRATUM_MASK (_PAGE_DIRTY | _PAGE_ACCESSED)
+ #else
+@@ -226,6 +242,12 @@ enum page_cache_mode {
+ #define PAGE_KERNEL_IO		__pgprot_mask(__PAGE_KERNEL_IO)
+ #define PAGE_KERNEL_IO_NOCACHE	__pgprot_mask(__PAGE_KERNEL_IO_NOCACHE)
+ 
++#ifdef CONFIG_ARCH_ENABLE_SUPERVISOR_PKEYS
++#define PAGE_KERNEL_PKEY(pkey)	__pgprot_mask(__PAGE_KERNEL | _PAGE_PKEY(pkey))
++#else
++#define PAGE_KERNEL_PKEY(pkey) PAGE_KERNEL
++#endif
++
+ #endif	/* __ASSEMBLY__ */
+ 
+ /*         xwr */
+diff --git a/include/linux/pgtable.h b/include/linux/pgtable.h
+index f4f4077b97aa..bcef6b306fcb 100644
+--- a/include/linux/pgtable.h
++++ b/include/linux/pgtable.h
+@@ -1511,6 +1511,10 @@ static inline bool arch_has_pfn_modify_check(void)
+ # define PAGE_KERNEL_EXEC PAGE_KERNEL
+ #endif
+ 
++#ifndef PAGE_KERNEL_PKEY
++#define PAGE_KERNEL_PKEY(pkey) PAGE_KERNEL
++#endif
++
+ /*
+  * Page Table Modification bits for pgtbl_mod_mask.
+  *

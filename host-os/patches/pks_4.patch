@@ -1,0 +1,75 @@
+diff --git a/arch/x86/include/asm/pkeys.h b/arch/x86/include/asm/pkeys.h
+index 1d5f14aff5f6..26616cbe19e2 100644
+--- a/arch/x86/include/asm/pkeys.h
++++ b/arch/x86/include/asm/pkeys.h
+@@ -131,4 +131,6 @@ static inline int vma_pkey(struct vm_area_struct *vma)
+ 	return (vma->vm_flags & vma_pkey_mask) >> VM_PKEY_SHIFT;
+ }
+ 
++u32 pkey_update_pkval(u32 pkval, u8 pkey, u32 accessbits);
++
+ #endif /*_ASM_X86_PKEYS_H */
+diff --git a/arch/x86/kernel/fpu/xstate.c b/arch/x86/kernel/fpu/xstate.c
+index e525bfee7e07..ea9207b12863 100644
+--- a/arch/x86/kernel/fpu/xstate.c
++++ b/arch/x86/kernel/fpu/xstate.c
+@@ -984,8 +984,7 @@ void *get_xsave_addr(struct xregs_state *xsave, int xfeature_nr)
+ int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
+ 			      unsigned long init_val)
+ {
+-	u32 old_pkru, new_pkru_bits = 0;
+-	int pkey_shift;
++	u32 pkru;
+ 
+ 	/*
+ 	 * This check implies XSAVE support.  OSPKE only gets
+@@ -1002,22 +1001,9 @@ int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
+ 	if (WARN_ON_ONCE(pkey >= arch_max_pkey()))
+ 		return -EINVAL;
+ 
+-	/* Set the bits needed in PKRU:  */
+-	if (init_val & PKEY_DISABLE_ACCESS)
+-		new_pkru_bits |= PKR_AD_BIT;
+-	if (init_val & PKEY_DISABLE_WRITE)
+-		new_pkru_bits |= PKR_WD_BIT;
+-
+-	/* Shift the bits in to the correct place in PKRU for pkey: */
+-	pkey_shift = pkey * PKR_BITS_PER_PKEY;
+-	new_pkru_bits <<= pkey_shift;
+-
+-	/* Get old PKRU and mask off any old bits in place: */
+-	old_pkru = read_pkru();
+-	old_pkru &= ~((PKR_AD_BIT|PKR_WD_BIT) << pkey_shift);
+-
+-	/* Write old part along with new part: */
+-	write_pkru(old_pkru | new_pkru_bits);
++	pkru = read_pkru();
++	pkru = pkey_update_pkval(pkru, pkey, init_val);
++	write_pkru(pkru);
+ 
+ 	return 0;
+ }
+diff --git a/arch/x86/mm/pkeys.c b/arch/x86/mm/pkeys.c
+index e1527b4619e1..7c90b2188c5f 100644
+--- a/arch/x86/mm/pkeys.c
++++ b/arch/x86/mm/pkeys.c
+@@ -193,3 +193,19 @@ static __init int setup_init_pkru(char *opt)
+ 	return 1;
+ }
+ __setup("init_pkru=", setup_init_pkru);
++
++/*
++ * Kernel users use the same flags as user space:
++ *     PKEY_DISABLE_ACCESS
++ *     PKEY_DISABLE_WRITE
++ */
++u32 pkey_update_pkval(u32 pkval, u8 pkey, u32 accessbits)
++{
++	int shift = pkey * PKR_BITS_PER_PKEY;
++
++	if (WARN_ON_ONCE(accessbits & ~PKEY_ACCESS_MASK))
++		accessbits &= PKEY_ACCESS_MASK;
++
++	pkval &= ~(PKEY_ACCESS_MASK << shift);
++	return pkval | accessbits << shift;
++}
