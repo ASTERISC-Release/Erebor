@@ -451,7 +451,7 @@ static int __init encos_dev_init(void)
              ENCOS_DEV_NAME, misc->mode);
 
     /* perf_test */
-    encos_micro_perf();
+    // encos_micro_perf();
     return 0;
 }
 
